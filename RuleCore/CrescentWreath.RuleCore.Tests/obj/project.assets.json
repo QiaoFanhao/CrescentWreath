@@ -393,6 +393,16 @@
         "build": {
           "build/net8.0/xunit.runner.visualstudio.props": {}
         }
+      },
+      "CrescentWreath.RuleCore/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v2.1",
+        "compile": {
+          "bin/placeholder/CrescentWreath.RuleCore.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/CrescentWreath.RuleCore.dll": {}
+        }
       }
     }
   },
@@ -903,10 +913,16 @@
         "xunit.runner.visualstudio.3.1.4.nupkg.sha512",
         "xunit.runner.visualstudio.nuspec"
       ]
+    },
+    "CrescentWreath.RuleCore/1.0.0": {
+      "type": "project",
+      "path": "../CrescentWreath.RuleCore/CrescentWreath.RuleCore.csproj",
+      "msbuildProject": "../CrescentWreath.RuleCore/CrescentWreath.RuleCore.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
+      "CrescentWreath.RuleCore >= 1.0.0",
       "Microsoft.NET.Test.Sdk >= 17.14.1",
       "coverlet.collector >= 6.0.4",
       "xunit >= 2.9.3",
@@ -944,7 +960,11 @@
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
-          "projectReferences": {}
+          "projectReferences": {
+            "D:\\Unity\\UnityProject\\CrescentWreath\\RuleCore\\CrescentWreath.RuleCore\\CrescentWreath.RuleCore.csproj": {
+              "projectPath": "D:\\Unity\\UnityProject\\CrescentWreath\\RuleCore\\CrescentWreath.RuleCore\\CrescentWreath.RuleCore.csproj"
+            }
+          }
         }
       },
       "warningProperties": {
