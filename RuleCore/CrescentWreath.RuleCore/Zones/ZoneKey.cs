@@ -3,12 +3,13 @@ namespace CrescentWreath.RuleCore.Zones;
 public enum ZoneKey
 {
     deck,
+    field,
     hand,
     discard,
-    banish,
+    anomalyDeck,
+    sakuraCakeDeck,
+    overlayContainer,
     summonZone,
-    defensePlace,
-    defenseLikePlace,
     gapZone,
     publicTreasureDeck,
     characterSetAside,

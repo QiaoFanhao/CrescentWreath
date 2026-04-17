@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CrescentWreath.RuleCore.Ids;
 
 namespace CrescentWreath.RuleCore.DamageSystem;
@@ -15,10 +16,12 @@ public sealed class DamageContext
     public CharacterInstanceId? targetCharacterInstanceId { get; set; }
 
     public int baseDamageValue { get; set; }
+    public string damageType { get; set; } = "physical";
     public string? defenseDeclarationKey { get; set; }
     public bool isReplaced { get; set; }
     public bool isImmune { get; set; }
     public bool isPrevented { get; set; }
     public int finalDamageValue { get; set; }
     public bool didDealDamage { get; set; }
+    public List<string> appliedShortEffectKeys { get; } = new();
 }

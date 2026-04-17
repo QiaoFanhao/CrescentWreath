@@ -68,3 +68,13 @@ mono_crash.*
 
 # ---------- Optional local artifacts ----------
 *.zip
+# ---------- Local environment / tooling caches ----------
+bin/
+obj/
+.vscode/
+.dotnet/
+.dotnet_cli/
+.dotnet_home/
+.dotnet-home/
+.claude/
+*.trn

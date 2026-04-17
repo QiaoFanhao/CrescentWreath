@@ -13,6 +13,7 @@ public sealed class StatusInstance
 
     public CardInstanceId? targetCardInstanceId { get; set; }
     public CharacterInstanceId? targetCharacterInstanceId { get; set; }
+    public PlayerId? targetPlayerId { get; set; }
 
     public int stackCount { get; set; }
     public string durationTypeKey { get; set; } = string.Empty;

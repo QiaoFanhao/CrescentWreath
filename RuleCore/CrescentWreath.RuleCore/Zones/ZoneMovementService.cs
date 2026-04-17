@@ -9,18 +9,21 @@ public sealed class ZoneMovementService
     public CardMovedEvent moveCard(
         GameState.GameState gameState,
         CardInstance cardInstance,
-        ZoneKey targetZoneKey,
+        ZoneId targetZoneId,
         CardMoveReason moveReason,
         ActionChainId sourceActionChainId,
         long eventId)
     {
-        var fromZoneKey = cardInstance.zoneKey;
-        var fromZoneState = gameState.zones[fromZoneKey];
-        var toZoneState = gameState.zones[targetZoneKey];
+        var fromZoneId = cardInstance.zoneId;
+        var fromZoneState = gameState.zones[fromZoneId];
+        var toZoneState = gameState.zones[targetZoneId];
+
+        ZoneMovementRuleGuard.ensureCoreMoveReasonRouteOrThrow(fromZoneState.zoneType, toZoneState.zoneType, moveReason);
 
         fromZoneState.cardInstanceIds.Remove(cardInstance.cardInstanceId);
         toZoneState.cardInstanceIds.Add(cardInstance.cardInstanceId);
-        cardInstance.zoneKey = targetZoneKey;
+        cardInstance.zoneId = targetZoneId;
+        cardInstance.zoneKey = toZoneState.zoneType;
 
         return new CardMovedEvent
         {
@@ -28,8 +31,8 @@ public sealed class ZoneMovementService
             eventTypeKey = "cardMoved",
             sourceActionChainId = sourceActionChainId,
             cardInstanceId = cardInstance.cardInstanceId,
-            fromZoneKey = fromZoneKey,
-            toZoneKey = targetZoneKey,
+            fromZoneKey = fromZoneState.zoneType,
+            toZoneKey = toZoneState.zoneType,
             moveReason = moveReason,
         };
     }
