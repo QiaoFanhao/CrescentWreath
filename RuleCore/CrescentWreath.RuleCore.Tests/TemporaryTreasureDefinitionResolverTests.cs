@@ -1,24 +1,28 @@
-using CrescentWreath.RuleCore.ActionSystem;
+﻿using CrescentWreath.RuleCore.ActionSystem;
 
 namespace CrescentWreath.RuleCore.Tests;
 
 public class TemporaryTreasureDefinitionResolverTests
 {
     [Theory]
-    [InlineData("starter:magicCircuit", 1, 0, false)]
-    [InlineData("starter:kourindouCoupon", 0, 1, false)]
-    [InlineData("test-summon-card", 0, 0, false)]
-    [InlineData("T016", 0, 0, true)]
+    [InlineData("starter:magicCircuit", 1, 0, null, false)]
+    [InlineData("starter:kourindouCoupon", 0, 1, null, false)]
+    [InlineData("test-summon-card", 0, 0, 1, false)]
+    [InlineData("T001", 1, 1, 3, false)]
+    [InlineData("T002", 2, 1, 2, false)]
+    [InlineData("T016", 0, 0, 4, true)]
     public void ResolveDefinition_WhenDefinitionIdIsKnown_ShouldReturnExpectedTemporaryShape(
         string definitionId,
         int expectedManaGainOnEnterField,
         int expectedSigilPreviewGainOnEnterField,
+        int? expectedSummonSigilCost,
         bool expectedPersistOnFieldAcrossEnd)
     {
         var definition = TemporaryTreasureDefinitionResolver.resolveDefinition(definitionId);
 
         Assert.Equal(expectedManaGainOnEnterField, definition.manaGainOnEnterField);
         Assert.Equal(expectedSigilPreviewGainOnEnterField, definition.sigilPreviewGainOnEnterField);
+        Assert.Equal(expectedSummonSigilCost, definition.summonSigilCost);
         Assert.Equal(expectedPersistOnFieldAcrossEnd, definition.persistOnFieldAcrossEnd);
     }
 
@@ -33,14 +37,20 @@ public class TemporaryTreasureDefinitionResolverTests
         Assert.False(definition.persistOnFieldAcrossEnd);
     }
 
-    [Fact]
-    public void ResolveSummonSigilCost_WhenDefinitionIdIsTestSummonCard_ShouldReturnExpectedValue()
+    [Theory]
+    [InlineData("test-summon-card", 1)]
+    [InlineData("T001", 3)]
+    [InlineData("T016", 4)]
+    [InlineData("T024", 1)]
+    public void ResolveSummonSigilCost_WhenDefinitionIdHasSummonCost_ShouldReturnExpectedValue(
+        string definitionId,
+        int expectedSummonSigilCost)
     {
-        var costFromTemporaryResolver = TemporaryTreasureDefinitionResolver.resolveSummonSigilCost("test-summon-card");
-        var costFromCompatibilityResolver = TreasureResourceValueResolver.resolveSummonSigilCost("test-summon-card");
+        var costFromTemporaryResolver = TemporaryTreasureDefinitionResolver.resolveSummonSigilCost(definitionId);
+        var costFromCompatibilityResolver = TreasureResourceValueResolver.resolveSummonSigilCost(definitionId);
 
-        Assert.Equal(1, costFromTemporaryResolver);
-        Assert.Equal(1, costFromCompatibilityResolver);
+        Assert.Equal(expectedSummonSigilCost, costFromTemporaryResolver);
+        Assert.Equal(expectedSummonSigilCost, costFromCompatibilityResolver);
     }
 
     [Fact]
@@ -50,7 +60,7 @@ public class TemporaryTreasureDefinitionResolverTests
             () => TreasureResourceValueResolver.resolveSummonSigilCost("unsupported:definition"));
 
         Assert.Equal(
-            "SummonTreasureCardActionRequest currently supports only definitionId test-summon-card for lockedSigil payment.",
+            "SummonTreasureCardActionRequest requires treasure definition summonSigilCost to be defined.",
             ex.Message);
     }
 }

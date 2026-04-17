@@ -679,6 +679,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
     [InlineData("physical", "test:defensePhysical2", "physical", 1, 9)]
     [InlineData("physical", "test:defenseSpell2", "spell", 3, 7)]
     [InlineData("spell", "test:defenseDual2", "dual", 1, 9)]
+    [InlineData("physical", "T001", "dual", 1, 9)]
     public void SubmitDefense_WithDefinitionDefenseTypeMatchingRules_ShouldResolveExpectedDamage(
         string damageTypeKey,
         string defenseCardDefinitionId,

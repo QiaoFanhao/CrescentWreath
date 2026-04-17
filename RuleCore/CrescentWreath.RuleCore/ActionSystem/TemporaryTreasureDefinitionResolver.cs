@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using CrescentWreath.RuleCore.Definitions;
 
 namespace CrescentWreath.RuleCore.ActionSystem;
@@ -30,7 +30,7 @@ public static class TemporaryTreasureDefinitionResolver
         var summonSigilCost = TreasureDefinitionRepository.resolveByDefinitionId(definitionId).summonSigilCost;
         if (!summonSigilCost.HasValue)
         {
-            throw new NotSupportedException("SummonTreasureCardActionRequest currently supports only definitionId test-summon-card for lockedSigil payment.");
+            throw new NotSupportedException("SummonTreasureCardActionRequest requires treasure definition summonSigilCost to be defined.");
         }
 
         return summonSigilCost.Value;
@@ -74,3 +74,4 @@ public sealed class TemporaryTreasureDefinition
 
     public bool persistOnFieldAcrossEnd { get; }
 }
+

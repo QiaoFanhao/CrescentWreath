@@ -1,3 +1,5 @@
+﻿using System;
+using System.Linq;
 using CrescentWreath.RuleCore.Definitions;
 
 namespace CrescentWreath.RuleCore.Tests;
@@ -13,24 +15,43 @@ public class TreasureDefinitionRepositoryTests
         Assert.Contains(definitions, d => d.definitionId == "starter:magicCircuit");
         Assert.Contains(definitions, d => d.definitionId == "starter:kourindouCoupon");
         Assert.Contains(definitions, d => d.definitionId == "test-summon-card");
-        Assert.Contains(definitions, d => d.definitionId == "T016");
         Assert.Contains(definitions, d => d.definitionId == "test:defensePhysical2");
         Assert.Contains(definitions, d => d.definitionId == "test:defensePhysical1");
         Assert.Contains(definitions, d => d.definitionId == "test:defenseSpell2");
         Assert.Contains(definitions, d => d.definitionId == "test:defenseDual2");
+
+        foreach (var treasureId in Enumerable.Range(1, 29).Select(i => $"T{i:000}"))
+        {
+            Assert.Contains(definitions, d => string.Equals(d.definitionId, treasureId, StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void InMemoryTreasureDefinitionSource_ShouldContainExactlyTwentyNineRealTreasureDefinitions()
+    {
+        var source = new InMemoryTreasureDefinitionSource();
+        var definitions = source.getTreasureDefinitions();
+
+        var realTreasureDefinitions = definitions.Where(d => d.definitionId.Length == 4 && d.definitionId.StartsWith("T", StringComparison.Ordinal));
+        Assert.Equal(29, realTreasureDefinitions.Count());
     }
 
     [Theory]
-    [InlineData("starter:magicCircuit", 1, 0, null, false)]
-    [InlineData("starter:kourindouCoupon", 0, 1, null, false)]
-    [InlineData("test-summon-card", 0, 0, 1, false)]
-    [InlineData("T016", 0, 0, null, true)]
+    [InlineData("starter:magicCircuit", 1, 0, null, false, null, null)]
+    [InlineData("starter:kourindouCoupon", 0, 1, null, false, null, null)]
+    [InlineData("test-summon-card", 0, 0, 1, false, null, null)]
+    [InlineData("T001", 1, 1, 3, false, 2, "dual")]
+    [InlineData("T002", 2, 1, 2, false, 4, "spell")]
+    [InlineData("T003", 2, 2, 6, false, 4, "physical")]
+    [InlineData("T016", 0, 0, 4, true, 3, "dual")]
     public void ResolveByDefinitionId_WhenKnownDefinition_ShouldReturnExpectedValues(
         string definitionId,
         int expectedManaGainOnEnterField,
         int expectedSigilPreviewGainOnEnterField,
         int? expectedSummonSigilCost,
-        bool expectedPersistOnFieldAcrossEnd)
+        bool expectedPersistOnFieldAcrossEnd,
+        int? expectedDefenseValue,
+        string? expectedDefenseTypeKey)
     {
         var definition = TreasureDefinitionRepository.resolveByDefinitionId(definitionId);
 
@@ -39,8 +60,8 @@ public class TreasureDefinitionRepositoryTests
         Assert.Equal(expectedSigilPreviewGainOnEnterField, definition.sigilPreviewGainOnEnterField);
         Assert.Equal(expectedSummonSigilCost, definition.summonSigilCost);
         Assert.Equal(expectedPersistOnFieldAcrossEnd, definition.persistOnFieldAcrossEnd);
-        Assert.Null(definition.defenseValue);
-        Assert.Null(definition.defenseTypeKey);
+        Assert.Equal(expectedDefenseValue, definition.defenseValue);
+        Assert.Equal(expectedDefenseTypeKey, definition.defenseTypeKey);
     }
 
     [Fact]
