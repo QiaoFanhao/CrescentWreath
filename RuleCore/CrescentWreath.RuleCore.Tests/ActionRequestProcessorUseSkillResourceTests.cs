@@ -52,7 +52,7 @@ public class ActionRequestProcessorUseSkillResourceTests
         Assert.True(appliedStatusChangedEvent.isApplied);
         Assert.Equal(actorPlayerId, appliedStatusChangedEvent.targetPlayerId);
         Assert.Equal(0, actorPlayerState.mana);
-        Assert.Equal(0, actorPlayerState.skillPoint);
+        Assert.Equal(1, actorPlayerState.skillPoint);
         Assert.NotNull(gameState.currentActionChain);
         Assert.IsType<UseSkillActionRequest>(gameState.currentActionChain!.rootActionRequest);
         Assert.Equal(1, gameState.currentActionChain.currentFrameIndex);
@@ -63,7 +63,254 @@ public class ActionRequestProcessorUseSkillResourceTests
         Assert.Equal(StatusRuntime.DurationTypeKeyNextDamageAttempt, penetrateStatus.durationTypeKey);
     }
 
-    
+    [Fact]
+    public void C021_1_WhenUsed_ShouldHealActorCharacterAndDrawOneCard()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7120, mana: 0, skillPoint: 0);
+        var actorCharacterInstanceId = new CharacterInstanceId(71201);
+        var deckCardInstanceId = new CardInstanceId(71211);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.characterInstances.Add(actorCharacterInstanceId, createCharacter(actorCharacterInstanceId, "C021", actorPlayerId, currentHp: 2));
+        addPlayerOwnedZones(gameState, actorPlayerState);
+        addDeckTreasureCard(gameState, actorPlayerState, deckCardInstanceId, "T001");
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, currentPhase: TurnPhase.action);
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 71201,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterInstanceId,
+            skillKey = "C021:1",
+        });
+
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetCharacterInstanceId == actorCharacterInstanceId &&
+                         hpChangedEvent.hpBefore == 2 &&
+                         hpChangedEvent.hpAfter == 3);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                         cardMovedEvent.cardInstanceId == deckCardInstanceId &&
+                         cardMovedEvent.toZoneKey == ZoneKey.hand);
+        Assert.Equal(3, gameState.characterInstances[actorCharacterInstanceId].currentHp);
+        Assert.Equal(actorPlayerState.handZoneId, gameState.cardInstances[deckCardInstanceId].zoneId);
+        Assert.Equal(0, actorPlayerState.mana);
+        Assert.Equal(0, actorPlayerState.skillPoint);
+    }
+
+    [Fact]
+    public void C002_2_WhenUsed_ShouldDrawOneCardAndHealEveryOtherPlayerByTwo()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentAPlayerId = new PlayerId(2);
+        var allyPlayerId = new PlayerId(3);
+        var opponentBPlayerId = new PlayerId(4);
+
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7130, mana: 4, skillPoint: 0);
+        var opponentAPlayerState = createPlayerState(opponentAPlayerId, new TeamId(2), 7230, mana: 0, skillPoint: 0);
+        var allyPlayerState = createPlayerState(allyPlayerId, new TeamId(1), 7330, mana: 0, skillPoint: 0);
+        var opponentBPlayerState = createPlayerState(opponentBPlayerId, new TeamId(2), 7430, mana: 0, skillPoint: 0);
+
+        var actorCharacterInstanceId = new CharacterInstanceId(71301);
+        var opponentACharacterInstanceId = new CharacterInstanceId(72301);
+        var allyCharacterInstanceId = new CharacterInstanceId(73301);
+        var opponentBCharacterInstanceId = new CharacterInstanceId(74301);
+        var deckCardInstanceId = new CardInstanceId(71311);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.players.Add(opponentAPlayerId, opponentAPlayerState);
+        gameState.players.Add(allyPlayerId, allyPlayerState);
+        gameState.players.Add(opponentBPlayerId, opponentBPlayerState);
+        gameState.characterInstances.Add(actorCharacterInstanceId, createCharacter(actorCharacterInstanceId, "C002", actorPlayerId));
+        gameState.characterInstances.Add(opponentACharacterInstanceId, createCharacter(opponentACharacterInstanceId, "C001", opponentAPlayerId, currentHp: 1));
+        gameState.characterInstances.Add(allyCharacterInstanceId, createCharacter(allyCharacterInstanceId, "C004", allyPlayerId, currentHp: 1));
+        gameState.characterInstances.Add(opponentBCharacterInstanceId, createCharacter(opponentBCharacterInstanceId, "C008", opponentBPlayerId, currentHp: 1));
+        addPlayerOwnedZones(gameState, actorPlayerState);
+        addPlayerOwnedZones(gameState, opponentAPlayerState);
+        addPlayerOwnedZones(gameState, allyPlayerState);
+        addPlayerOwnedZones(gameState, opponentBPlayerState);
+        addDeckTreasureCard(gameState, actorPlayerState, deckCardInstanceId, "T002");
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, currentPhase: TurnPhase.action);
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 71301,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterInstanceId,
+            skillKey = "C002:2",
+        });
+
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                         cardMovedEvent.cardInstanceId == deckCardInstanceId &&
+                         cardMovedEvent.toZoneKey == ZoneKey.hand);
+        var hpChangedEvents = producedEvents.FindAll(gameEvent => gameEvent is HpChangedEvent);
+        Assert.Equal(3, hpChangedEvents.Count);
+        Assert.Equal(3, gameState.characterInstances[opponentACharacterInstanceId].currentHp);
+        Assert.Equal(3, gameState.characterInstances[allyCharacterInstanceId].currentHp);
+        Assert.Equal(3, gameState.characterInstances[opponentBCharacterInstanceId].currentHp);
+        Assert.Equal(0, actorPlayerState.mana);
+        Assert.Equal(0, actorPlayerState.skillPoint);
+    }
+
+    [Fact]
+    public void C029_4_WhenUsed_ShouldApplyCharmToOpponentsAndDealDirectDamageToSelf()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(2);
+        var opponentAPlayerId = new PlayerId(3);
+        var opponentBPlayerId = new PlayerId(4);
+
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7140, mana: 4, skillPoint: 4);
+        var allyPlayerState = createPlayerState(allyPlayerId, new TeamId(1), 7240, mana: 0, skillPoint: 0);
+        var opponentAPlayerState = createPlayerState(opponentAPlayerId, new TeamId(2), 7340, mana: 0, skillPoint: 0);
+        var opponentBPlayerState = createPlayerState(opponentBPlayerId, new TeamId(2), 7440, mana: 0, skillPoint: 0);
+
+        var actorCharacterInstanceId = new CharacterInstanceId(71401);
+        var allyCharacterInstanceId = new CharacterInstanceId(72401);
+        var opponentACharacterInstanceId = new CharacterInstanceId(73401);
+        var opponentBCharacterInstanceId = new CharacterInstanceId(74401);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.players.Add(allyPlayerId, allyPlayerState);
+        gameState.players.Add(opponentAPlayerId, opponentAPlayerState);
+        gameState.players.Add(opponentBPlayerId, opponentBPlayerState);
+        gameState.characterInstances.Add(actorCharacterInstanceId, createCharacter(actorCharacterInstanceId, "C029", actorPlayerId));
+        gameState.characterInstances.Add(allyCharacterInstanceId, createCharacter(allyCharacterInstanceId, "C001", allyPlayerId));
+        gameState.characterInstances.Add(opponentACharacterInstanceId, createCharacter(opponentACharacterInstanceId, "C002", opponentAPlayerId));
+        gameState.characterInstances.Add(opponentBCharacterInstanceId, createCharacter(opponentBCharacterInstanceId, "C003", opponentBPlayerId));
+        addPlayerOwnedZones(gameState, actorPlayerState);
+        addPlayerOwnedZones(gameState, allyPlayerState);
+        addPlayerOwnedZones(gameState, opponentAPlayerState);
+        addPlayerOwnedZones(gameState, opponentBPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, currentPhase: TurnPhase.action);
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 71401,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterInstanceId,
+            skillKey = "C029:4",
+        });
+
+        Assert.True(StatusRuntime.hasStatusOnPlayer(gameState, opponentAPlayerId, "Charm"));
+        Assert.True(StatusRuntime.hasStatusOnPlayer(gameState, opponentBPlayerId, "Charm"));
+        Assert.False(StatusRuntime.hasStatusOnPlayer(gameState, allyPlayerId, "Charm"));
+        Assert.Equal(3, gameState.characterInstances[actorCharacterInstanceId].currentHp);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
+                         statusChangedEvent.isApplied &&
+                         statusChangedEvent.statusKey == "Charm" &&
+                         statusChangedEvent.targetPlayerId == opponentAPlayerId);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
+                         statusChangedEvent.isApplied &&
+                         statusChangedEvent.statusKey == "Charm" &&
+                         statusChangedEvent.targetPlayerId == opponentBPlayerId);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1 &&
+                         damageResolvedEvent.didDealDamage);
+        Assert.Equal(0, actorPlayerState.mana);
+        Assert.Equal(0, actorPlayerState.skillPoint);
+    }
+
+    [Fact]
+    public void C018_2_WhenUsed_ShouldDealOneDirectDamageToEveryOtherPlayer()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(2);
+        var opponentAPlayerId = new PlayerId(3);
+        var opponentBPlayerId = new PlayerId(4);
+
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7150, mana: 6, skillPoint: 0);
+        var allyPlayerState = createPlayerState(allyPlayerId, new TeamId(1), 7250, mana: 0, skillPoint: 0);
+        var opponentAPlayerState = createPlayerState(opponentAPlayerId, new TeamId(2), 7350, mana: 0, skillPoint: 0);
+        var opponentBPlayerState = createPlayerState(opponentBPlayerId, new TeamId(2), 7450, mana: 0, skillPoint: 0);
+
+        var actorCharacterInstanceId = new CharacterInstanceId(71501);
+        var allyCharacterInstanceId = new CharacterInstanceId(72501);
+        var opponentACharacterInstanceId = new CharacterInstanceId(73501);
+        var opponentBCharacterInstanceId = new CharacterInstanceId(74501);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.players.Add(allyPlayerId, allyPlayerState);
+        gameState.players.Add(opponentAPlayerId, opponentAPlayerState);
+        gameState.players.Add(opponentBPlayerId, opponentBPlayerState);
+        gameState.characterInstances.Add(actorCharacterInstanceId, createCharacter(actorCharacterInstanceId, "C018", actorPlayerId));
+        gameState.characterInstances.Add(allyCharacterInstanceId, createCharacter(allyCharacterInstanceId, "C001", allyPlayerId));
+        gameState.characterInstances.Add(opponentACharacterInstanceId, createCharacter(opponentACharacterInstanceId, "C002", opponentAPlayerId));
+        gameState.characterInstances.Add(opponentBCharacterInstanceId, createCharacter(opponentBCharacterInstanceId, "C003", opponentBPlayerId));
+        addPlayerOwnedZones(gameState, actorPlayerState);
+        addPlayerOwnedZones(gameState, allyPlayerState);
+        addPlayerOwnedZones(gameState, opponentAPlayerState);
+        addPlayerOwnedZones(gameState, opponentBPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, currentPhase: TurnPhase.action);
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 71501,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterInstanceId,
+            skillKey = "C018:2",
+        });
+
+        var damageResolvedEvents = producedEvents.FindAll(gameEvent => gameEvent is DamageResolvedEvent);
+        Assert.Equal(3, damageResolvedEvents.Count);
+        Assert.Equal(4, gameState.characterInstances[actorCharacterInstanceId].currentHp);
+        Assert.Equal(3, gameState.characterInstances[allyCharacterInstanceId].currentHp);
+        Assert.Equal(3, gameState.characterInstances[opponentACharacterInstanceId].currentHp);
+        Assert.Equal(3, gameState.characterInstances[opponentBCharacterInstanceId].currentHp);
+        Assert.Equal(0, actorPlayerState.mana);
+        Assert.Equal(0, actorPlayerState.skillPoint);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetPlayerId == allyPlayerId &&
+                         hpChangedEvent.delta == -1);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetPlayerId == opponentAPlayerId &&
+                         hpChangedEvent.delta == -1);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetPlayerId == opponentBPlayerId &&
+                         hpChangedEvent.delta == -1);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1 &&
+                         damageResolvedEvent.didDealDamage);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1 &&
+                         damageResolvedEvent.didDealDamage);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1 &&
+                         damageResolvedEvent.didDealDamage);
+    }
+
     [Fact]
     public void C004_1_AfterSuccessfulUseSkill_NextFullyDefendedNonDirectDamageShouldDealOneAndConsumePenetrate()
     {
@@ -159,15 +406,15 @@ public class ActionRequestProcessorUseSkillResourceTests
     }
 
     [Fact]
-    public void C004_1_WhenSkillPointIsInsufficient_ShouldThrowAndKeepStateUnchanged()
+    public void C001_3_WhenSkillPointIsInsufficient_ShouldThrowAndKeepStateUnchanged()
     {
         var actorPlayerId = new PlayerId(1);
-        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7300, mana: 8, skillPoint: 0);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7300, mana: 8, skillPoint: 1);
         var characterInstanceId = new CharacterInstanceId(73001);
 
         var gameState = new RuleCore.GameState.GameState();
         gameState.players.Add(actorPlayerId, actorPlayerState);
-        gameState.characterInstances.Add(characterInstanceId, createCharacter(characterInstanceId, "C004", actorPlayerId));
+        gameState.characterInstances.Add(characterInstanceId, createCharacter(characterInstanceId, "C001", actorPlayerId));
         addPlayerOwnedZones(gameState, actorPlayerState);
         setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, phaseStepIndex: 1);
         var sentinelChain = createSentinelActionChain();
@@ -181,7 +428,7 @@ public class ActionRequestProcessorUseSkillResourceTests
             requestId = 73101,
             actorPlayerId = actorPlayerId,
             characterInstanceId = characterInstanceId,
-            skillKey = "C004:1",
+            skillKey = "C001:3",
         };
 
         var processor = new ActionRequestProcessor();
@@ -266,13 +513,40 @@ public class ActionRequestProcessorUseSkillResourceTests
         var exception = Assert.Throws<NotSupportedException>(
             () => processor.processActionRequest(gameState, request));
 
-        Assert.Equal("UseSkillActionRequest currently supports only skillKey C004:1 for resource closure.", exception.Message);
+        Assert.Equal("UseSkillActionRequest requires skillKey to exist in character definition.", exception.Message);
         Assert.Equal(manaBefore, actorPlayerState.mana);
         Assert.Equal(skillPointBefore, actorPlayerState.skillPoint);
         Assert.Same(sentinelChain, gameState.currentActionChain);
         Assert.Equal(producedEventsBefore, sentinelChain.producedEvents.Count);
     }
+    [Fact]
+    public void C001_1_WhenSkillIsDefinedButNoEffectMapping_ShouldDeductCostAndCompleteWithoutEvents()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 7650, mana: 4, skillPoint: 1);
+        var characterInstanceId = new CharacterInstanceId(76501);
 
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.characterInstances.Add(characterInstanceId, createCharacter(characterInstanceId, "C001", actorPlayerId));
+        addPlayerOwnedZones(gameState, actorPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, phaseStepIndex: 1);
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 76501,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = characterInstanceId,
+            skillKey = "C001:1",
+        });
+
+        Assert.Empty(producedEvents);
+        Assert.Equal(0, actorPlayerState.mana);
+        Assert.Equal(1, actorPlayerState.skillPoint);
+        Assert.NotNull(gameState.currentActionChain);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
     [Theory]
     [InlineData(TurnPhase.start)]
     [InlineData(TurnPhase.summon)]
@@ -390,15 +664,40 @@ public class ActionRequestProcessorUseSkillResourceTests
         };
     }
 
-    private static CharacterInstance createCharacter(CharacterInstanceId characterInstanceId, string definitionId, PlayerId ownerPlayerId)
+    private static void addDeckTreasureCard(
+        RuleCore.GameState.GameState gameState,
+        PlayerState playerState,
+        CardInstanceId cardInstanceId,
+        string definitionId)
+    {
+        var deckZoneState = gameState.zones[playerState.deckZoneId];
+        deckZoneState.cardInstanceIds.Add(cardInstanceId);
+        gameState.cardInstances[cardInstanceId] = new CardInstance
+        {
+            cardInstanceId = cardInstanceId,
+            definitionId = definitionId,
+            ownerPlayerId = playerState.playerId,
+            zoneId = playerState.deckZoneId,
+            zoneKey = ZoneKey.deck,
+            isFaceUp = false,
+            isSetAside = false,
+        };
+    }
+
+    private static CharacterInstance createCharacter(
+        CharacterInstanceId characterInstanceId,
+        string definitionId,
+        PlayerId ownerPlayerId,
+        int currentHp = 4,
+        int maxHp = 4)
     {
         return new CharacterInstance
         {
             characterInstanceId = characterInstanceId,
             definitionId = definitionId,
             ownerPlayerId = ownerPlayerId,
-            currentHp = 4,
-            maxHp = 4,
+            currentHp = currentHp,
+            maxHp = maxHp,
             isAlive = true,
             isInPlay = true,
         };
@@ -422,6 +721,9 @@ public class ActionRequestProcessorUseSkillResourceTests
         };
     }
 }
+
+
+
 
 
 

@@ -26,7 +26,12 @@ public sealed class ActionRequestProcessor
     private const string DamageResponseStageAwaitDefense = "awaitDefense";
     private const string DamageResponseStageAwaitCounter = "awaitCounter";
     private const string DamageCounterTypeKeyCancelFixedReduce1 = "cancelFixedReduce1";
+    private const string SkillKeyC002_2 = "C002:2";
     private const string SkillKeyC004_1 = "C004:1";
+    private const string SkillKeyC018_2 = "C018:2";
+    private const string SkillKeyC021_1 = "C021:1";
+    private const string SkillKeyC029_4 = "C029:4";
+    private const string StatusKeyCharm = "Charm";
     private const string StatusKeyPenetrate = "Penetrate";
 
     private enum DamageResponseStage
@@ -580,42 +585,300 @@ public sealed class ActionRequestProcessor
         gameState.currentActionChain = actionChainState;
         actorPlayerState.mana = availableMana - manaCost;
         actorPlayerState.skillPoint = availableSkillPoint - skillPointCost;
-        appendUseSkillEffectEvents(gameState, actionChainState, useSkillActionRequest);
+        appendUseSkillEffectEvents(
+            gameState,
+            actionChainState,
+            useSkillActionRequest,
+            actorPlayerState,
+            characterInstance);
 
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
         return actionChainState.producedEvents;
     }
 
-    private static void appendUseSkillEffectEvents(
+    private void appendUseSkillEffectEvents(
         GameState.GameState gameState,
         ActionChainState actionChainState,
-        UseSkillActionRequest useSkillActionRequest)
+        UseSkillActionRequest useSkillActionRequest,
+        GameState.PlayerState actorPlayerState,
+        CharacterInstance sourceCharacterInstance)
     {
-        if (!string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_1, StringComparison.Ordinal))
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_1, StringComparison.Ordinal))
+        {
+            var appliedStatus = StatusRuntime.applyStatus(
+                gameState,
+                new StatusInstance
+                {
+                    statusKey = StatusKeyPenetrate,
+                    applierPlayerId = useSkillActionRequest.actorPlayerId,
+                    applierCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                    targetPlayerId = useSkillActionRequest.actorPlayerId,
+                    stackCount = 1,
+                    durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
+                });
+            actionChainState.producedEvents.Add(new StatusChangedEvent
+            {
+                eventId = useSkillActionRequest.requestId,
+                eventTypeKey = "statusChanged",
+                sourceActionChainId = actionChainState.actionChainId,
+                statusKey = appliedStatus.statusKey,
+                targetPlayerId = appliedStatus.targetPlayerId,
+                isApplied = true,
+            });
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC021_1, StringComparison.Ordinal))
+        {
+            appendHealOnCharacter(
+                actionChainState,
+                useSkillActionRequest.requestId,
+                sourceCharacterInstance,
+                healAmount: 1);
+            appendDrawOneCardEffectEventsForPlayer(
+                gameState,
+                actionChainState,
+                actorPlayerState,
+                useSkillActionRequest.requestId);
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC002_2, StringComparison.Ordinal))
+        {
+            appendDrawOneCardEffectEventsForPlayer(
+                gameState,
+                actionChainState,
+                actorPlayerState,
+                useSkillActionRequest.requestId);
+            foreach (var playerState in gameState.players.Values)
+            {
+                if (playerState.playerId == useSkillActionRequest.actorPlayerId)
+                {
+                    continue;
+                }
+
+                if (!tryFindAliveInPlayCharacterInstanceByOwner(
+                        gameState,
+                        playerState.playerId,
+                        out var targetCharacterInstance))
+                {
+                    continue;
+                }
+
+                appendHealOnCharacter(
+                    actionChainState,
+                    useSkillActionRequest.requestId,
+                    targetCharacterInstance,
+                    healAmount: 2);
+            }
+
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC018_2, StringComparison.Ordinal))
+        {
+            foreach (var playerState in gameState.players.Values)
+            {
+                if (playerState.playerId == useSkillActionRequest.actorPlayerId)
+                {
+                    continue;
+                }
+
+                if (!tryFindAliveInPlayCharacterInstanceByOwner(
+                        gameState,
+                        playerState.playerId,
+                        out var targetCharacterInstance))
+                {
+                    continue;
+                }
+
+                var damageEvents = damageProcessor.resolveDamage(
+                    gameState,
+                    new DamageContext
+                    {
+                        damageContextId = new DamageContextId(useSkillActionRequest.requestId),
+                        sourcePlayerId = useSkillActionRequest.actorPlayerId,
+                        sourceCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                        targetPlayerId = playerState.playerId,
+                        targetCharacterInstanceId = targetCharacterInstance.characterInstanceId,
+                        baseDamageValue = 1,
+                        damageType = DamageTypeKeyDirect,
+                    });
+                actionChainState.producedEvents.AddRange(damageEvents);
+            }
+
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC029_4, StringComparison.Ordinal))
+        {
+            foreach (var playerState in gameState.players.Values)
+            {
+                if (playerState.teamId == actorPlayerState.teamId)
+                {
+                    continue;
+                }
+
+                var appliedStatus = StatusRuntime.applyStatus(
+                    gameState,
+                    new StatusInstance
+                    {
+                        statusKey = StatusKeyCharm,
+                        applierPlayerId = useSkillActionRequest.actorPlayerId,
+                        applierCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                        targetPlayerId = playerState.playerId,
+                        stackCount = 1,
+                    });
+                actionChainState.producedEvents.Add(new StatusChangedEvent
+                {
+                    eventId = useSkillActionRequest.requestId,
+                    eventTypeKey = "statusChanged",
+                    sourceActionChainId = actionChainState.actionChainId,
+                    statusKey = appliedStatus.statusKey,
+                    targetPlayerId = appliedStatus.targetPlayerId,
+                    isApplied = true,
+                });
+            }
+
+            if (sourceCharacterInstance.isAlive && sourceCharacterInstance.isInPlay)
+            {
+                var damageEvents = damageProcessor.resolveDamage(
+                    gameState,
+                    new DamageContext
+                    {
+                        damageContextId = new DamageContextId(useSkillActionRequest.requestId),
+                        sourcePlayerId = useSkillActionRequest.actorPlayerId,
+                        sourceCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                        targetPlayerId = useSkillActionRequest.actorPlayerId,
+                        targetCharacterInstanceId = sourceCharacterInstance.characterInstanceId,
+                        baseDamageValue = 1,
+                        damageType = DamageTypeKeyDirect,
+                    });
+                actionChainState.producedEvents.AddRange(damageEvents);
+            }
+        }
+    }
+
+    private void appendDrawOneCardEffectEventsForPlayer(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        GameState.PlayerState playerState,
+        long requestId)
+    {
+        if (!gameState.zones.TryGetValue(playerState.deckZoneId, out var deckZoneState))
+        {
+            throw new InvalidOperationException("UseSkillActionRequest skill effect requires player deckZoneId to exist in gameState.zones.");
+        }
+
+        if (!gameState.zones.ContainsKey(playerState.handZoneId))
+        {
+            throw new InvalidOperationException("UseSkillActionRequest skill effect requires player handZoneId to exist in gameState.zones.");
+        }
+
+        if (!gameState.zones.TryGetValue(playerState.discardZoneId, out var discardZoneState))
+        {
+            throw new InvalidOperationException("UseSkillActionRequest skill effect requires player discardZoneId to exist in gameState.zones.");
+        }
+
+        if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
+        {
+            var discardCardIdsInCurrentOrder = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            foreach (var cardInstanceId in discardCardIdsInCurrentOrder)
+            {
+                var discardedCardInstance = gameState.cardInstances[cardInstanceId];
+                var rebuildEvent = zoneMovementService.moveCard(
+                    gameState,
+                    discardedCardInstance,
+                    playerState.deckZoneId,
+                    CardMoveReason.returnToSource,
+                    actionChainState.actionChainId,
+                    requestId);
+                actionChainState.producedEvents.Add(rebuildEvent);
+            }
+        }
+
+        if (deckZoneState.cardInstanceIds.Count <= 0)
         {
             return;
         }
 
-        var appliedStatus = StatusRuntime.applyStatus(
+        var topCardInstanceId = deckZoneState.cardInstanceIds[0];
+        var topCardInstance = gameState.cardInstances[topCardInstanceId];
+        var drawEvent = zoneMovementService.moveCard(
             gameState,
-            new StatusInstance
-            {
-                statusKey = StatusKeyPenetrate,
-                applierPlayerId = useSkillActionRequest.actorPlayerId,
-                applierCharacterInstanceId = useSkillActionRequest.characterInstanceId,
-                targetPlayerId = useSkillActionRequest.actorPlayerId,
-                stackCount = 1,
-                durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
-            });
-        actionChainState.producedEvents.Add(new StatusChangedEvent
+            topCardInstance,
+            playerState.handZoneId,
+            CardMoveReason.draw,
+            actionChainState.actionChainId,
+            requestId);
+        actionChainState.producedEvents.Add(drawEvent);
+    }
+
+    private static bool tryFindAliveInPlayCharacterInstanceByOwner(
+        GameState.GameState gameState,
+        PlayerId ownerPlayerId,
+        out CharacterInstance characterInstance)
+    {
+        CharacterInstance? selectedCharacter = null;
+        long selectedCharacterNumericId = long.MaxValue;
+        foreach (var candidateCharacterInstance in gameState.characterInstances.Values)
         {
-            eventId = useSkillActionRequest.requestId,
-            eventTypeKey = "statusChanged",
+            if (candidateCharacterInstance.ownerPlayerId != ownerPlayerId ||
+                !candidateCharacterInstance.isAlive ||
+                !candidateCharacterInstance.isInPlay)
+            {
+                continue;
+            }
+
+            if (candidateCharacterInstance.characterInstanceId.Value >= selectedCharacterNumericId)
+            {
+                continue;
+            }
+
+            selectedCharacterNumericId = candidateCharacterInstance.characterInstanceId.Value;
+            selectedCharacter = candidateCharacterInstance;
+        }
+
+        if (selectedCharacter is null)
+        {
+            characterInstance = null!;
+            return false;
+        }
+
+        characterInstance = selectedCharacter;
+        return true;
+    }
+
+    private static void appendHealOnCharacter(
+        ActionChainState actionChainState,
+        long requestId,
+        CharacterInstance characterInstance,
+        int healAmount)
+    {
+        if (healAmount <= 0)
+        {
+            return;
+        }
+
+        var hpBefore = characterInstance.currentHp;
+        var hpAfter = Math.Min(characterInstance.maxHp, hpBefore + healAmount);
+        if (hpAfter == hpBefore)
+        {
+            return;
+        }
+
+        characterInstance.currentHp = hpAfter;
+        actionChainState.producedEvents.Add(new HpChangedEvent
+        {
+            eventId = requestId,
+            eventTypeKey = "hpChanged",
             sourceActionChainId = actionChainState.actionChainId,
-            statusKey = appliedStatus.statusKey,
-            targetPlayerId = appliedStatus.targetPlayerId,
-            isApplied = true,
+            targetPlayerId = characterInstance.ownerPlayerId,
+            targetCharacterInstanceId = characterInstance.characterInstanceId,
+            hpBefore = hpBefore,
+            hpAfter = hpAfter,
+            delta = hpAfter - hpBefore,
         });
     }
     private List<GameEvent> processEnterActionPhaseActionRequest(

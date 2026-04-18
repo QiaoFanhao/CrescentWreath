@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using CrescentWreath.RuleCore.ActionSystem;
+using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.Initialization;
 using CrescentWreath.RuleCore.Ids;
 
@@ -7,6 +9,7 @@ namespace CrescentWreath.ServerPrototype;
 
 public sealed class ServerGameSession
 {
+    private const string ErrorCodeRequestRejected = "request_rejected";
     private readonly ActionRequestProcessor actionRequestProcessor;
 
     public RuleCore.GameState.GameState gameState { get; }
@@ -36,23 +39,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, drawOneCardActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -60,13 +51,10 @@ public sealed class ServerGameSession
     {
         if (!string.Equals(requestDto.playMode, "normal", StringComparison.Ordinal))
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = "ServerPlayTreasureCardRequestDto playMode must be normal.",
-            };
+            return buildFailureResult(
+                requestDto.requestId,
+                requestDto.actorPlayerNumericId,
+                "ServerPlayTreasureCardRequestDto playMode must be normal.");
         }
 
         try
@@ -81,23 +69,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, playTreasureCardActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -113,23 +89,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, enterSummonPhaseActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -145,23 +109,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, enterActionPhaseActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -179,23 +131,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, useSkillActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -213,23 +153,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, submitDefenseActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
 
@@ -245,23 +173,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, enterEndPhaseActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
     public ServerActionProcessResult processStartNextTurn(ServerStartNextTurnRequestDto requestDto)
@@ -276,23 +192,11 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, startNextTurnActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
     public ServerActionProcessResult processSummonTreasureCard(ServerSummonTreasureCardRequestDto requestDto)
@@ -308,28 +212,83 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, summonTreasureCardActionRequest);
-            return new ServerActionProcessResult
-            {
-                isSucceeded = true,
-                updatedState = gameState,
-                producedEvents = producedEvents,
-                errorMessage = null,
-            };
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
         {
-            return new ServerActionProcessResult
-            {
-                isSucceeded = false,
-                updatedState = gameState,
-                producedEvents = new(),
-                errorMessage = exception.Message,
-            };
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
         }
     }
+
+    public ServerActionProcessResult projectResultForViewer(ServerActionProcessResult originalResult, long viewerPlayerNumericId)
+    {
+        var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
+        return new ServerActionProcessResult
+        {
+            requestId = originalResult.requestId,
+            isSucceeded = originalResult.isSucceeded,
+            viewerPlayerNumericId = resolvedViewerPlayerId.Value,
+            error = originalResult.error is null
+                ? null
+                : new ServerErrorProjection
+                {
+                    code = originalResult.error.code,
+                    message = originalResult.error.message,
+                },
+            stateProjection = ServerProjectionBuilder.buildStateProjection(gameState, resolvedViewerPlayerId),
+            eventLog = originalResult.isSucceeded
+                ? ServerProjectionBuilder.buildEventLog(originalResult.producedEvents)
+                : new List<ServerEventLogEntry>(),
+            interaction = ServerProjectionBuilder.buildInteractionProjection(gameState, resolvedViewerPlayerId),
+            updatedState = gameState,
+            producedEvents = originalResult.producedEvents,
+            errorMessage = originalResult.errorMessage,
+        };
+    }
+
+    private ServerActionProcessResult buildSuccessResult(
+        long requestId,
+        long viewerPlayerNumericId,
+        List<GameEvent> producedEvents)
+    {
+        var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
+        return new ServerActionProcessResult
+        {
+            requestId = requestId,
+            isSucceeded = true,
+            viewerPlayerNumericId = resolvedViewerPlayerId.Value,
+            error = null,
+            stateProjection = ServerProjectionBuilder.buildStateProjection(gameState, resolvedViewerPlayerId),
+            eventLog = ServerProjectionBuilder.buildEventLog(producedEvents),
+            interaction = ServerProjectionBuilder.buildInteractionProjection(gameState, resolvedViewerPlayerId),
+            updatedState = gameState,
+            producedEvents = producedEvents,
+            errorMessage = null,
+        };
+    }
+
+    private ServerActionProcessResult buildFailureResult(
+        long requestId,
+        long viewerPlayerNumericId,
+        string errorMessage)
+    {
+        var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
+        return new ServerActionProcessResult
+        {
+            requestId = requestId,
+            isSucceeded = false,
+            viewerPlayerNumericId = resolvedViewerPlayerId.Value,
+            error = new ServerErrorProjection
+            {
+                code = ErrorCodeRequestRejected,
+                message = errorMessage,
+            },
+            stateProjection = ServerProjectionBuilder.buildStateProjection(gameState, resolvedViewerPlayerId),
+            eventLog = new(),
+            interaction = ServerProjectionBuilder.buildInteractionProjection(gameState, resolvedViewerPlayerId),
+            updatedState = gameState,
+            producedEvents = new(),
+            errorMessage = errorMessage,
+        };
+    }
 }
-
-
-
-
-

@@ -48,6 +48,22 @@ public class ServerGameSessionTests
             result.producedEvents,
             gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
                          cardMovedEvent.moveReason == CardMoveReason.draw);
+        Assert.NotNull(result.stateProjection);
+        Assert.Equal(currentPlayerId.Value, result.viewerPlayerNumericId);
+        var actorProjection = Assert.Single(
+            result.stateProjection.players,
+            player => player.playerNumericId == currentPlayerId.Value);
+        Assert.True(actorProjection.handZone.isContentVisible);
+        Assert.Equal(session.gameState.zones[currentPlayerState.handZoneId].cardInstanceIds.Count, actorProjection.handZone.cardCount);
+        var otherProjection = result.stateProjection.players.First(player => player.playerNumericId != currentPlayerId.Value);
+        Assert.False(otherProjection.handZone.isContentVisible);
+        Assert.Empty(otherProjection.handZone.cards);
+        Assert.NotEmpty(result.eventLog);
+        Assert.Contains(
+            result.eventLog,
+            eventLogEntry => eventLogEntry.eventTypeKey == "cardMoved" &&
+                             string.Equals(eventLogEntry.moveReason, CardMoveReason.draw.ToString(), StringComparison.Ordinal));
+        Assert.NotNull(result.interaction);
         Assert.Equal(handCountBefore + 1, handZoneState.cardInstanceIds.Count);
         Assert.Equal(deckCountBefore - 1, deckZoneState.cardInstanceIds.Count);
     }
@@ -69,11 +85,38 @@ public class ServerGameSessionTests
 
         Assert.False(result.isSucceeded);
         Assert.Empty(result.producedEvents);
+        Assert.NotNull(result.error);
+        Assert.Equal("request_rejected", result.error!.code);
+        Assert.Equal(result.errorMessage, result.error.message);
+        Assert.NotNull(result.stateProjection);
+        Assert.Equal(currentPlayerId.Value, result.viewerPlayerNumericId);
+        Assert.Empty(result.eventLog);
         Assert.Equal(
             "DrawOneCardActionRequest actorPlayerId must equal gameState.turnState.currentPlayerId.",
             result.errorMessage);
         Assert.Equal(handCountBefore, handZoneState.cardInstanceIds.Count);
         Assert.Null(session.gameState.currentActionChain);
+    }
+
+    [Fact]
+    public void ProcessDrawOneCard_WhenResponseWindowIsActive_ShouldExposeInteractionProjectionOnFailure()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+        var defenderPlayerId = session.gameState.players.Keys.First(playerId => playerId != sourcePlayerId);
+        prepareDamageResponseWindowForDefense(session, sourcePlayerId, defenderPlayerId, 998000);
+
+        var result = session.processDrawOneCard(new ServerDrawOneCardRequestDto
+        {
+            requestId = 998001,
+            actorPlayerNumericId = sourcePlayerId.Value,
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.NotNull(result.interaction);
+        Assert.NotNull(result.interaction!.responseWindow);
+        Assert.Equal("damageResponse", result.interaction.responseWindow!.windowTypeKey);
+        Assert.Equal(defenderPlayerId.Value, result.interaction.responseWindow.currentResponderPlayerNumericId);
     }
 
     [Fact]
@@ -746,7 +789,7 @@ public class ServerGameSessionTests
                 statusChangedEvent.isApplied &&
                 statusChangedEvent.targetPlayerId == currentPlayerId);
         Assert.Equal(0, actorPlayerState.mana);
-        Assert.Equal(0, actorPlayerState.skillPoint);
+        Assert.Equal(1, actorPlayerState.skillPoint);
         Assert.Contains(
             session.gameState.statusInstances,
             status => status.statusKey == "Penetrate" && status.targetPlayerId == currentPlayerId);
@@ -1385,22 +1428,4 @@ public class ServerGameSessionTests
         gameState.zones[zoneId].cardInstanceIds.Add(cardInstanceId);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

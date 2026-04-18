@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace CrescentWreath.RuleCore.Definitions;
 
@@ -17,6 +17,8 @@ public static class CharacterDefinitionRepository
         return new CharacterDefinition
         {
             definitionId = definitionId,
+            characterName = string.Empty,
+            baseMaxHp = 4,
             raceTags = new List<string>(),
             skills = new Dictionary<string, CharacterSkillDefinition>(),
         };
@@ -52,3 +54,4 @@ public static class CharacterDefinitionRepository
         return definitionsById;
     }
 }
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using CrescentWreath.RuleCore.Definitions;
 
 namespace CrescentWreath.RuleCore.ActionSystem;
@@ -16,6 +16,7 @@ public static class CharacterSkillCostResolver
             return (manaCost, skillPointCost);
         }
 
-        throw new NotSupportedException("UseSkillActionRequest currently supports only skillKey C004:1 for resource closure.");
+        throw new NotSupportedException("UseSkillActionRequest requires skillKey to exist in character definition.");
     }
 }
+

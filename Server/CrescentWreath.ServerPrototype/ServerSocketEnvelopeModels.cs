@@ -1,20 +1,23 @@
 using System.Collections.Generic;
-using CrescentWreath.RuleCore.Events;
+using System.Text.Json;
 
 namespace CrescentWreath.ServerPrototype;
 
-public sealed class ServerActionProcessResult
+public sealed class ServerSocketRequestEnvelope
 {
     public long requestId { get; set; }
-    public bool isSucceeded { get; set; }
     public long viewerPlayerNumericId { get; set; }
+    public string actionType { get; set; } = string.Empty;
+    public JsonElement payload { get; set; }
+}
+
+public sealed class ServerSocketResponseEnvelope
+{
+    public long requestId { get; set; }
+    public long viewerPlayerNumericId { get; set; }
+    public bool isSucceeded { get; set; }
     public ServerErrorProjection? error { get; set; }
     public ServerStateProjection? stateProjection { get; set; }
     public List<ServerEventLogEntry> eventLog { get; set; } = new();
     public ServerInteractionProjection? interaction { get; set; }
-
-    // Legacy D1 fields kept for backward compatibility in current tests/tools.
-    public RuleCore.GameState.GameState updatedState { get; set; } = new();
-    public List<GameEvent> producedEvents { get; set; } = new();
-    public string? errorMessage { get; set; }
 }
