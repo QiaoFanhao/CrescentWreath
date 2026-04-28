@@ -11,6 +11,7 @@ public class TemporaryTreasureDefinitionResolverTests
     [InlineData("T001", 1, 1, 3, false)]
     [InlineData("T002", 2, 1, 2, false)]
     [InlineData("T016", 0, 0, 4, true)]
+    [InlineData("S001", 1, 2, 3, false)]
     public void ResolveDefinition_WhenDefinitionIdIsKnown_ShouldReturnExpectedTemporaryShape(
         string definitionId,
         int expectedManaGainOnEnterField,
@@ -42,6 +43,7 @@ public class TemporaryTreasureDefinitionResolverTests
     [InlineData("T001", 3)]
     [InlineData("T016", 4)]
     [InlineData("T024", 1)]
+    [InlineData("S001", 3)]
     public void ResolveSummonSigilCost_WhenDefinitionIdHasSummonCost_ShouldReturnExpectedValue(
         string definitionId,
         int expectedSummonSigilCost)

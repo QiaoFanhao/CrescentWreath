@@ -1,0 +1,2 @@
+treasureId,name,summonCost,quantity,defense,magic,sigil,effect,hasArriva,arrivalText
+S001,樱花饼,3,15,体咒3,1,2,技能值+1。被放逐时进入樱花饼区。,FALSE,

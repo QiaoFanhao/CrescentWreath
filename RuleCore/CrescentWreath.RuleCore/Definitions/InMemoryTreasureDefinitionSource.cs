@@ -49,6 +49,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T001",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 1,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 3,
@@ -59,6 +60,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T002",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 2,
@@ -69,6 +71,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T003",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 6,
@@ -79,6 +82,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T004",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 1,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 6,
@@ -89,6 +93,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T005",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 5,
@@ -99,6 +104,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T006",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 4,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 3,
@@ -109,6 +115,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T007",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 3,
@@ -119,6 +126,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T008",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 3,
@@ -129,6 +137,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T009",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 4,
@@ -139,6 +148,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T010",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 4,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 6,
@@ -149,6 +159,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T011",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 4,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 7,
@@ -159,6 +170,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T012",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 6,
@@ -169,6 +181,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T013",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 1,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 5,
@@ -179,6 +192,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T014",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 3,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 7,
@@ -189,6 +203,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T015",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 3,
@@ -199,6 +214,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T016",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 4,
@@ -209,6 +225,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T017",
+            initialPublicDeckCopies = 1,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 9,
@@ -219,6 +236,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T018",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 4,
@@ -229,6 +247,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T019",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 4,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 4,
@@ -239,6 +258,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T020",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 6,
@@ -249,6 +269,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T021",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 6,
@@ -259,6 +280,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T022",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 5,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 4,
@@ -269,6 +291,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T023",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 7,
@@ -279,6 +302,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T024",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 1,
@@ -289,6 +313,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T025",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 2,
             summonSigilCost = 5,
@@ -299,6 +324,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T026",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 3,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 5,
@@ -309,6 +335,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T027",
+            initialPublicDeckCopies = 3,
             manaGainOnEnterField = 2,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = 4,
@@ -319,6 +346,7 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T028",
+            initialPublicDeckCopies = 2,
             manaGainOnEnterField = 3,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 5,
@@ -329,11 +357,23 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
         new()
         {
             definitionId = "T029",
+            initialPublicDeckCopies = 4,
             manaGainOnEnterField = 1,
             sigilPreviewGainOnEnterField = 1,
             summonSigilCost = 2,
             persistOnFieldAcrossEnd = false,
             defenseValue = 0,
+            defenseTypeKey = "dual",
+        },
+        new()
+        {
+            definitionId = "S001",
+            initialPublicDeckCopies = 0,
+            manaGainOnEnterField = 1,
+            sigilPreviewGainOnEnterField = 2,
+            summonSigilCost = 3,
+            persistOnFieldAcrossEnd = false,
+            defenseValue = 3,
             defenseTypeKey = "dual",
         },
         new()

@@ -11,6 +11,8 @@ namespace CrescentWreath.ServerPrototype;
 
 public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
 {
+    private const int MaxLoggedMessageLength = 280;
+
     private readonly ServerGameSession session;
     private readonly ServerSocketActionRouter actionRouter;
     private readonly JsonSerializerOptions serializerOptions;
@@ -125,8 +127,11 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
     {
         try
         {
+            var remoteEndpoint = context.Request.RemoteEndPoint?.ToString() ?? "unknown";
+            var requestPath = context.Request.Url?.AbsolutePath ?? string.Empty;
             if (!string.Equals(context.Request.Url?.AbsolutePath, "/ws", StringComparison.Ordinal))
             {
+                logInfo($"Rejected request from {remoteEndpoint}: unsupported path '{requestPath}' (404).");
                 context.Response.StatusCode = 404;
                 context.Response.Close();
                 return;
@@ -134,6 +139,7 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
 
             if (!context.Request.IsWebSocketRequest)
             {
+                logInfo($"Rejected request from {remoteEndpoint}: not a websocket request (400).");
                 context.Response.StatusCode = 400;
                 context.Response.Close();
                 return;
@@ -141,6 +147,7 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
 
             if (Interlocked.CompareExchange(ref hasActiveWebSocketConnection, 1, 0) != 0)
             {
+                logInfo($"Rejected websocket upgrade from {remoteEndpoint}: active connection already exists (409).");
                 context.Response.StatusCode = 409;
                 context.Response.Close();
                 return;
@@ -151,15 +158,23 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
             {
                 var webSocketContext = await context.AcceptWebSocketAsync(subProtocol: null).ConfigureAwait(false);
                 socket = webSocketContext.WebSocket;
+                logInfo($"WebSocket connected: remote={remoteEndpoint}, path={requestPath}.");
                 while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
                     var requestMessage = await readTextMessageAsync(socket, cancellationToken).ConfigureAwait(false);
                     if (requestMessage is null)
                     {
+                        logInfo($"WebSocket message loop ended: remote={remoteEndpoint}.");
                         break;
                     }
 
+                    tryExtractRequestInfo(requestMessage, out var requestId, out var actionType);
+                    logInfo(
+                        $"Received message: remote={remoteEndpoint}, requestId={requestId}, actionType={actionType}, payload={truncateForLog(requestMessage)}");
+
                     var responseEnvelope = actionRouter.routeMessage(requestMessage);
+                    logInfo(
+                        $"Routed message: requestId={responseEnvelope.requestId}, actionType={actionType}, isSucceeded={responseEnvelope.isSucceeded}, errorCode={responseEnvelope.error?.code ?? "(none)"}.");
                     var responseJson = JsonSerializer.Serialize(responseEnvelope, serializerOptions);
                     var responseBytes = Encoding.UTF8.GetBytes(responseJson);
                     await socket.SendAsync(
@@ -167,7 +182,14 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
                         WebSocketMessageType.Text,
                         endOfMessage: true,
                         cancellationToken).ConfigureAwait(false);
+                    logInfo(
+                        $"Sent response: requestId={responseEnvelope.requestId}, isSucceeded={responseEnvelope.isSucceeded}, bytes={responseBytes.Length}.");
                 }
+            }
+            catch (Exception exception)
+            {
+                logError($"WebSocket processing failed for remote={remoteEndpoint}: {exception.Message}");
+                throw;
             }
             finally
             {
@@ -190,10 +212,13 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
 
                     socket.Dispose();
                 }
+
+                logInfo($"WebSocket disconnected: remote={remoteEndpoint}.");
             }
         }
-        catch
+        catch (Exception exception)
         {
+            logError($"Unhandled websocket context exception: {exception.Message}");
             if (context.Response.OutputStream.CanWrite)
             {
                 try
@@ -246,5 +271,51 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
         var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
         tcpListener.Stop();
         return port;
+    }
+
+    private static bool tryExtractRequestInfo(string requestMessage, out long requestId, out string actionType)
+    {
+        requestId = 0;
+        actionType = "(unknown)";
+        try
+        {
+            using var document = JsonDocument.Parse(requestMessage);
+            var root = document.RootElement;
+            if (root.TryGetProperty("requestId", out var requestIdElement) && requestIdElement.TryGetInt64(out var parsedRequestId))
+            {
+                requestId = parsedRequestId;
+            }
+
+            if (root.TryGetProperty("actionType", out var actionTypeElement) && actionTypeElement.ValueKind == JsonValueKind.String)
+            {
+                actionType = actionTypeElement.GetString() ?? "(unknown)";
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string truncateForLog(string message)
+    {
+        if (message.Length <= MaxLoggedMessageLength)
+        {
+            return message;
+        }
+
+        return $"{message.Substring(0, MaxLoggedMessageLength)}...(truncated)";
+    }
+
+    private static void logInfo(string message)
+    {
+        Console.WriteLine($"[ServerWsHost][INFO] {message}");
+    }
+
+    private static void logError(string message)
+    {
+        Console.WriteLine($"[ServerWsHost][ERROR] {message}");
     }
 }

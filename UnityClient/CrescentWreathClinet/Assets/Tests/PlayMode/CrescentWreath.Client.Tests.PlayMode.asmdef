@@ -1,0 +1,20 @@
+{
+  "name": "CrescentWreath.Client.Tests.PlayMode",
+  "rootNamespace": "CrescentWreath.Client.Tests.PlayMode",
+  "testAssemblies": true,
+  "references": [
+    "CrescentWreath.Client.Net"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

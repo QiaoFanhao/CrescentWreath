@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
@@ -125,7 +126,7 @@ public class GameInitializerTests
         Assert.Equal(MatchState.running, gameState.matchState);
         Assert.Equal(4, gameState.players.Count);
         Assert.Equal(2, gameState.teams.Count);
-        Assert.Equal(40, gameState.cardInstances.Count);
+        Assert.Equal(142, gameState.cardInstances.Count);
         Assert.Equal(4, gameState.characterInstances.Count);
 
         Assert.NotNull(gameState.matchMeta);
@@ -201,11 +202,53 @@ public class GameInitializerTests
             Assert.Equal(6, gameState.zones[playerState.handZoneId].cardInstanceIds.Count);
         }
 
+        var summonZoneState = gameState.zones[gameState.publicState.summonZoneId];
+        var publicTreasureDeckZoneState = gameState.zones[gameState.publicState.publicTreasureDeckZoneId];
+        var sakuraCakeDeckZoneState = gameState.zones[gameState.publicState.sakuraCakeDeckZoneId];
+        Assert.Equal(6, summonZoneState.cardInstanceIds.Count);
+        Assert.Equal(81, publicTreasureDeckZoneState.cardInstanceIds.Count);
+        Assert.Equal(15, sakuraCakeDeckZoneState.cardInstanceIds.Count);
+        Assert.All(
+            summonZoneState.cardInstanceIds,
+            cardInstanceId =>
+            {
+                var cardInstance = gameState.cardInstances[cardInstanceId];
+                Assert.Equal(ZoneKey.summonZone, cardInstance.zoneKey);
+                Assert.StartsWith("T", cardInstance.definitionId, StringComparison.Ordinal);
+            });
+        Assert.All(
+            sakuraCakeDeckZoneState.cardInstanceIds,
+            cardInstanceId =>
+            {
+                var cardInstance = gameState.cardInstances[cardInstanceId];
+                Assert.Equal(ZoneKey.sakuraCakeDeck, cardInstance.zoneKey);
+                Assert.Equal("S001", cardInstance.definitionId);
+            });
+
         foreach (var teamState in gameState.teams.Values)
         {
             Assert.Equal(10, teamState.killScore);
             Assert.Equal(0, teamState.leyline);
         }
+    }
+
+    [Fact]
+    public void CreateStandard2v2MatchState_WhenPublicDeckShuffleSeedIsProvided_ShouldProduceDeterministicInitialSummonZone()
+    {
+        var initializer = new GameInitializer();
+
+        var firstGameState = initializer.createStandard2v2MatchState(12345);
+        var secondGameState = initializer.createStandard2v2MatchState(12345);
+
+        var firstSummonDefinitions = firstGameState.zones[firstGameState.publicState!.summonZoneId].cardInstanceIds
+            .Select(cardInstanceId => firstGameState.cardInstances[cardInstanceId].definitionId)
+            .ToList();
+        var secondSummonDefinitions = secondGameState.zones[secondGameState.publicState!.summonZoneId].cardInstanceIds
+            .Select(cardInstanceId => secondGameState.cardInstances[cardInstanceId].definitionId)
+            .ToList();
+
+        Assert.Equal(6, firstSummonDefinitions.Count);
+        Assert.Equal(firstSummonDefinitions, secondSummonDefinitions);
     }
 
     private static void assertSinglePublicZone(RuleCore.GameState.GameState gameState, ZoneKey zoneKey)

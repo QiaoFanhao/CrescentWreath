@@ -6,6 +6,7 @@ public static class TreasureDefinitionRepository
 {
     private static readonly ITreasureDefinitionSource Source = new InMemoryTreasureDefinitionSource();
     private static readonly Dictionary<string, TreasureDefinition> DefinitionsById = buildDefinitionsById(Source);
+    private static readonly IReadOnlyList<string> InitialPublicDeckDefinitionIds = buildInitialPublicDeckDefinitionIds(Source);
 
     public static TreasureDefinition resolveByDefinitionId(string definitionId)
     {
@@ -20,10 +21,16 @@ public static class TreasureDefinitionRepository
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 0,
             summonSigilCost = null,
+            initialPublicDeckCopies = 0,
             persistOnFieldAcrossEnd = false,
             defenseValue = null,
             defenseTypeKey = null,
         };
+    }
+
+    public static IReadOnlyList<string> getInitialPublicDeckDefinitionIds()
+    {
+        return InitialPublicDeckDefinitionIds;
     }
 
     internal static Dictionary<string, TreasureDefinition> buildDefinitionsById(ITreasureDefinitionSource source)
@@ -35,5 +42,19 @@ public static class TreasureDefinitionRepository
         }
 
         return definitionsById;
+    }
+
+    internal static IReadOnlyList<string> buildInitialPublicDeckDefinitionIds(ITreasureDefinitionSource source)
+    {
+        var initialPublicDeckDefinitionIds = new List<string>();
+        foreach (var treasureDefinition in source.getTreasureDefinitions())
+        {
+            for (var copyIndex = 0; copyIndex < treasureDefinition.initialPublicDeckCopies; copyIndex++)
+            {
+                initialPublicDeckDefinitionIds.Add(treasureDefinition.definitionId);
+            }
+        }
+
+        return initialPublicDeckDefinitionIds;
     }
 }

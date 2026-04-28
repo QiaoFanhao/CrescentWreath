@@ -1,0 +1,14 @@
+{
+  "name": "CrescentWreath.Client.Net",
+  "rootNamespace": "CrescentWreath.Client.Net",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

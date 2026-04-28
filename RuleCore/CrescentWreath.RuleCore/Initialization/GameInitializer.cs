@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.Entities;
@@ -11,11 +12,17 @@ public sealed class GameInitializer
 {
     private const int BaseKillScore = 10;
     private const int StartingHandCount = 6;
+    private const int InitialSummonZoneRevealCount = 6;
+    private static readonly PlayerId PublicCardOwnerPlayerId = new(0);
+    private static readonly Random SharedRandom = new();
+    private static readonly object SharedRandomLock = new();
     private const string MagicCircuitDefinitionId = "starter:magicCircuit";
     private const string KourindouCouponDefinitionId = "starter:kourindouCoupon";
     private const string ActiveCharacterDefinitionId = "starter:activeCharacter";
+    private const string SakuraCakeDefinitionId = "S001";
+    private const int SakuraCakeInitialCount = 15;
 
-    public GameState.GameState createStandard2v2MatchState()
+    public GameState.GameState createStandard2v2MatchState(int? publicDeckShuffleSeed = null)
     {
         var gameState = new GameState.GameState();
 
@@ -45,6 +52,8 @@ public sealed class GameInitializer
         createStarterDeckAndDraw(gameState, playerB1State, ref nextCardInstanceId);
         createStarterDeckAndDraw(gameState, playerA2State, ref nextCardInstanceId);
         createStarterDeckAndDraw(gameState, playerB2State, ref nextCardInstanceId);
+        initializePublicTreasureDeckAndSummonZone(gameState, ref nextCardInstanceId, publicDeckShuffleSeed);
+        initializeSakuraCakeDeck(gameState, ref nextCardInstanceId);
 
         gameState.matchState = MatchState.running;
 
@@ -304,6 +313,101 @@ public sealed class GameInitializer
             var cardInstance = gameState.cardInstances[cardInstanceId];
             cardInstance.zoneId = playerState.handZoneId;
             cardInstance.zoneKey = ZoneKey.hand;
+        }
+    }
+
+    private static void initializePublicTreasureDeckAndSummonZone(
+        GameState.GameState gameState,
+        ref long nextCardInstanceId,
+        int? publicDeckShuffleSeed)
+    {
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("GameInitializer requires gameState.publicState to be initialized before public treasure deck setup.");
+        }
+
+        var publicTreasureDeckZoneState = gameState.zones[gameState.publicState.publicTreasureDeckZoneId];
+        var summonZoneState = gameState.zones[gameState.publicState.summonZoneId];
+
+        var publicDeckDefinitionIds = new List<string>(TreasureDefinitionRepository.getInitialPublicDeckDefinitionIds());
+        shuffleDefinitionIdsInPlace(publicDeckDefinitionIds, publicDeckShuffleSeed);
+
+        foreach (var definitionId in publicDeckDefinitionIds)
+        {
+            var cardInstanceId = new CardInstanceId(nextCardInstanceId++);
+            var cardInstance = new CardInstance
+            {
+                cardInstanceId = cardInstanceId,
+                definitionId = definitionId,
+                ownerPlayerId = PublicCardOwnerPlayerId,
+                zoneId = gameState.publicState.publicTreasureDeckZoneId,
+                zoneKey = ZoneKey.publicTreasureDeck,
+            };
+
+            gameState.cardInstances.Add(cardInstanceId, cardInstance);
+            publicTreasureDeckZoneState.cardInstanceIds.Add(cardInstanceId);
+        }
+
+        for (var revealIndex = 0;
+             revealIndex < InitialSummonZoneRevealCount && publicTreasureDeckZoneState.cardInstanceIds.Count > 0;
+             revealIndex++)
+        {
+            var topCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
+            publicTreasureDeckZoneState.cardInstanceIds.RemoveAt(0);
+            summonZoneState.cardInstanceIds.Add(topCardInstanceId);
+
+            var topCardInstance = gameState.cardInstances[topCardInstanceId];
+            topCardInstance.zoneId = gameState.publicState.summonZoneId;
+            topCardInstance.zoneKey = ZoneKey.summonZone;
+        }
+    }
+
+    private static void initializeSakuraCakeDeck(GameState.GameState gameState, ref long nextCardInstanceId)
+    {
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("GameInitializer requires gameState.publicState to be initialized before sakura cake deck setup.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.sakuraCakeDeckZoneId, out var sakuraCakeDeckZoneState))
+        {
+            throw new InvalidOperationException("GameInitializer requires sakuraCakeDeck zone to exist in gameState.zones before sakura cake deck setup.");
+        }
+
+        for (var index = 0; index < SakuraCakeInitialCount; index++)
+        {
+            var cardInstanceId = new CardInstanceId(nextCardInstanceId++);
+            var cardInstance = new CardInstance
+            {
+                cardInstanceId = cardInstanceId,
+                definitionId = SakuraCakeDefinitionId,
+                ownerPlayerId = PublicCardOwnerPlayerId,
+                zoneId = gameState.publicState.sakuraCakeDeckZoneId,
+                zoneKey = ZoneKey.sakuraCakeDeck,
+            };
+
+            gameState.cardInstances.Add(cardInstanceId, cardInstance);
+            sakuraCakeDeckZoneState.cardInstanceIds.Add(cardInstanceId);
+        }
+    }
+
+    private static void shuffleDefinitionIdsInPlace(List<string> definitionIds, int? seed)
+    {
+        var random = seed.HasValue ? new Random(seed.Value) : null;
+        for (var index = definitionIds.Count - 1; index > 0; index--)
+        {
+            var randomIndex = random is not null
+                ? random.Next(index + 1)
+                : nextSharedRandom(index + 1);
+            (definitionIds[index], definitionIds[randomIndex]) = (definitionIds[randomIndex], definitionIds[index]);
+        }
+    }
+
+    private static int nextSharedRandom(int maxExclusive)
+    {
+        lock (SharedRandomLock)
+        {
+            return SharedRandom.Next(maxExclusive);
         }
     }
 }

@@ -308,9 +308,11 @@ public sealed class ActionRequestProcessor
             throw new InvalidOperationException("SummonTreasureCardActionRequest requires cardInstanceId to exist in gameState.cardInstances.");
         }
 
-        if (cardInstance.zoneId != gameState.publicState.summonZoneId)
+        var isSummonZoneSource = cardInstance.zoneId == gameState.publicState.summonZoneId;
+        var isSakuraCakeDeckSource = cardInstance.zoneId == gameState.publicState.sakuraCakeDeckZoneId;
+        if (!isSummonZoneSource && !isSakuraCakeDeckSource)
         {
-            throw new InvalidOperationException("SummonTreasureCardActionRequest requires cardInstance.zoneId to equal gameState.publicState.summonZoneId.");
+            throw new InvalidOperationException("SummonTreasureCardActionRequest requires cardInstance.zoneId to be in gameState.publicState.summonZoneId or gameState.publicState.sakuraCakeDeckZoneId.");
         }
 
         var actorPlayerState = gameState.players[summonTreasureCardActionRequest.actorPlayerId];
@@ -378,7 +380,7 @@ public sealed class ActionRequestProcessor
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.producedEvents.Add(cardMovedEvent);
 
-        if (publicTreasureDeckZoneState.cardInstanceIds.Count > 0)
+        if (isSummonZoneSource && publicTreasureDeckZoneState.cardInstanceIds.Count > 0)
         {
             var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
             var topPublicTreasureCardInstance = gameState.cardInstances[topPublicTreasureCardInstanceId];

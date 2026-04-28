@@ -19,6 +19,7 @@ public class TreasureDefinitionRepositoryTests
         Assert.Contains(definitions, d => d.definitionId == "test:defensePhysical1");
         Assert.Contains(definitions, d => d.definitionId == "test:defenseSpell2");
         Assert.Contains(definitions, d => d.definitionId == "test:defenseDual2");
+        Assert.Contains(definitions, d => d.definitionId == "S001");
 
         foreach (var treasureId in Enumerable.Range(1, 29).Select(i => $"T{i:000}"))
         {
@@ -44,6 +45,7 @@ public class TreasureDefinitionRepositoryTests
     [InlineData("T002", 2, 1, 2, false, 4, "spell")]
     [InlineData("T003", 2, 2, 6, false, 4, "physical")]
     [InlineData("T016", 0, 0, 4, true, 3, "dual")]
+    [InlineData("S001", 1, 2, 3, false, 3, "dual")]
     public void ResolveByDefinitionId_WhenKnownDefinition_ShouldReturnExpectedValues(
         string definitionId,
         int expectedManaGainOnEnterField,

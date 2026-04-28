@@ -4,6 +4,8 @@ public sealed class TreasureDefinition
 {
     public string definitionId { get; set; } = string.Empty;
 
+    public int initialPublicDeckCopies { get; set; }
+
     public int manaGainOnEnterField { get; set; }
 
     public int sigilPreviewGainOnEnterField { get; set; }

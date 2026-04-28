@@ -155,6 +155,78 @@ public class ActionRequestProcessorSummonTreasureCardTests
     }
 
     [Fact]
+    public void HappyPath_WhenSummonSourceIsSakuraCakeDeck_ShouldSummonWithoutPublicTreasureRefill()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 1150);
+        actorPlayerState.lockedSigil = 3;
+        actorPlayerState.isSigilLocked = true;
+        var summonZoneId = new ZoneId(9004);
+        var sakuraCardInstanceId = new CardInstanceId(5015);
+        var publicTreasureCardInstanceId = new CardInstanceId(5016);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, TurnPhase.summon);
+        gameState.publicState = createPublicState(summonZoneId);
+        var publicTreasureDeckZoneId = gameState.publicState.publicTreasureDeckZoneId;
+        var sakuraCakeDeckZoneId = gameState.publicState.sakuraCakeDeckZoneId;
+
+        addZone(gameState, publicTreasureDeckZoneId, ZoneKey.publicTreasureDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, summonZoneId, ZoneKey.summonZone, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, sakuraCakeDeckZoneId, ZoneKey.sakuraCakeDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, actorPlayerState.discardZoneId, ZoneKey.discard, actorPlayerId, ZonePublicOrPrivate.publicZone);
+
+        var sakuraCardInstance = new CardInstance
+        {
+            cardInstanceId = sakuraCardInstanceId,
+            definitionId = "S001",
+            ownerPlayerId = new PlayerId(0),
+            zoneId = sakuraCakeDeckZoneId,
+            zoneKey = ZoneKey.sakuraCakeDeck,
+        };
+        gameState.cardInstances.Add(sakuraCardInstanceId, sakuraCardInstance);
+        gameState.zones[sakuraCakeDeckZoneId].cardInstanceIds.Add(sakuraCardInstanceId);
+
+        var publicTreasureCardInstance = new CardInstance
+        {
+            cardInstanceId = publicTreasureCardInstanceId,
+            definitionId = "test-public-deck-card",
+            ownerPlayerId = new PlayerId(0),
+            zoneId = publicTreasureDeckZoneId,
+            zoneKey = ZoneKey.publicTreasureDeck,
+        };
+        gameState.cardInstances.Add(publicTreasureCardInstanceId, publicTreasureCardInstance);
+        gameState.zones[publicTreasureDeckZoneId].cardInstanceIds.Add(publicTreasureCardInstanceId);
+
+        var request = new SummonTreasureCardActionRequest
+        {
+            requestId = 9806,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = sakuraCardInstanceId,
+        };
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, request);
+
+        Assert.DoesNotContain(sakuraCardInstanceId, gameState.zones[sakuraCakeDeckZoneId].cardInstanceIds);
+        Assert.Contains(sakuraCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Equal(actorPlayerState.discardZoneId, sakuraCardInstance.zoneId);
+        Assert.Equal(ZoneKey.discard, sakuraCardInstance.zoneKey);
+
+        Assert.Contains(publicTreasureCardInstanceId, gameState.zones[publicTreasureDeckZoneId].cardInstanceIds);
+        Assert.Empty(gameState.zones[summonZoneId].cardInstanceIds);
+        Assert.Equal(0, actorPlayerState.lockedSigil);
+
+        Assert.Single(producedEvents);
+        var movedEvent = Assert.IsType<CardMovedEvent>(producedEvents[0]);
+        Assert.Equal(sakuraCardInstanceId, movedEvent.cardInstanceId);
+        Assert.Equal(ZoneKey.sakuraCakeDeck, movedEvent.fromZoneKey);
+        Assert.Equal(ZoneKey.discard, movedEvent.toZoneKey);
+        Assert.Equal(CardMoveReason.summon, movedEvent.moveReason);
+    }
+
+    [Fact]
     public void WhenActorIsNotCurrentTurnPlayer_ShouldThrowAndKeepStateUnchanged()
     {
         var actorPlayerId = new PlayerId(1);
@@ -290,7 +362,7 @@ public class ActionRequestProcessorSummonTreasureCardTests
         var exception = Assert.Throws<InvalidOperationException>(
             () => processor.processActionRequest(gameState, request));
 
-        Assert.Equal("SummonTreasureCardActionRequest requires cardInstance.zoneId to equal gameState.publicState.summonZoneId.", exception.Message);
+        Assert.Equal("SummonTreasureCardActionRequest requires cardInstance.zoneId to be in gameState.publicState.summonZoneId or gameState.publicState.sakuraCakeDeckZoneId.", exception.Message);
         Assert.Equal(actorPlayerState.handZoneId, cardInstance.zoneId);
         Assert.Equal(ZoneKey.hand, cardInstance.zoneKey);
         Assert.Contains(cardInstanceId, gameState.zones[actorPlayerState.handZoneId].cardInstanceIds);
@@ -423,6 +495,60 @@ public class ActionRequestProcessorSummonTreasureCardTests
         Assert.Equal(lockedSigilBefore, actorPlayerState.lockedSigil);
         Assert.Contains(cardInstanceId, gameState.zones[summonZoneId].cardInstanceIds);
         Assert.DoesNotContain(cardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Same(sentinelChain, gameState.currentActionChain);
+        Assert.Equal(producedEventsBefore, sentinelChain.producedEvents.Count);
+    }
+
+    [Fact]
+    public void WhenSakuraCakeSummonLockedSigilIsInsufficient_ShouldThrowAndKeepStateUnchanged()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 4250);
+        actorPlayerState.lockedSigil = 2;
+        actorPlayerState.isSigilLocked = true;
+        var summonZoneId = new ZoneId(9004);
+        var sakuraCardInstanceId = new CardInstanceId(5017);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, TurnPhase.summon);
+        gameState.publicState = createPublicState(summonZoneId);
+        var sakuraCakeDeckZoneId = gameState.publicState.sakuraCakeDeckZoneId;
+        addZone(gameState, gameState.publicState.publicTreasureDeckZoneId, ZoneKey.publicTreasureDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, summonZoneId, ZoneKey.summonZone, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, sakuraCakeDeckZoneId, ZoneKey.sakuraCakeDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, actorPlayerState.discardZoneId, ZoneKey.discard, actorPlayerId, ZonePublicOrPrivate.publicZone);
+
+        var sakuraCardInstance = new CardInstance
+        {
+            cardInstanceId = sakuraCardInstanceId,
+            definitionId = "S001",
+            ownerPlayerId = new PlayerId(0),
+            zoneId = sakuraCakeDeckZoneId,
+            zoneKey = ZoneKey.sakuraCakeDeck,
+        };
+        gameState.cardInstances.Add(sakuraCardInstanceId, sakuraCardInstance);
+        gameState.zones[sakuraCakeDeckZoneId].cardInstanceIds.Add(sakuraCardInstanceId);
+
+        var sentinelChain = createSentinelActionChain();
+        gameState.currentActionChain = sentinelChain;
+        var lockedSigilBefore = actorPlayerState.lockedSigil;
+        var producedEventsBefore = sentinelChain.producedEvents.Count;
+
+        var request = new SummonTreasureCardActionRequest
+        {
+            requestId = 9814,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = sakuraCardInstanceId,
+        };
+
+        var processor = new ActionRequestProcessor();
+        var exception = Assert.Throws<InvalidOperationException>(() => processor.processActionRequest(gameState, request));
+
+        Assert.Equal("SummonTreasureCardActionRequest requires actor player lockedSigil to be sufficient for summon cost.", exception.Message);
+        Assert.Equal(lockedSigilBefore, actorPlayerState.lockedSigil);
+        Assert.Contains(sakuraCardInstanceId, gameState.zones[sakuraCakeDeckZoneId].cardInstanceIds);
+        Assert.DoesNotContain(sakuraCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
         Assert.Same(sentinelChain, gameState.currentActionChain);
         Assert.Equal(producedEventsBefore, sentinelChain.producedEvents.Count);
     }

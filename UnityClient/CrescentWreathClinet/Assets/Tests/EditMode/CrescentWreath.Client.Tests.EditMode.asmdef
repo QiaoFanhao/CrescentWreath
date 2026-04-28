@@ -1,0 +1,22 @@
+{
+  "name": "CrescentWreath.Client.Tests.EditMode",
+  "rootNamespace": "CrescentWreath.Client.Tests.EditMode",
+  "testAssemblies": true,
+  "references": [
+    "CrescentWreath.Client.Net"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

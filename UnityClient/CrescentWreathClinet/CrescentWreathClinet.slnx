@@ -1,0 +1,8 @@
+﻿<Solution>
+  <Project Path="com.Tivadar.Best.HTTP.csproj" />
+  <Project Path="com.Tivadar.Best.WebSockets.csproj" />
+  <Project Path="CrescentWreath.Client.Net.csproj" />
+  <Project Path="com.Tivadar.Best.HTTP.Profiler.Editor.csproj" />
+  <Project Path="CrescentWreath.Client.Tests.PlayMode.csproj" />
+  <Project Path="CrescentWreath.Client.Tests.EditMode.csproj" />
+</Solution>

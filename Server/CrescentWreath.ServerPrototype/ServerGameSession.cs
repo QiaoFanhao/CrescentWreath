@@ -20,10 +20,10 @@ public sealed class ServerGameSession
         this.actionRequestProcessor = actionRequestProcessor;
     }
 
-    public static ServerGameSession createStandard2v2()
+    public static ServerGameSession createStandard2v2(int? publicDeckShuffleSeed = null)
     {
         var gameInitializer = new GameInitializer();
-        var initializedGameState = gameInitializer.createStandard2v2MatchState();
+        var initializedGameState = gameInitializer.createStandard2v2MatchState(publicDeckShuffleSeed);
         return new ServerGameSession(initializedGameState, new ActionRequestProcessor());
     }
 
