@@ -82,6 +82,106 @@ public class DebugFlowChecklistRuntimeTests
         Assert.That(snapshot[1].status, Is.EqualTo(DebugFlowStepStatus.failed));
     }
 
+    [Test]
+    public void Runtime_ResponseWindowFlow_ShouldComplete_WhenDebugOpenThenSubmitResponseNoSucceeds()
+    {
+        var runtime = new DebugFlowChecklistRuntime();
+        runtime.setCurrentMode(DebugChecklistMode.responseWindowB);
+
+        var previous = buildProjection("action", 1, 1, 6, 0, 6, true);
+        var opened = buildProjection("action", 1, 1, 6, 0, 6, true);
+        opened.interaction.hasResponseWindow = true;
+        opened.interaction.responseWindowNumericId = 901;
+        opened.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.responseWindowB,
+            "debugOpenDamageResponseWindow",
+            opened,
+            previous,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var resolved = buildProjection("action", 1, 1, 6, 0, 6, true);
+        resolved.interaction.hasResponseWindow = false;
+        resolved.interaction.responseWindowNumericId = null;
+        resolved.eventLog.Add("responseWindowClosed");
+        resolved.eventLog.Add("damageResolved dmg=2");
+        resolved.eventLog.Add("hpChanged");
+
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.responseWindowB,
+            "submitResponse",
+            resolved,
+            opened,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        Assert.That(runtime.isCompletedForMode(DebugChecklistMode.responseWindowB), Is.True);
+        var snapshot = runtime.getStepStatesSnapshot(DebugChecklistMode.responseWindowB);
+        Assert.That(snapshot.TrueForAll(step => step.status == DebugFlowStepStatus.passed), Is.True);
+    }
+
+    [Test]
+    public void Runtime_InputContextFlow_ShouldComplete_WhenEnterEndOpensContextThenSubmitChoiceSucceeds()
+    {
+        var runtime = new DebugFlowChecklistRuntime();
+        runtime.setCurrentMode(DebugChecklistMode.inputContextC);
+
+        var baseline = buildProjection("start", 1, 1, 6, 0, 6, true);
+        var action = buildProjection("action", 1, 1, 6, 0, 6, true);
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "enterActionPhase",
+            action,
+            baseline,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var drew = buildProjection("action", 1, 1, 7, 0, 6, true);
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "drawOneCard",
+            drew,
+            action,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var opened = buildProjection("end", 1, 1, 7, 0, 6, true);
+        opened.interaction.hasInputContext = true;
+        opened.interaction.inputContextNumericId = 501;
+        opened.interaction.inputRequiredPlayerNumericId = 1;
+        opened.interaction.inputChoiceCount = 1;
+        opened.interaction.inputChoiceKeys.Add("discardCard:100001");
+        opened.eventLog.Add("inputContextOpened");
+
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "enterEndPhase",
+            opened,
+            drew,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var closed = buildProjection("end", 1, 1, 6, 0, 6, true);
+        closed.interaction.hasInputContext = false;
+        closed.interaction.inputContextNumericId = null;
+        closed.eventLog.Add("inputContextClosed");
+        closed.eventLog.Add("cardMoved move=discard");
+
+        runtime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "submitInputChoice",
+            closed,
+            opened,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        Assert.That(runtime.isCompletedForMode(DebugChecklistMode.inputContextC), Is.True);
+        var snapshot = runtime.getStepStatesSnapshot(DebugChecklistMode.inputContextC);
+        Assert.That(snapshot.TrueForAll(step => step.status == DebugFlowStepStatus.passed), Is.True);
+    }
+
     private static ProjectionViewModel buildProjection(
         string phase,
         int turnNumber,

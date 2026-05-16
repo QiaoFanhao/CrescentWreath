@@ -12,9 +12,15 @@ public sealed class ProjectionCardViewModel
 public sealed class ProjectionInteractionViewModel
 {
     public bool hasInputContext;
+    public long? inputContextNumericId;
     public bool hasResponseWindow;
     public long? inputRequiredPlayerNumericId;
+    public string inputTypeKey = string.Empty;
+    public string contextKey = string.Empty;
     public int inputChoiceCount;
+    public readonly List<string> inputChoiceKeys = new();
+    public string selectedChoiceKey = string.Empty;
+    public long? responseWindowNumericId;
     public long? responseCurrentResponderPlayerNumericId;
     public int responseResponderCount;
 }
@@ -136,9 +142,18 @@ public sealed class ProjectionViewModel
         }
 
         cloned.interaction.hasInputContext = interaction.hasInputContext;
+        cloned.interaction.inputContextNumericId = interaction.inputContextNumericId;
         cloned.interaction.hasResponseWindow = interaction.hasResponseWindow;
         cloned.interaction.inputRequiredPlayerNumericId = interaction.inputRequiredPlayerNumericId;
+        cloned.interaction.inputTypeKey = interaction.inputTypeKey;
+        cloned.interaction.contextKey = interaction.contextKey;
         cloned.interaction.inputChoiceCount = interaction.inputChoiceCount;
+        foreach (var choiceKey in interaction.inputChoiceKeys)
+        {
+            cloned.interaction.inputChoiceKeys.Add(choiceKey);
+        }
+        cloned.interaction.selectedChoiceKey = interaction.selectedChoiceKey;
+        cloned.interaction.responseWindowNumericId = interaction.responseWindowNumericId;
         cloned.interaction.responseCurrentResponderPlayerNumericId = interaction.responseCurrentResponderPlayerNumericId;
         cloned.interaction.responseResponderCount = interaction.responseResponderCount;
 
@@ -172,9 +187,19 @@ public sealed class ProjectionViewModel
         }
 
         merged.interaction.hasInputContext = incoming.interaction.hasInputContext;
+        merged.interaction.inputContextNumericId = incoming.interaction.inputContextNumericId;
         merged.interaction.hasResponseWindow = incoming.interaction.hasResponseWindow;
         merged.interaction.inputRequiredPlayerNumericId = incoming.interaction.inputRequiredPlayerNumericId;
+        merged.interaction.inputTypeKey = incoming.interaction.inputTypeKey;
+        merged.interaction.contextKey = incoming.interaction.contextKey;
         merged.interaction.inputChoiceCount = incoming.interaction.inputChoiceCount;
+        merged.interaction.inputChoiceKeys.Clear();
+        foreach (var choiceKey in incoming.interaction.inputChoiceKeys)
+        {
+            merged.interaction.inputChoiceKeys.Add(choiceKey);
+        }
+        merged.interaction.selectedChoiceKey = incoming.interaction.selectedChoiceKey;
+        merged.interaction.responseWindowNumericId = incoming.interaction.responseWindowNumericId;
         merged.interaction.responseCurrentResponderPlayerNumericId = incoming.interaction.responseCurrentResponderPlayerNumericId;
         merged.interaction.responseResponderCount = incoming.interaction.responseResponderCount;
 

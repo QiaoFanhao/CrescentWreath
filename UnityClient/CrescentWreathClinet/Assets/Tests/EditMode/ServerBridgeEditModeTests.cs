@@ -163,6 +163,159 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
+    public void SendSubmitResponseNo_WhenResponseWindowExists_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 2,
+        };
+
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":789,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}}"
+            + "}");
+
+        bridge.SendSubmitResponseNo();
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("submitResponse"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.responseWindowNumericId, Is.EqualTo(789));
+        Assert.That(root.payload.shouldRespond, Is.False);
+    }
+
+    [Test]
+    public void SendSubmitResponseNo_WhenResponseWindowMissing_ShouldEmitErrorAndNotSendRequest()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 1,
+        };
+
+        string? capturedError = null;
+        bridge.OnError += error => capturedError = error;
+
+        bridge.SendSubmitResponseNo();
+
+        Assert.That(capturedError, Is.Not.Null.And.Contains("requires an active responseWindow"));
+        Assert.That(fakeSocketClient.lastSentText, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void SendSubmitResponseNoAsActor_WhenResponseWindowExists_ShouldUseOverrideActor()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 99,
+        };
+
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":790,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}}"
+            + "}");
+
+        bridge.SendSubmitResponseNoAsActor(2);
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("submitResponse"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.responseWindowNumericId, Is.EqualTo(790));
+        Assert.That(root.payload.shouldRespond, Is.False);
+    }
+
+    [Test]
+    public void SendSubmitInputChoice_WhenInputContextExists_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 2,
+        };
+
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":321,\"requiredPlayerNumericId\":2,\"choiceCount\":2,\"choiceKeys\":[\"confirm\",\"decline\"]}}"
+            + "}");
+
+        bridge.SendSubmitInputChoice("confirm");
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("submitInputChoice"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.inputContextNumericId, Is.EqualTo(321));
+        Assert.That(root.payload.choiceKey, Is.EqualTo("confirm"));
+    }
+
+    [Test]
+    public void SendSubmitInputChoice_WhenInputContextMissing_ShouldEmitErrorAndNotSendRequest()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 1,
+        };
+
+        string? capturedError = null;
+        bridge.OnError += error => capturedError = error;
+
+        bridge.SendSubmitInputChoice("confirm");
+
+        Assert.That(capturedError, Is.Not.Null.And.Contains("active inputContext"));
+        Assert.That(fakeSocketClient.lastSentText, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void SendDebugOpenDamageResponseWindow_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 2,
+        };
+
+        bridge.SendDebugOpenDamageResponseWindow();
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("debugOpenDamageResponseWindow"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.targetCharacterInstanceNumericId, Is.EqualTo(0));
+        Assert.That(root.payload.baseDamageValue, Is.EqualTo(2));
+        Assert.That(root.payload.damageTypeKey, Is.EqualTo("physical"));
+    }
+
+    [Test]
+    public void SendDebugResetMatch_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 2,
+        };
+
+        bridge.SendDebugResetMatch();
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("debugResetMatch"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+    }
+
+    [Test]
     public void ParseSummary_ShouldUseResponseViewerAndInteraction()
     {
         const string responseJson =
@@ -180,8 +333,8 @@ public class ServerBridgeEditModeTests
             + "\"handZone\":{\"cardCount\":0}"
             + "}]},"
             + "\"interaction\":{"
-            + "\"inputContext\":{\"requiredPlayerNumericId\":2,\"choiceCount\":3},"
-            + "\"responseWindow\":{\"currentResponderPlayerNumericId\":4,\"responderPlayerNumericIds\":[1,2]}"
+            + "\"inputContext\":{\"inputContextNumericId\":77,\"requiredPlayerNumericId\":2,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:context\",\"choiceCount\":3,\"choiceKeys\":[\"a\",\"b\",\"c\"],\"selectedChoiceKey\":\"b\"},"
+            + "\"responseWindow\":{\"responseWindowNumericId\":123,\"currentResponderPlayerNumericId\":4,\"responderPlayerNumericIds\":[1,2]}"
             + "}"
             + "}";
 
@@ -192,9 +345,11 @@ public class ServerBridgeEditModeTests
         Assert.That(summary.currentPlayerNumericId, Is.EqualTo(1));
         Assert.That(summary.myHandCount, Is.EqualTo(6));
         Assert.That(summary.hasInputContext, Is.True);
+        Assert.That(summary.inputContextNumericId, Is.EqualTo(77));
         Assert.That(summary.inputRequiredPlayerNumericId, Is.EqualTo(2));
         Assert.That(summary.inputChoiceCount, Is.EqualTo(3));
         Assert.That(summary.hasResponseWindow, Is.True);
+        Assert.That(summary.responseWindowNumericId, Is.EqualTo(123));
         Assert.That(summary.responseCurrentResponderPlayerNumericId, Is.EqualTo(4));
         Assert.That(summary.responseResponderCount, Is.EqualTo(2));
     }
@@ -225,7 +380,7 @@ public class ServerBridgeEditModeTests
             + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"statusKeys\":[\"Seal\",\"Shackle\"]}]"
             + "},"
             + "\"eventLog\":[{\"eventTypeKey\":\"cardMoved\",\"cardInstanceNumericId\":101,\"moveReason\":\"play\"}],"
-            + "\"interaction\":{\"inputContext\":{\"requiredPlayerNumericId\":1,\"choiceCount\":2},\"responseWindow\":{\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[1,2]}}"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":66,\"requiredPlayerNumericId\":1,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:projection\",\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"],\"selectedChoiceKey\":\"decline\"},\"responseWindow\":{\"responseWindowNumericId\":88,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[1,2]}}"
             + "}";
 
         var projection = ProjectionParser.Parse(responseJson, 1);
@@ -251,9 +406,15 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.eventLog.Count, Is.EqualTo(1));
         Assert.That(projection.recentEventTypeKey, Is.EqualTo("cardMoved"));
         Assert.That(projection.interaction.hasInputContext, Is.True);
+        Assert.That(projection.interaction.inputContextNumericId, Is.EqualTo(66));
         Assert.That(projection.interaction.inputRequiredPlayerNumericId, Is.EqualTo(1));
+        Assert.That(projection.interaction.inputTypeKey, Is.EqualTo("testInput"));
+        Assert.That(projection.interaction.contextKey, Is.EqualTo("test:projection"));
         Assert.That(projection.interaction.inputChoiceCount, Is.EqualTo(2));
+        Assert.That(projection.interaction.inputChoiceKeys, Is.EquivalentTo(new[] { "accept", "decline" }));
+        Assert.That(projection.interaction.selectedChoiceKey, Is.EqualTo("decline"));
         Assert.That(projection.interaction.hasResponseWindow, Is.True);
+        Assert.That(projection.interaction.responseWindowNumericId, Is.EqualTo(88));
         Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.EqualTo(2));
         Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(2));
     }
@@ -271,6 +432,78 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.summonZoneCards, Is.Empty);
         Assert.That(projection.sakuraCakeCards, Is.Empty);
         Assert.That(projection.eventLog, Is.Empty);
+    }
+
+    [Test]
+    public void ProjectionParser_WhenResponseWindowIsNull_ShouldNotMarkHasResponseWindow()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":null}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasResponseWindow, Is.False);
+        Assert.That(projection.interaction.responseWindowNumericId, Is.Null);
+        Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.Null);
+        Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ProjectionParser_WhenResponseWindowIsEmptyObject_ShouldNotMarkHasResponseWindow()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{}}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasResponseWindow, Is.False);
+        Assert.That(projection.interaction.responseWindowNumericId, Is.Null);
+        Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.Null);
+        Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ProjectionParser_WhenResponseWindowIdIsZero_ShouldNotMarkHasResponseWindow()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":0,\"currentResponderPlayerNumericId\":3,\"responderPlayerNumericIds\":[3,4]}}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasResponseWindow, Is.False);
+        Assert.That(projection.interaction.responseWindowNumericId, Is.Null);
+        Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.Null);
+        Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ProjectionParser_WhenResponseWindowIdIsPositive_ShouldMarkHasResponseWindow()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":66,\"currentResponderPlayerNumericId\":3,\"responderPlayerNumericIds\":[3,4]}}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasResponseWindow, Is.True);
+        Assert.That(projection.interaction.responseWindowNumericId, Is.EqualTo(66));
+        Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.EqualTo(3));
+        Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(2));
     }
 
     [Test]
@@ -370,6 +603,83 @@ public class ServerBridgeEditModeTests
         Assert.That(resolved, Is.False);
     }
 
+    [Test]
+    public void ResponseWindowHelper_HasRenderableResponseWindow_WhenIdMissing_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = null;
+
+        var renderable = SocketDebugPanel.HasRenderableResponseWindow(projection);
+
+        Assert.That(renderable, Is.False);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_HasRenderableResponseWindow_WhenIdPositive_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 9;
+
+        var renderable = SocketDebugPanel.HasRenderableResponseWindow(projection);
+
+        Assert.That(renderable, Is.True);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSubmitResponseNoActor_WhenActorMatches_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 55;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        var canSend = SocketDebugPanel.TryValidateSubmitResponseNoActor(
+            projection,
+            "2",
+            out var responderPlayerNumericId,
+            out var failureReason);
+
+        Assert.That(canSend, Is.True);
+        Assert.That(responderPlayerNumericId, Is.EqualTo(2));
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSubmitResponseNoActor_WhenActorMismatches_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 56;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 3;
+
+        var canSend = SocketDebugPanel.TryValidateSubmitResponseNoActor(
+            projection,
+            "1",
+            out var responderPlayerNumericId,
+            out var failureReason);
+
+        Assert.That(canSend, Is.False);
+        Assert.That(responderPlayerNumericId, Is.EqualTo(3));
+        Assert.That(failureReason, Does.Contain("must match currentResponderPlayerNumericId"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSubmitResponseNoActor_WhenNoWindow_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+
+        var canSend = SocketDebugPanel.TryValidateSubmitResponseNoActor(
+            projection,
+            "1",
+            out _,
+            out var failureReason);
+
+        Assert.That(canSend, Is.False);
+        Assert.That(failureReason, Does.Contain("no active responseWindow"));
+    }
+
     private static EnvelopeDto parseEnvelope(string json)
     {
         var parsed = JsonUtility.FromJson<EnvelopeDto>(json);
@@ -392,9 +702,18 @@ public class ServerBridgeEditModeTests
     {
         public long actorPlayerNumericId;
         public long cardInstanceNumericId;
+        public long targetCharacterInstanceNumericId;
+        public long inputContextNumericId;
+        public int baseDamageValue;
+        public string damageTypeKey = string.Empty;
         public string playMode = string.Empty;
         public string defenseTypeKey = string.Empty;
         public long defenseCardInstanceNumericId;
+        public string choiceKey = string.Empty;
+        public string[] choiceKeys = Array.Empty<string>();
+        public long responseWindowNumericId;
+        public bool shouldRespond;
+        public string responseKey = string.Empty;
     }
 
     private sealed class FakeSocketClient : ITextSocketClient

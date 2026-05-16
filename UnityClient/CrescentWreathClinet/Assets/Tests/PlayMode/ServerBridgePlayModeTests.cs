@@ -190,6 +190,234 @@ public class ServerBridgePlayModeTests
         Assert.That(envelope.payload.cardInstanceNumericId, Is.EqualTo(selectedSakuraCardId));
     }
 
+    [Test]
+    public void BridgeFlow_WhenResponseWindowExists_ShouldSendSubmitResponseNo()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 2,
+        };
+
+        bridge.Connect("ws://127.0.0.1:18080/ws");
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":901,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}}"
+            + "}");
+
+        bridge.SendSubmitResponseNo();
+
+        Assert.That(fakeSocketClient.lastSentText, Is.Not.Empty);
+        var envelope = JsonUtility.FromJson<EnvelopeDto>(fakeSocketClient.lastSentText);
+        Assert.That(envelope, Is.Not.Null);
+        Assert.That(envelope!.actionType, Is.EqualTo("submitResponse"));
+        Assert.That(envelope.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(envelope.payload.responseWindowNumericId, Is.EqualTo(901));
+        Assert.That(envelope.payload.shouldRespond, Is.False);
+    }
+
+    [Test]
+    public void BridgeFlow_WhenInputContextExists_ShouldSendSubmitInputChoice()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 3,
+        };
+
+        bridge.Connect("ws://127.0.0.1:18080/ws");
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":501,\"requiredPlayerNumericId\":3,\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"]}}"
+            + "}");
+
+        bridge.SendSubmitInputChoice("accept");
+
+        Assert.That(fakeSocketClient.lastSentText, Is.Not.Empty);
+        var envelope = JsonUtility.FromJson<EnvelopeDto>(fakeSocketClient.lastSentText);
+        Assert.That(envelope, Is.Not.Null);
+        Assert.That(envelope!.actionType, Is.EqualTo("submitInputChoice"));
+        Assert.That(envelope.payload.actorPlayerNumericId, Is.EqualTo(3));
+        Assert.That(envelope.payload.inputContextNumericId, Is.EqualTo(501));
+        Assert.That(envelope.payload.choiceKey, Is.EqualTo("accept"));
+    }
+
+    [Test]
+    public void BridgeFlow_WhenDebugOpenDamageWindowRequested_ShouldSendExpectedActionTypeAndPayload()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 3,
+        };
+
+        bridge.Connect("ws://127.0.0.1:18080/ws");
+        bridge.SendDebugOpenDamageResponseWindow();
+
+        Assert.That(fakeSocketClient.lastSentText, Is.Not.Empty);
+        var envelope = JsonUtility.FromJson<EnvelopeDto>(fakeSocketClient.lastSentText);
+        Assert.That(envelope, Is.Not.Null);
+        Assert.That(envelope!.actionType, Is.EqualTo("debugOpenDamageResponseWindow"));
+        Assert.That(envelope.payload.actorPlayerNumericId, Is.EqualTo(3));
+        Assert.That(envelope.payload.targetCharacterInstanceNumericId, Is.EqualTo(0));
+        Assert.That(envelope.payload.baseDamageValue, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void BridgeFlow_ChecklistRuntimeModesBAndC_ShouldReachCompleted()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 1,
+        };
+
+        ProjectionViewModel latestProjection = ProjectionViewModel.createDefault(1);
+        bridge.OnProjectionUpdated += projection => latestProjection = projection;
+        bridge.Connect("ws://127.0.0.1:18080/ws");
+
+        var responseWindowRuntime = new DebugFlowChecklistRuntime();
+        responseWindowRuntime.setCurrentMode(DebugChecklistMode.responseWindowB);
+
+        var baseline = ProjectionViewModel.createDefault(1);
+        baseline.isSucceeded = true;
+        baseline.hasStateProjection = true;
+        baseline.currentPhase = "action";
+        baseline.currentPlayerNumericId = 1;
+        baseline.viewerHandCardCount = 6;
+
+        bridge.SendDebugOpenDamageResponseWindow();
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"stateProjection\":{"
+            + "\"turn\":{\"turnNumber\":1,\"currentPhase\":\"action\",\"currentPlayerNumericId\":1},"
+            + "\"players\":[{\"playerNumericId\":1,\"handCardCount\":6,\"handZone\":{\"cardCount\":6,\"cards\":[]},\"fieldZone\":{\"cardCount\":0,\"cards\":[]},\"discardZone\":{\"cardCount\":0,\"cards\":[]}]},"
+            + "\"publicZones\":{\"summonZone\":{\"cardCount\":0,\"cards\":[]},\"sakuraCakeDeckZone\":{\"cardCount\":0,\"cards\":[]}}"
+            + "},"
+            + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":901,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}},"
+            + "\"eventLog\":[{\"eventTypeKey\":\"responseWindowOpened\"}]"
+            + "}");
+        responseWindowRuntime.RecordProjectionResponse(
+            DebugChecklistMode.responseWindowB,
+            "debugOpenDamageResponseWindow",
+            latestProjection,
+            baseline,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var openedProjection = latestProjection.deepClone();
+        bridge.SendSubmitResponseNoAsActor(2);
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"stateProjection\":{"
+            + "\"turn\":{\"turnNumber\":1,\"currentPhase\":\"action\",\"currentPlayerNumericId\":1},"
+            + "\"players\":[{\"playerNumericId\":1,\"handCardCount\":6,\"handZone\":{\"cardCount\":6,\"cards\":[]},\"fieldZone\":{\"cardCount\":0,\"cards\":[]},\"discardZone\":{\"cardCount\":0,\"cards\":[]}]},"
+            + "\"publicZones\":{\"summonZone\":{\"cardCount\":0,\"cards\":[]},\"sakuraCakeDeckZone\":{\"cardCount\":0,\"cards\":[]}}"
+            + "},"
+            + "\"interaction\":{\"responseWindow\":null},"
+            + "\"eventLog\":[{\"eventTypeKey\":\"responseWindowClosed\"},{\"eventTypeKey\":\"damageResolved\",\"finalDamageValue\":2},{\"eventTypeKey\":\"hpChanged\"}]"
+            + "}");
+        responseWindowRuntime.RecordProjectionResponse(
+            DebugChecklistMode.responseWindowB,
+            "submitResponse",
+            latestProjection,
+            openedProjection,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        Assert.That(responseWindowRuntime.isCompletedForMode(DebugChecklistMode.responseWindowB), Is.True);
+
+        var inputRuntime = new DebugFlowChecklistRuntime();
+        inputRuntime.setCurrentMode(DebugChecklistMode.inputContextC);
+
+        var inputBaseline = ProjectionViewModel.createDefault(1);
+        inputBaseline.isSucceeded = true;
+        inputBaseline.hasStateProjection = true;
+        inputBaseline.currentPhase = "start";
+        inputBaseline.turnNumber = 1;
+        inputBaseline.currentPlayerNumericId = 1;
+        inputBaseline.viewerHandCardCount = 6;
+
+        bridge.SendEnterActionPhase();
+        fakeSocketClient.EmitText(buildResponse("action", 1, 1, new[] { 1001L, 1002L, 1003L, 1004L, 1005L, 1006L }, new[] { 9001L }, "phaseChanged"));
+        inputRuntime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "enterActionPhase",
+            latestProjection,
+            inputBaseline,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var projectionAfterAction = latestProjection.deepClone();
+        bridge.SendDrawOneCard();
+        fakeSocketClient.EmitText(buildResponse("action", 1, 1, new[] { 1001L, 1002L, 1003L, 1004L, 1005L, 1006L, 1007L }, new[] { 9001L }, "cardMoved"));
+        inputRuntime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "drawOneCard",
+            latestProjection,
+            projectionAfterAction,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var projectionAfterDraw = latestProjection.deepClone();
+        bridge.SendEnterEndPhase();
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"stateProjection\":{"
+            + "\"turn\":{\"turnNumber\":1,\"currentPhase\":\"end\",\"currentPlayerNumericId\":1},"
+            + "\"players\":[{\"playerNumericId\":1,\"handCardCount\":7,\"handZone\":{\"cardCount\":7,\"cards\":[{\"cardInstanceNumericId\":100001,\"definitionId\":\"T001\",\"zoneKey\":\"hand\"}]},\"fieldZone\":{\"cardCount\":0,\"cards\":[]},\"discardZone\":{\"cardCount\":0,\"cards\":[]}]},"
+            + "\"publicZones\":{\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":9001,\"definitionId\":\"T001\",\"zoneKey\":\"summonZone\"}]},\"sakuraCakeDeckZone\":{\"cardCount\":0,\"cards\":[]}}"
+            + "},"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":501,\"requiredPlayerNumericId\":1,\"inputTypeKey\":\"endPhaseDiscardChoice\",\"contextKey\":\"endPhase:discardToHandLimit\",\"choiceCount\":1,\"choiceKeys\":[\"discardCard:100001\"]}},"
+            + "\"eventLog\":[{\"eventTypeKey\":\"inputContextOpened\"}]"
+            + "}");
+        inputRuntime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "enterEndPhase",
+            latestProjection,
+            projectionAfterDraw,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        var projectionAfterOpenInput = latestProjection.deepClone();
+        bridge.SendSubmitInputChoice("discardCard:100001");
+        fakeSocketClient.EmitText(
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"stateProjection\":{"
+            + "\"turn\":{\"turnNumber\":1,\"currentPhase\":\"end\",\"currentPlayerNumericId\":1},"
+            + "\"players\":[{\"playerNumericId\":1,\"handCardCount\":6,\"handZone\":{\"cardCount\":6,\"cards\":[]},\"fieldZone\":{\"cardCount\":0,\"cards\":[]},\"discardZone\":{\"cardCount\":1,\"cards\":[]}]},"
+            + "\"publicZones\":{\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":9001,\"definitionId\":\"T001\",\"zoneKey\":\"summonZone\"}]},\"sakuraCakeDeckZone\":{\"cardCount\":0,\"cards\":[]}}"
+            + "},"
+            + "\"interaction\":{\"inputContext\":null},"
+            + "\"eventLog\":[{\"eventTypeKey\":\"inputContextClosed\"},{\"eventTypeKey\":\"cardMoved\",\"moveReason\":\"discard\"}]"
+            + "}");
+        inputRuntime.RecordProjectionResponse(
+            DebugChecklistMode.inputContextC,
+            "submitInputChoice",
+            latestProjection,
+            projectionAfterOpenInput,
+            playSelectionCleared: true,
+            summonSelectionCleared: true);
+
+        Assert.That(inputRuntime.isCompletedForMode(DebugChecklistMode.inputContextC), Is.True);
+    }
+
     private static string buildResponse(
         string phase,
         int turnNumber,
@@ -257,6 +485,12 @@ public class ServerBridgePlayModeTests
     {
         public long actorPlayerNumericId;
         public long cardInstanceNumericId;
+        public long targetCharacterInstanceNumericId;
+        public long inputContextNumericId;
+        public int baseDamageValue;
+        public string choiceKey = string.Empty;
+        public long responseWindowNumericId;
+        public bool shouldRespond;
     }
 
     private sealed class FakeSocketClient : ITextSocketClient

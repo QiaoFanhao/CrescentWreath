@@ -123,27 +123,57 @@ public static class ProjectionParser
 
     private static void fillInteraction(ProjectionViewModel projection, InteractionDto? interaction)
     {
-        if (interaction?.inputContext is not null)
+        if (interaction?.inputContext is not null &&
+            interaction.inputContext.inputContextNumericId > 0)
         {
             projection.interaction.hasInputContext = true;
+            projection.interaction.inputContextNumericId = interaction.inputContext.inputContextNumericId;
             if (interaction.inputContext.requiredPlayerNumericId > 0)
             {
                 projection.interaction.inputRequiredPlayerNumericId = interaction.inputContext.requiredPlayerNumericId;
             }
 
+            projection.interaction.inputTypeKey = interaction.inputContext.inputTypeKey ?? string.Empty;
+            projection.interaction.contextKey = interaction.inputContext.contextKey ?? string.Empty;
             projection.interaction.inputChoiceCount = interaction.inputContext.choiceCount;
-        }
-
-        if (interaction?.responseWindow is not null)
-        {
-            projection.interaction.hasResponseWindow = true;
-            if (interaction.responseWindow.currentResponderPlayerNumericId > 0)
+            if (interaction.inputContext.choiceKeys is not null)
             {
-                projection.interaction.responseCurrentResponderPlayerNumericId = interaction.responseWindow.currentResponderPlayerNumericId;
+                foreach (var choiceKey in interaction.inputContext.choiceKeys)
+                {
+                    if (string.IsNullOrWhiteSpace(choiceKey))
+                    {
+                        continue;
+                    }
+
+                    projection.interaction.inputChoiceKeys.Add(choiceKey);
+                }
             }
 
-            projection.interaction.responseResponderCount = interaction.responseWindow.responderPlayerNumericIds?.Length ?? 0;
+            projection.interaction.selectedChoiceKey = interaction.inputContext.selectedChoiceKey ?? string.Empty;
         }
+
+        if (interaction?.responseWindow is null)
+        {
+            return;
+        }
+
+        if (interaction.responseWindow.responseWindowNumericId <= 0)
+        {
+            projection.interaction.hasResponseWindow = false;
+            projection.interaction.responseWindowNumericId = null;
+            projection.interaction.responseCurrentResponderPlayerNumericId = null;
+            projection.interaction.responseResponderCount = 0;
+            return;
+        }
+
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = interaction.responseWindow.responseWindowNumericId;
+        if (interaction.responseWindow.currentResponderPlayerNumericId > 0)
+        {
+            projection.interaction.responseCurrentResponderPlayerNumericId = interaction.responseWindow.currentResponderPlayerNumericId;
+        }
+
+        projection.interaction.responseResponderCount = interaction.responseWindow.responderPlayerNumericIds?.Length ?? 0;
     }
 
     private static void fillEventLog(ProjectionViewModel projection, EventLogEntryDto[]? eventLog)
@@ -289,13 +319,19 @@ public static class ProjectionParser
     [Serializable]
     private sealed class InputContextDto
     {
+        public long inputContextNumericId;
         public long requiredPlayerNumericId;
+        public string? inputTypeKey;
+        public string? contextKey;
         public int choiceCount;
+        public string[]? choiceKeys;
+        public string? selectedChoiceKey;
     }
 
     [Serializable]
     private sealed class ResponseWindowDto
     {
+        public long responseWindowNumericId;
         public long currentResponderPlayerNumericId;
         public long[]? responderPlayerNumericIds;
     }
