@@ -604,6 +604,74 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
+    public void SelectionHelper_ApplyHandCardSelection_ShouldSyncHandAndDefenseSelection()
+    {
+        long? selectedHandCardId = null;
+        long? selectedDefenseCardId = null;
+
+        SocketDebugPanel.ApplyHandCardSelection(ref selectedHandCardId, ref selectedDefenseCardId, 1234);
+
+        Assert.That(selectedHandCardId, Is.EqualTo(1234));
+        Assert.That(selectedDefenseCardId, Is.EqualTo(1234));
+    }
+
+    [Test]
+    public void SelectionHelper_ApplySummonCardSelection_ShouldSetSummonAndClearSakuraSelection()
+    {
+        long? selectedSummonCardId = 2001;
+        long? selectedSakuraCardId = 3001;
+
+        SocketDebugPanel.ApplySummonCardSelection(ref selectedSummonCardId, ref selectedSakuraCardId, 2002);
+
+        Assert.That(selectedSummonCardId, Is.EqualTo(2002));
+        Assert.That(selectedSakuraCardId, Is.Null);
+    }
+
+    [Test]
+    public void SelectionHelper_ApplySakuraCardSelection_ShouldSetSakuraAndClearSummonSelection()
+    {
+        long? selectedSakuraCardId = 3001;
+        long? selectedSummonCardId = 2001;
+
+        SocketDebugPanel.ApplySakuraCardSelection(ref selectedSakuraCardId, ref selectedSummonCardId, 3002);
+
+        Assert.That(selectedSakuraCardId, Is.EqualTo(3002));
+        Assert.That(selectedSummonCardId, Is.Null);
+    }
+
+    [Test]
+    public void SelectionHelper_TryApplyFieldCardSelection_ShouldKeepAllSelectionsUnchanged()
+    {
+        long? selectedHandCardId = 1001;
+        long? selectedSummonCardId = 2001;
+        long? selectedSakuraCardId = 3001;
+        long? selectedDefenseCardId = 4001;
+
+        var applied = SocketDebugPanel.TryApplyFieldCardSelection(
+            ref selectedHandCardId,
+            ref selectedSummonCardId,
+            ref selectedSakuraCardId,
+            ref selectedDefenseCardId,
+            9001);
+
+        Assert.That(applied, Is.False);
+        Assert.That(selectedHandCardId, Is.EqualTo(1001));
+        Assert.That(selectedSummonCardId, Is.EqualTo(2001));
+        Assert.That(selectedSakuraCardId, Is.EqualTo(3001));
+        Assert.That(selectedDefenseCardId, Is.EqualTo(4001));
+    }
+
+    [Test]
+    public void SelectionHelper_BuildFieldCardReadOnlyMessage_ShouldContainEnglishAndChineseHint()
+    {
+        var message = SocketDebugPanel.BuildFieldCardReadOnlyMessage(9001);
+
+        Assert.That(message, Does.Contain("field card is read-only"));
+        Assert.That(message, Does.Contain("场上牌仅展示，不可操作"));
+        Assert.That(message, Does.Contain("9001"));
+    }
+
+    [Test]
     public void ResponseWindowHelper_HasRenderableResponseWindow_WhenIdMissing_ShouldReturnFalse()
     {
         var projection = ProjectionViewModel.createDefault(1);
@@ -678,6 +746,89 @@ public class ServerBridgeEditModeTests
 
         Assert.That(canSend, Is.False);
         Assert.That(failureReason, Does.Contain("no active responseWindow"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_T001_ShouldMapToRelicsSummon()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("T001");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Summon/T001.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_T029Lowercase_ShouldMapToRelicsSummon()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("t029");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Summon/T029.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_S001_ShouldMapToSakuraCake()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("S001");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Sakuracake/S001.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_A001_ShouldMapToAnomaly()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("A001");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Anomaly/A001.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_T001B_ShouldMapToRelicsBasic()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("T001B");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Basic/T001B.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_T002B_ShouldMapToRelicsBasic()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("T002B");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Basic/T002B.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_StarterKourindouCoupon_ShouldMapToT001B()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("starter:kourindouCoupon");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Basic/T001B.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_StarterMagicCircuit_ShouldMapToT002B()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("starter:magicCircuit");
+        Assert.That(resolvedPath, Is.EqualTo("Assets/Art/Cards/Illustrations/Relics/Basic/T002B.png"));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_Unknown_ShouldFallbackToCardBackPath()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("starter:magicCircuit");
+        Assert.That(resolvedPath, Is.EqualTo(DebugCardTextureResolver.CardBackAssetPath));
+    }
+
+    [Test]
+    public void DebugCardTextureResolver_GetTextureForUnknown_ShouldNotThrow()
+    {
+        DebugCardTextureResolver.ClearCacheForTests();
+        Assert.DoesNotThrow(() =>
+        {
+            _ = DebugCardTextureResolver.GetTextureForDefinition("UNKNOWN_DEFINITION_ID");
+            _ = DebugCardTextureResolver.GetTextureForDefinition("UNKNOWN_DEFINITION_ID");
+        });
     }
 
     private static EnvelopeDto parseEnvelope(string json)

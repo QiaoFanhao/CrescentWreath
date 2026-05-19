@@ -19,6 +19,10 @@ public sealed class SocketDebugPanel : MonoBehaviour
     [SerializeField] private string inputChoiceKeyManualText = string.Empty;
 
     private const int MaxFlowTraceLines = 40;
+    private const float DebugCardWidth = 150f;
+    private const float DebugCardHeight = 210f;
+    private const float DebugCardImageHeight = 130f;
+    private const float DebugCardGap = 8f;
 
     private ServerBridge? bridge;
     private readonly object stateLock = new();
@@ -80,6 +84,44 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
         resolvedCardId = 0;
         return false;
+    }
+
+    public static void ApplyHandCardSelection(ref long? selectedHandCardId, ref long? selectedDefenseCardId, long cardInstanceNumericId)
+    {
+        selectedHandCardId = cardInstanceNumericId;
+        selectedDefenseCardId = cardInstanceNumericId;
+    }
+
+    public static void ApplySummonCardSelection(ref long? selectedSummonCardId, ref long? selectedSakuraCakeCardId, long cardInstanceNumericId)
+    {
+        selectedSummonCardId = cardInstanceNumericId;
+        selectedSakuraCakeCardId = null;
+    }
+
+    public static void ApplySakuraCardSelection(ref long? selectedSakuraCakeCardId, ref long? selectedSummonCardId, long cardInstanceNumericId)
+    {
+        selectedSakuraCakeCardId = cardInstanceNumericId;
+        selectedSummonCardId = null;
+    }
+
+    public static bool TryApplyFieldCardSelection(
+        ref long? selectedHandCardId,
+        ref long? selectedSummonCardId,
+        ref long? selectedSakuraCakeCardId,
+        ref long? selectedDefenseCardId,
+        long cardInstanceNumericId)
+    {
+        _ = selectedHandCardId;
+        _ = selectedSummonCardId;
+        _ = selectedSakuraCakeCardId;
+        _ = selectedDefenseCardId;
+        _ = cardInstanceNumericId;
+        return false;
+    }
+
+    public static string BuildFieldCardReadOnlyMessage(long cardInstanceNumericId)
+    {
+        return $"field card is read-only（场上牌仅展示，不可操作）：{cardInstanceNumericId}";
     }
 
     public static bool TryResolveSelectedOrManualCardId(long? selectedCardId, string manualText, out long resolvedCardId)
@@ -554,46 +596,103 @@ public sealed class SocketDebugPanel : MonoBehaviour
         }
 
         GUILayout.Label("状态投影");
-        projectionScroll = GUILayout.BeginScrollView(projectionScroll, GUILayout.Height(320f));
+        projectionScroll = GUILayout.BeginScrollView(projectionScroll, GUILayout.Height(560f));
         GUILayout.Label($"回合数: {projectionSnapshot.turnNumber}");
         GUILayout.Label($"当前阶段: {localizePhaseText(projectionSnapshot.currentPhase)}");
         GUILayout.Label($"当前玩家ID: {projectionSnapshot.currentPlayerNumericId?.ToString() ?? "(空)"}");
         GUILayout.Label(
             $"自身资源: 灵力={projectionSnapshot.mana}, 技能点={projectionSnapshot.skillPoint}, 灵脉预览={projectionSnapshot.sigilPreview}, 锁定符卡={projectionSnapshot.lockedSigil?.ToString() ?? "(空)"}");
-        GUILayout.Label($"自身弃牌数: {projectionSnapshot.discardCount}");
+        GUILayout.Label($"弃牌区摘要: {buildDiscardAreaSummary(projectionSnapshot)}");
         GUILayout.Label($"自身手牌数: {projectionSnapshot.viewerHandCardCount}");
 
         GUILayout.Label($"已选手牌: {selectedHandCardIdSnapshot?.ToString() ?? "(无)"}");
-        drawSelectableCardList("自己的手牌", projectionSnapshot.handCards, selectedHandCardIdSnapshot, cardId =>
+        GUILayout.Label($"已选防御牌: {selectedDefenseCardIdSnapshot?.ToString() ?? "(无)"}");
+        drawCardGrid("自己的手牌", projectionSnapshot.handCards, card =>
+        {
+            var label = string.Empty;
+            if (selectedHandCardIdSnapshot.HasValue &&
+                selectedHandCardIdSnapshot.Value == card.cardInstanceNumericId)
+            {
+                label += "[手牌已选]";
+            }
+
+            if (selectedDefenseCardIdSnapshot.HasValue &&
+                selectedDefenseCardIdSnapshot.Value == card.cardInstanceNumericId)
+            {
+                label += "[防御已选]";
+            }
+
+            return label;
+        }, card =>
         {
             lock (stateLock)
             {
-                selectedHandCardId = cardId;
+                var nextSelectedHandCardId = selectedHandCardId;
+                var nextSelectedDefenseCardId = selectedDefenseCardId;
+                ApplyHandCardSelection(ref nextSelectedHandCardId, ref nextSelectedDefenseCardId, card.cardInstanceNumericId);
+                selectedHandCardId = nextSelectedHandCardId;
+                selectedDefenseCardId = nextSelectedDefenseCardId;
             }
-        });
+        }, isReadOnly: false);
 
-        GUILayout.Label("自己的场上牌");
-        drawFieldCardList(projectionSnapshot.fieldCards);
+        drawCardGrid("自己的场上牌（只读）", projectionSnapshot.fieldCards, _ => string.Empty, card =>
+        {
+            lock (stateLock)
+            {
+                var nextSelectedHandCardId = selectedHandCardId;
+                var nextSelectedSummonCardId = selectedSummonCardId;
+                var nextSelectedSakuraCakeCardId = selectedSakuraCakeCardId;
+                var nextSelectedDefenseCardId = selectedDefenseCardId;
+                var applied = TryApplyFieldCardSelection(
+                    ref nextSelectedHandCardId,
+                    ref nextSelectedSummonCardId,
+                    ref nextSelectedSakuraCakeCardId,
+                    ref nextSelectedDefenseCardId,
+                    card.cardInstanceNumericId);
+                if (!applied)
+                {
+                    onError(BuildFieldCardReadOnlyMessage(card.cardInstanceNumericId));
+                }
+            }
+        }, isReadOnly: true);
 
         GUILayout.Label($"已选召唤区卡牌: {selectedSummonCardIdSnapshot?.ToString() ?? "(无)"}");
-        drawSelectableCardList("召唤区卡牌", projectionSnapshot.summonZoneCards, selectedSummonCardIdSnapshot, cardId =>
+        drawCardGrid("召唤区卡牌", projectionSnapshot.summonZoneCards, card =>
+        {
+            return selectedSummonCardIdSnapshot.HasValue &&
+                   selectedSummonCardIdSnapshot.Value == card.cardInstanceNumericId
+                ? "[召唤已选]"
+                : string.Empty;
+        }, card =>
         {
             lock (stateLock)
             {
-                selectedSummonCardId = cardId;
+                var nextSelectedSummonCardId = selectedSummonCardId;
+                var nextSelectedSakuraCakeCardId = selectedSakuraCakeCardId;
+                ApplySummonCardSelection(ref nextSelectedSummonCardId, ref nextSelectedSakuraCakeCardId, card.cardInstanceNumericId);
+                selectedSummonCardId = nextSelectedSummonCardId;
+                selectedSakuraCakeCardId = nextSelectedSakuraCakeCardId;
             }
-        });
+        }, isReadOnly: false);
 
         GUILayout.Label($"已选樱花饼卡牌: {selectedSakuraCakeCardIdSnapshot?.ToString() ?? "(无)"}");
-        drawSelectableCardList("樱花饼区卡牌", projectionSnapshot.sakuraCakeCards, selectedSakuraCakeCardIdSnapshot, cardId =>
+        drawCardGrid("樱花饼区卡牌", projectionSnapshot.sakuraCakeCards, card =>
+        {
+            return selectedSakuraCakeCardIdSnapshot.HasValue &&
+                   selectedSakuraCakeCardIdSnapshot.Value == card.cardInstanceNumericId
+                ? "[樱花饼已选]"
+                : string.Empty;
+        }, card =>
         {
             lock (stateLock)
             {
-                selectedSakuraCakeCardId = cardId;
+                var nextSelectedSakuraCakeCardId = selectedSakuraCakeCardId;
+                var nextSelectedSummonCardId = selectedSummonCardId;
+                ApplySakuraCardSelection(ref nextSelectedSakuraCakeCardId, ref nextSelectedSummonCardId, card.cardInstanceNumericId);
+                selectedSakuraCakeCardId = nextSelectedSakuraCakeCardId;
+                selectedSummonCardId = nextSelectedSummonCardId;
             }
-        });
-
-        GUILayout.Label($"已选防御牌: {selectedDefenseCardIdSnapshot?.ToString() ?? "(无)"}");
+        }, isReadOnly: false);
 
         GUILayout.Label(
             $"当前角色: 生命={projectionSnapshot.activeCharacterCurrentHp?.ToString() ?? "(空)"}/{projectionSnapshot.activeCharacterMaxHp?.ToString() ?? "(空)"} 状态=[{string.Join(",", projectionSnapshot.activeCharacterStatusKeys)}]");
@@ -702,11 +801,28 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUI.color = originalColor;
     }
 
-    private void drawSelectableCardList(
+    private static string buildDiscardAreaSummary(ProjectionViewModel projection)
+    {
+        string discardEventSummary = "(无)";
+        for (var index = projection.eventLog.Count - 1; index >= 0; index--)
+        {
+            var eventLine = projection.eventLog[index];
+            if (eventLine.IndexOf("discard", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                discardEventSummary = eventLine;
+                break;
+            }
+        }
+
+        return $"数量={projection.discardCount}，最近弃牌事件={discardEventSummary}";
+    }
+
+    private void drawCardGrid(
         string title,
         List<ProjectionCardViewModel> cards,
-        long? selectedCardId,
-        Action<long> onSelect)
+        Func<ProjectionCardViewModel, string> getSelectionLabel,
+        Action<ProjectionCardViewModel>? onCardClicked,
+        bool isReadOnly)
     {
         GUILayout.Label(title);
         if (cards.Count == 0)
@@ -715,40 +831,150 @@ public sealed class SocketDebugPanel : MonoBehaviour
             return;
         }
 
-        var previousEnabled = GUI.enabled;
-        for (var index = 0; index < cards.Count; index++)
-        {
-            var card = cards[index];
-            var isSelected = selectedCardId.HasValue && selectedCardId.Value == card.cardInstanceNumericId;
-            GUI.enabled = true;
-            var labelPrefix = isSelected ? "[已选] " : string.Empty;
-            var label = $"{labelPrefix}{card.cardInstanceNumericId} : {card.definitionId} ({localizeZoneKeyText(card.zoneKey)})";
-            if (GUILayout.Button(label, GUILayout.Height(24f)))
-            {
-                onSelect(card.cardInstanceNumericId);
-            }
-        }
+        var availableWidth = Mathf.Max(1f, panelWidth - 80f);
+        var maxColumns = Mathf.Max(1, Mathf.FloorToInt((availableWidth + DebugCardGap) / (DebugCardWidth + DebugCardGap)));
+        var cardIndex = 0;
 
-        GUI.enabled = previousEnabled;
+        while (cardIndex < cards.Count)
+        {
+            GUILayout.BeginHorizontal();
+            for (var column = 0; column < maxColumns && cardIndex < cards.Count; column++, cardIndex++)
+            {
+                if (column > 0)
+                {
+                    GUILayout.Space(DebugCardGap);
+                }
+
+                var card = cards[cardIndex];
+                var selectionLabel = getSelectionLabel(card);
+                drawDebugCard(card, selectionLabel, onCardClicked, isReadOnly);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Space(DebugCardGap);
+        }
     }
 
-    private void drawFieldCardList(List<ProjectionCardViewModel> cards)
+    private void drawDebugCard(
+        ProjectionCardViewModel card,
+        string selectionLabel,
+        Action<ProjectionCardViewModel>? onCardClicked,
+        bool isReadOnly)
     {
-        if (cards.Count == 0)
+        var cardRect = GUILayoutUtility.GetRect(
+            DebugCardWidth,
+            DebugCardHeight,
+            GUILayout.Width(DebugCardWidth),
+            GUILayout.Height(DebugCardHeight));
+
+        var isSelected = !string.IsNullOrWhiteSpace(selectionLabel);
+        drawCardBackground(cardRect, isSelected);
+
+        var texture = DebugCardTextureResolver.GetTextureForDefinition(card.definitionId);
+        var imageRect = new Rect(
+            cardRect.x + 8f,
+            cardRect.y + 8f,
+            cardRect.width - 16f,
+            DebugCardImageHeight);
+
+        if (texture is not null)
         {
-            GUILayout.Label("(无)");
+            GUI.DrawTexture(imageRect, texture, ScaleMode.ScaleToFit, true);
+        }
+        else
+        {
+            var previousColor = GUI.color;
+            GUI.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            GUI.DrawTexture(imageRect, Texture2D.whiteTexture, ScaleMode.StretchToFill);
+            GUI.color = previousColor;
+
+            var placeholderStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = Color.white },
+            };
+            GUI.Label(imageRect, "NO IMAGE", placeholderStyle);
+        }
+
+        var definitionRect = new Rect(cardRect.x + 8f, cardRect.y + 144f, cardRect.width - 16f, 22f);
+        var definitionStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontStyle = FontStyle.Bold,
+            fontSize = 12,
+            alignment = TextAnchor.MiddleLeft,
+            normal = { textColor = Color.white },
+        };
+        GUI.Label(definitionRect, card.definitionId, definitionStyle);
+
+        var idRect = new Rect(cardRect.x + 8f, cardRect.y + 166f, cardRect.width - 16f, 20f);
+        var metaStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 11,
+            alignment = TextAnchor.MiddleLeft,
+            normal = { textColor = new Color(0.9f, 0.9f, 0.9f, 1f) },
+        };
+        GUI.Label(idRect, $"#{card.cardInstanceNumericId}", metaStyle);
+
+        var zoneRect = new Rect(cardRect.x + 8f, cardRect.y + 186f, cardRect.width - 16f, 16f);
+        GUI.Label(zoneRect, localizeZoneKeyText(card.zoneKey), metaStyle);
+
+        if (!string.IsNullOrWhiteSpace(selectionLabel))
+        {
+            var selectionStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                alignment = TextAnchor.UpperLeft,
+                normal = { textColor = new Color(1f, 0.92f, 0.25f, 1f) },
+            };
+            GUI.Label(new Rect(cardRect.x + 8f, cardRect.y + 4f, cardRect.width - 16f, 14f), selectionLabel, selectionStyle);
+        }
+
+        if (isReadOnly)
+        {
+            var readOnlyStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                alignment = TextAnchor.UpperRight,
+                normal = { textColor = new Color(1f, 0.6f, 0.4f, 1f) },
+            };
+            GUI.Label(new Rect(cardRect.x + 8f, cardRect.y + 4f, cardRect.width - 16f, 14f), "只读", readOnlyStyle);
+        }
+
+        if (onCardClicked is not null && GUI.Button(cardRect, GUIContent.none, GUIStyle.none))
+        {
+            onCardClicked(card);
+        }
+    }
+
+    private static void drawCardBackground(Rect cardRect, bool isSelected)
+    {
+        var backgroundColor = isSelected
+            ? new Color(0.38f, 0.33f, 0.08f, 0.96f)
+            : new Color(0.18f, 0.18f, 0.18f, 0.96f);
+        var previousColor = GUI.color;
+        GUI.color = backgroundColor;
+        GUI.DrawTexture(cardRect, Texture2D.whiteTexture, ScaleMode.StretchToFill);
+        GUI.color = previousColor;
+
+        if (!isSelected)
+        {
             return;
         }
 
-        for (var index = 0; index < cards.Count; index++)
-        {
-            var card = cards[index];
-            var label = $"{card.cardInstanceNumericId} : {card.definitionId} ({localizeZoneKeyText(card.zoneKey)})";
-            if (GUILayout.Button(label, GUILayout.Height(24f)))
-            {
-                onError($"场上牌点击：{card.cardInstanceNumericId}（仅展示，不可操作）。");
-            }
-        }
+        var borderColor = new Color(1f, 0.92f, 0.22f, 1f);
+        drawRect(new Rect(cardRect.x, cardRect.y, cardRect.width, 2f), borderColor);
+        drawRect(new Rect(cardRect.x, cardRect.yMax - 2f, cardRect.width, 2f), borderColor);
+        drawRect(new Rect(cardRect.x, cardRect.y, 2f, cardRect.height), borderColor);
+        drawRect(new Rect(cardRect.xMax - 2f, cardRect.y, 2f, cardRect.height), borderColor);
+    }
+
+    private static void drawRect(Rect rect, Color color)
+    {
+        var previousColor = GUI.color;
+        GUI.color = color;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill);
+        GUI.color = previousColor;
     }
 
     private void drawSummarySection()
@@ -1436,6 +1662,144 @@ public sealed class SocketDebugPanel : MonoBehaviour
         }
 
         return false;
+    }
+}
+
+public static class DebugCardTextureResolver
+{
+    public const string CardBackAssetPath = "Assets/Art/Cards/Illustrations/CardBack.png";
+
+    private const string BasicRelicFolderPath = "Assets/Art/Cards/Illustrations/Relics/Basic";
+    private const string SummonRelicFolderPath = "Assets/Art/Cards/Illustrations/Relics/Summon";
+    private const string SakuraRelicFolderPath = "Assets/Art/Cards/Illustrations/Relics/Sakuracake";
+    private const string AnomalyFolderPath = "Assets/Art/Cards/Illustrations/Anomaly";
+
+    private static readonly Dictionary<string, Texture2D> textureCache = new Dictionary<string, Texture2D>();
+    private static readonly HashSet<string> missingTextureKeys = new HashSet<string>();
+
+    public static string ResolveAssetPathForDefinition(string definitionId)
+    {
+        var normalizedDefinitionId = normalizeDefinitionId(definitionId);
+        if (string.Equals(normalizedDefinitionId, "STARTER:KOURINDOUCOUPON", StringComparison.Ordinal))
+        {
+            return $"{BasicRelicFolderPath}/T001B.png";
+        }
+
+        if (string.Equals(normalizedDefinitionId, "STARTER:MAGICCIRCUIT", StringComparison.Ordinal))
+        {
+            return $"{BasicRelicFolderPath}/T002B.png";
+        }
+
+        if (isBasicTreasureDefinitionId(normalizedDefinitionId))
+        {
+            return $"{BasicRelicFolderPath}/{normalizedDefinitionId}.png";
+        }
+
+        if (isTreasureDefinitionId(normalizedDefinitionId))
+        {
+            return $"{SummonRelicFolderPath}/{normalizedDefinitionId}.png";
+        }
+
+        if (string.Equals(normalizedDefinitionId, "S001", StringComparison.Ordinal))
+        {
+            return $"{SakuraRelicFolderPath}/{normalizedDefinitionId}.png";
+        }
+
+        if (isAnomalyDefinitionId(normalizedDefinitionId))
+        {
+            return $"{AnomalyFolderPath}/{normalizedDefinitionId}.png";
+        }
+
+        return CardBackAssetPath;
+    }
+
+    public static Texture2D GetTextureForDefinition(string definitionId)
+    {
+        var normalizedDefinitionId = normalizeDefinitionId(definitionId);
+        if (textureCache.TryGetValue(normalizedDefinitionId, out var cachedTexture))
+        {
+            return cachedTexture;
+        }
+
+        if (missingTextureKeys.Contains(normalizedDefinitionId))
+        {
+            return null;
+        }
+
+        var resolvedAssetPath = ResolveAssetPathForDefinition(normalizedDefinitionId);
+        var resolvedTexture = loadTextureAtPath(resolvedAssetPath);
+        if (resolvedTexture == null && !string.Equals(resolvedAssetPath, CardBackAssetPath, StringComparison.Ordinal))
+        {
+            resolvedTexture = loadTextureAtPath(CardBackAssetPath);
+        }
+
+        if (resolvedTexture == null)
+        {
+            missingTextureKeys.Add(normalizedDefinitionId);
+            return null;
+        }
+
+        textureCache[normalizedDefinitionId] = resolvedTexture;
+        return resolvedTexture;
+    }
+
+    public static void ClearCacheForTests()
+    {
+        textureCache.Clear();
+        missingTextureKeys.Clear();
+    }
+
+    private static string normalizeDefinitionId(string definitionId)
+    {
+        return string.IsNullOrWhiteSpace(definitionId)
+            ? string.Empty
+            : definitionId.Trim().ToUpperInvariant();
+    }
+
+    private static bool isTreasureDefinitionId(string definitionId)
+    {
+        if (definitionId.Length != 4 || definitionId[0] != 'T')
+        {
+            return false;
+        }
+
+        return char.IsDigit(definitionId[1]) &&
+               char.IsDigit(definitionId[2]) &&
+               char.IsDigit(definitionId[3]);
+    }
+
+    private static bool isBasicTreasureDefinitionId(string definitionId)
+    {
+        if (definitionId.Length != 5 || definitionId[0] != 'T' || definitionId[4] != 'B')
+        {
+            return false;
+        }
+
+        return char.IsDigit(definitionId[1]) &&
+               char.IsDigit(definitionId[2]) &&
+               char.IsDigit(definitionId[3]);
+    }
+
+    private static bool isAnomalyDefinitionId(string definitionId)
+    {
+        if (definitionId.Length != 4 || definitionId[0] != 'A')
+        {
+            return false;
+        }
+
+        return char.IsDigit(definitionId[1]) &&
+               char.IsDigit(definitionId[2]) &&
+               char.IsDigit(definitionId[3]);
+    }
+
+    private static Texture2D loadTextureAtPath(string assetPath)
+    {
+#if UNITY_EDITOR
+        return UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+#else
+        _ = assetPath;
+        return null;
+#endif
     }
 }
 }
