@@ -51,14 +51,13 @@ public sealed class DebugFlowChecklistRuntime
         modeStepStates[DebugChecklistMode.mainFlowA] = new List<DebugFlowStepState>
         {
             createStep(1, "connect", "Connect"),
-            createStep(2, "enterAction", "EnterAction"),
-            createStep(3, "draw", "Draw"),
-            createStep(4, "playSelected", "Play Selected"),
-            createStep(5, "enterSummon", "EnterSummon"),
-            createStep(6, "summonSelected", "Summon Selected"),
-            createStep(7, "enterEnd", "EnterEnd"),
-            createStep(8, "startNextTurn", "StartNextTurn"),
-            createStep(9, "nextPlayerEnterAction", "Next Player EnterAction"),
+            createStep(2, "draw", "Draw"),
+            createStep(3, "playSelected", "Play Selected"),
+            createStep(4, "enterSummon", "EnterSummon"),
+            createStep(5, "summonSelected", "Summon Selected"),
+            createStep(6, "endTurn", "End Turn"),
+            createStep(7, "verifyNextPlayer", "Verify Next Player"),
+            createStep(8, "nextPlayerActionReady", "Next Player Action Ready"),
         };
 
         modeStepStates[DebugChecklistMode.responseWindowB] = new List<DebugFlowStepState>
@@ -162,6 +161,17 @@ public sealed class DebugFlowChecklistRuntime
         return snapshot;
     }
 
+    public DebugFlowStepStatus getStepStatus(DebugChecklistMode mode, int stepNumber)
+    {
+        var stepStates = modeStepStates[mode];
+        if (stepNumber < 1 || stepNumber > stepStates.Count)
+        {
+            return DebugFlowStepStatus.pending;
+        }
+
+        return stepStates[stepNumber - 1].status;
+    }
+
     public void OnConnectionStateChanged(string connectionState)
     {
         var currentStepIndexForMainFlow = getCurrentStepIndex(DebugChecklistMode.mainFlowA);
@@ -234,8 +244,8 @@ public sealed class DebugFlowChecklistRuntime
         bool playSelectionCleared,
         bool summonSelectionCleared)
     {
-        var stepIndex = getCurrentStepIndex(DebugChecklistMode.mainFlowA);
-        if (stepIndex < 1 || stepIndex > modeStepStates[DebugChecklistMode.mainFlowA].Count)
+        var initialStep = getCurrentStepIndex(DebugChecklistMode.mainFlowA);
+        if (initialStep < 1 || initialStep > modeStepStates[DebugChecklistMode.mainFlowA].Count)
         {
             modeLastStepResults[DebugChecklistMode.mainFlowA] = "flow already completed";
             return;
@@ -246,34 +256,37 @@ public sealed class DebugFlowChecklistRuntime
             var failureReason = string.IsNullOrWhiteSpace(currentProjection.errorCode)
                 ? "request failed"
                 : currentProjection.errorCode;
-            markStep(DebugChecklistMode.mainFlowA, stepIndex, DebugFlowStepStatus.failed, $"{actionType}: {failureReason}");
+            markStep(DebugChecklistMode.mainFlowA, initialStep, DebugFlowStepStatus.failed, $"{actionType}: {failureReason}");
             return;
         }
 
-        var expectedActionType = expectedMainFlowActionTypeForStep(stepIndex);
-        if (expectedActionType != actionType)
+        var runningStep = initialStep;
+        while (runningStep <= modeStepStates[DebugChecklistMode.mainFlowA].Count)
         {
-            markStep(
-                DebugChecklistMode.mainFlowA,
-                stepIndex,
-                DebugFlowStepStatus.failed,
-                $"expected action={expectedActionType}, actual={actionType}");
-            return;
+            var isStepPassed = evaluateMainFlowStep(
+                runningStep,
+                actionType,
+                currentProjection,
+                previousProjection,
+                playSelectionCleared,
+                summonSelectionCleared,
+                out var reason,
+                out var shouldWaitForAnotherAction);
+
+            if (shouldWaitForAnotherAction)
+            {
+                return;
+            }
+
+            if (!isStepPassed)
+            {
+                markStep(DebugChecklistMode.mainFlowA, runningStep, DebugFlowStepStatus.failed, reason);
+                return;
+            }
+
+            markStep(DebugChecklistMode.mainFlowA, runningStep, DebugFlowStepStatus.passed, reason);
+            runningStep++;
         }
-
-        var isStepPassed = evaluateMainFlowStep(
-            stepIndex,
-            currentProjection,
-            previousProjection,
-            playSelectionCleared,
-            summonSelectionCleared,
-            out var reason);
-
-        markStep(
-            DebugChecklistMode.mainFlowA,
-            stepIndex,
-            isStepPassed ? DebugFlowStepStatus.passed : DebugFlowStepStatus.failed,
-            reason);
     }
 
     private void recordResponseWindowFlowResponse(
@@ -619,81 +632,119 @@ public sealed class DebugFlowChecklistRuntime
     {
         return stepNumber switch
         {
-            2 => "enterActionPhase",
-            3 => "drawOneCard",
-            4 => "playTreasureCard",
-            5 => "enterSummonPhase",
-            6 => "summonTreasureCard",
-            7 => "enterEndPhase",
-            8 => "startNextTurn",
-            9 => "enterActionPhase",
+            2 => "drawOneCard",
+            3 => "playTreasureCard",
+            4 => "enterSummonPhase",
+            5 => "summonTreasureCard",
+            6 => "enterEndPhase",
             _ => string.Empty,
         };
     }
 
     private bool evaluateMainFlowStep(
         int stepNumber,
+        string actionType,
         ProjectionViewModel currentProjection,
         ProjectionViewModel previousProjection,
         bool playSelectionCleared,
         bool summonSelectionCleared,
-        out string reason)
+        out string reason,
+        out bool shouldWaitForAnotherAction)
     {
+        shouldWaitForAnotherAction = false;
+        var expectedActionType = expectedMainFlowActionTypeForStep(stepNumber);
+        if (stepNumber == 1)
+        {
+            shouldWaitForAnotherAction = true;
+            reason = "waiting for connected";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedActionType) &&
+            !string.Equals(expectedActionType, actionType, StringComparison.Ordinal))
+        {
+            reason = $"expected action={expectedActionType}, actual={actionType}";
+            return false;
+        }
+
         reason = stepNumber switch
         {
-            2 when currentProjection.currentPhase == "action" => "phase is action",
-            2 => "phase is not action",
+            2 when currentProjection.currentPhase == "action" => "draw succeeded and phase is action",
+            2 when currentProjection.viewerHandCardCount > previousProjection.viewerHandCardCount => "hand count increased",
+            2 => "hand count did not increase after draw",
 
-            3 when currentProjection.viewerHandCardCount > previousProjection.viewerHandCardCount => "hand count increased",
-            3 => "hand count did not increase",
+            3 when !playSelectionCleared => "played selected hand card was not cleared",
+            3 when currentProjection.viewerHandCardCount < previousProjection.viewerHandCardCount => "hand count decreased",
+            3 when currentProjection.fieldCards.Count > previousProjection.fieldCards.Count => "field count increased",
+            3 => "play result not observed in hand/field",
 
-            4 when !playSelectionCleared => "played selected hand card was not cleared",
-            4 when currentProjection.viewerHandCardCount < previousProjection.viewerHandCardCount => "hand count decreased",
-            4 when currentProjection.fieldCards.Count > previousProjection.fieldCards.Count => "field count increased",
-            4 => "play result not observed in hand/field",
+            4 when currentProjection.currentPhase == "summon" => "phase is summon",
+            4 => "phase is not summon",
 
-            5 when currentProjection.currentPhase == "summon" => "phase is summon",
-            5 => "phase is not summon",
+            5 when !summonSelectionCleared => "summoned selected card was not cleared",
+            5 when currentProjection.summonZoneCards.Count < previousProjection.summonZoneCards.Count => "summon zone count decreased",
+            5 => "summon zone count did not decrease",
 
-            6 when !summonSelectionCleared => "summoned selected card was not cleared",
-            6 when currentProjection.summonZoneCards.Count < previousProjection.summonZoneCards.Count => "summon zone count decreased",
-            6 => "summon zone count did not decrease",
+            6 when currentProjection.currentPhase == "action" &&
+                   currentProjection.turnNumber > previousProjection.turnNumber &&
+                   currentProjection.currentPlayerNumericId != previousProjection.currentPlayerNumericId =>
+                "end turn auto-advanced to next player action",
+            6 when currentProjection.interaction.hasInputContext || currentProjection.interaction.hasResponseWindow =>
+                "end turn opened interaction",
+            6 => "end turn returned but next state requires observation",
 
-            7 when currentProjection.currentPhase == "end" => "phase is end",
-            7 => "phase is not end",
+            7 when currentProjection.turnNumber > previousProjection.turnNumber &&
+                   currentProjection.currentPlayerNumericId != previousProjection.currentPlayerNumericId =>
+                "turn advanced and player switched",
+            7 => "turn number did not advance or current player did not switch",
 
-            8 when currentProjection.turnNumber <= previousProjection.turnNumber => "turn number did not advance",
-            8 when currentProjection.currentPlayerNumericId == previousProjection.currentPlayerNumericId => "current player did not switch",
-            8 => "turn advanced and player switched",
-
-            9 when currentProjection.currentPhase != "action" => "phase is not action",
-            9 when expectedNextPlayerForMainFlowStep9.HasValue && currentProjection.currentPlayerNumericId != expectedNextPlayerForMainFlowStep9 => "current player mismatch after next turn",
-            9 => "next player entered action",
+            8 when currentProjection.currentPhase == "action" &&
+                   (!expectedNextPlayerForMainFlowStep9.HasValue ||
+                    currentProjection.currentPlayerNumericId == expectedNextPlayerForMainFlowStep9) =>
+                "next player action is ready",
+            8 => "phase is not action or current player mismatch",
 
             _ => "unsupported step",
         };
 
-        if (stepNumber == 8 &&
+        if (stepNumber == 7 &&
             currentProjection.turnNumber > previousProjection.turnNumber &&
             currentProjection.currentPlayerNumericId != previousProjection.currentPlayerNumericId)
         {
             expectedNextPlayerForMainFlowStep9 = currentProjection.currentPlayerNumericId;
         }
 
+        if (stepNumber == 7 &&
+            (currentProjection.interaction.hasInputContext || currentProjection.interaction.hasResponseWindow))
+        {
+            shouldWaitForAnotherAction = true;
+            reason = "waiting for input/response continuation before player switch";
+            return false;
+        }
+
+        if (stepNumber == 8 &&
+            currentProjection.currentPhase != "action" &&
+            (currentProjection.interaction.hasInputContext || currentProjection.interaction.hasResponseWindow))
+        {
+            shouldWaitForAnotherAction = true;
+            reason = "waiting for input/response continuation before action phase";
+            return false;
+        }
+
         return stepNumber switch
         {
-            2 => currentProjection.currentPhase == "action",
-            3 => currentProjection.viewerHandCardCount > previousProjection.viewerHandCardCount,
-            4 => playSelectionCleared &&
+            2 => currentProjection.currentPhase == "action" &&
+                 currentProjection.viewerHandCardCount > previousProjection.viewerHandCardCount,
+            3 => playSelectionCleared &&
                  (currentProjection.viewerHandCardCount < previousProjection.viewerHandCardCount ||
                   currentProjection.fieldCards.Count > previousProjection.fieldCards.Count),
-            5 => currentProjection.currentPhase == "summon",
-            6 => summonSelectionCleared &&
+            4 => currentProjection.currentPhase == "summon",
+            5 => summonSelectionCleared &&
                  currentProjection.summonZoneCards.Count < previousProjection.summonZoneCards.Count,
-            7 => currentProjection.currentPhase == "end",
-            8 => currentProjection.turnNumber > previousProjection.turnNumber &&
+            6 => true,
+            7 => currentProjection.turnNumber > previousProjection.turnNumber &&
                  currentProjection.currentPlayerNumericId != previousProjection.currentPlayerNumericId,
-            9 => currentProjection.currentPhase == "action" &&
+            8 => currentProjection.currentPhase == "action" &&
                  (!expectedNextPlayerForMainFlowStep9.HasValue || currentProjection.currentPlayerNumericId == expectedNextPlayerForMainFlowStep9),
             _ => false,
         };

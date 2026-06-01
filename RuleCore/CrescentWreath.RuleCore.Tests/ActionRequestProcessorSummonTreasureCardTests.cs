@@ -96,6 +96,117 @@ public class ActionRequestProcessorSummonTreasureCardTests
     }
 
     [Fact]
+    public void HappyPath_WhenRefilledSummonCardIsT005_ShouldOpenArrivalInputAndForceAllPlayersDiscardInSeatOrder()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 1500);
+        var opponentPlayerState = createPlayerState(opponentPlayerId, new TeamId(2), 2500);
+        actorPlayerState.sigilPreview = 5;
+        actorPlayerState.lockedSigil = 2;
+        actorPlayerState.isSigilLocked = true;
+        var summonZoneId = new ZoneId(9004);
+        var summonedCardInstanceId = new CardInstanceId(5101);
+        var refillCardInstanceId = new CardInstanceId(5102);
+        var actorHandCardInstanceId = new CardInstanceId(5103);
+        var opponentHandCardInstanceId = new CardInstanceId(5104);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        gameState.players.Add(opponentPlayerId, opponentPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, TurnPhase.summon);
+        gameState.publicState = createPublicState(summonZoneId);
+        var publicTreasureDeckZoneId = gameState.publicState.publicTreasureDeckZoneId;
+
+        addZone(gameState, publicTreasureDeckZoneId, ZoneKey.publicTreasureDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, summonZoneId, ZoneKey.summonZone, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, actorPlayerState.handZoneId, ZoneKey.hand, actorPlayerId, ZonePublicOrPrivate.privateZone);
+        addZone(gameState, actorPlayerState.discardZoneId, ZoneKey.discard, actorPlayerId, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, opponentPlayerState.handZoneId, ZoneKey.hand, opponentPlayerId, ZonePublicOrPrivate.privateZone);
+        addZone(gameState, opponentPlayerState.discardZoneId, ZoneKey.discard, opponentPlayerId, ZonePublicOrPrivate.publicZone);
+
+        var summonedCardInstance = new CardInstance
+        {
+            cardInstanceId = summonedCardInstanceId,
+            definitionId = "T002",
+            ownerPlayerId = actorPlayerId,
+            zoneId = summonZoneId,
+            zoneKey = ZoneKey.summonZone,
+        };
+        gameState.cardInstances.Add(summonedCardInstanceId, summonedCardInstance);
+        gameState.zones[summonZoneId].cardInstanceIds.Add(summonedCardInstanceId);
+
+        var refillCardInstance = new CardInstance
+        {
+            cardInstanceId = refillCardInstanceId,
+            definitionId = "T005",
+            ownerPlayerId = new PlayerId(0),
+            zoneId = publicTreasureDeckZoneId,
+            zoneKey = ZoneKey.publicTreasureDeck,
+        };
+        gameState.cardInstances.Add(refillCardInstanceId, refillCardInstance);
+        gameState.zones[publicTreasureDeckZoneId].cardInstanceIds.Add(refillCardInstanceId);
+
+        createCardInPlayerHand(gameState, actorPlayerState, actorHandCardInstanceId, "T001");
+        createCardInPlayerHand(gameState, opponentPlayerState, opponentHandCardInstanceId, "T003");
+        var actorDiscardBefore = gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds.Count;
+        var opponentDiscardBefore = gameState.zones[opponentPlayerState.discardZoneId].cardInstanceIds.Count;
+
+        var processor = new ActionRequestProcessor();
+        var summonEvents = processor.processActionRequest(gameState, new SummonTreasureCardActionRequest
+        {
+            requestId = 9816,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = summonedCardInstanceId,
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Null(gameState.currentInputContext!.requiredPlayerId);
+        Assert.Contains(actorPlayerId, gameState.currentInputContext.requiredPlayerIds);
+        Assert.Contains(opponentPlayerId, gameState.currentInputContext.requiredPlayerIds);
+        Assert.Equal(
+            TreasureArrivalEffectRuntime.ContinuationKeyT005ArrivalAllPlayersDiscard1,
+            gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Contains(
+            summonEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "inputContextOpened");
+        Assert.Equal(0, actorPlayerState.lockedSigil);
+
+        var actorDiscardChoiceKey = gameState.currentInputContext.choiceKeysByRequiredPlayerNumericId[actorPlayerId.Value][0];
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 9817,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = actorDiscardChoiceKey,
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Contains(actorPlayerId, gameState.currentInputContext!.submittedPlayerIds);
+        Assert.DoesNotContain(opponentPlayerId, gameState.currentInputContext.submittedPlayerIds);
+
+        var opponentDiscardChoiceKey = gameState.currentInputContext.choiceKeysByRequiredPlayerNumericId[opponentPlayerId.Value][0];
+        var secondSubmitEvents = processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 9818,
+            actorPlayerId = opponentPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = opponentDiscardChoiceKey,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentActionChain!.pendingContinuationKey);
+        Assert.True(gameState.currentActionChain.isCompleted);
+        Assert.Equal(actorDiscardBefore + 2, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds.Count);
+        Assert.Equal(opponentDiscardBefore + 1, gameState.zones[opponentPlayerState.discardZoneId].cardInstanceIds.Count);
+        Assert.DoesNotContain(actorHandCardInstanceId, gameState.zones[actorPlayerState.handZoneId].cardInstanceIds);
+        Assert.DoesNotContain(opponentHandCardInstanceId, gameState.zones[opponentPlayerState.handZoneId].cardInstanceIds);
+        Assert.Contains(secondSubmitEvents, gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                                                         cardMovedEvent.moveReason == CardMoveReason.discard);
+    }
+
+    [Fact]
     public void HappyPath_WhenPublicTreasureDeckIsEmpty_ShouldSummonWithoutRefill()
     {
         var actorPlayerId = new PlayerId(1);
@@ -717,6 +828,62 @@ public class ActionRequestProcessorSummonTreasureCardTests
         Assert.Equal(ZoneKey.discard, movedEvent.toZoneKey);
         Assert.Equal(CardMoveReason.summon, movedEvent.moveReason);
     }
+
+    [Fact]
+    public void WhenRealTreasureSummonCostIsInsufficient_ShouldThrowAndKeepStateUnchanged()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 1250);
+        actorPlayerState.sigilPreview = 5;
+        actorPlayerState.lockedSigil = 5;
+        actorPlayerState.isSigilLocked = true;
+        var summonZoneId = new ZoneId(9004);
+        var summonedCardInstanceId = new CardInstanceId(5015);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, TurnPhase.summon);
+        gameState.publicState = createPublicState(summonZoneId);
+        var publicTreasureDeckZoneId = gameState.publicState.publicTreasureDeckZoneId;
+
+        addZone(gameState, publicTreasureDeckZoneId, ZoneKey.publicTreasureDeck, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, summonZoneId, ZoneKey.summonZone, null, ZonePublicOrPrivate.publicZone);
+        addZone(gameState, actorPlayerState.discardZoneId, ZoneKey.discard, actorPlayerId, ZonePublicOrPrivate.publicZone);
+
+        var summonedCardInstance = new CardInstance
+        {
+            cardInstanceId = summonedCardInstanceId,
+            definitionId = "T010",
+            ownerPlayerId = actorPlayerId,
+            zoneId = summonZoneId,
+            zoneKey = ZoneKey.summonZone,
+        };
+        gameState.cardInstances.Add(summonedCardInstanceId, summonedCardInstance);
+        gameState.zones[summonZoneId].cardInstanceIds.Add(summonedCardInstanceId);
+
+        var sentinelChain = createSentinelActionChain();
+        gameState.currentActionChain = sentinelChain;
+        var lockedSigilBefore = actorPlayerState.lockedSigil;
+        var producedEventsBefore = sentinelChain.producedEvents.Count;
+
+        var request = new SummonTreasureCardActionRequest
+        {
+            requestId = 9806,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = summonedCardInstanceId,
+        };
+
+        var processor = new ActionRequestProcessor();
+        var exception = Assert.Throws<InvalidOperationException>(() => processor.processActionRequest(gameState, request));
+
+        Assert.Equal("SummonTreasureCardActionRequest requires actor player lockedSigil to be sufficient for summon cost.", exception.Message);
+        Assert.Equal(lockedSigilBefore, actorPlayerState.lockedSigil);
+        Assert.Contains(summonedCardInstanceId, gameState.zones[summonZoneId].cardInstanceIds);
+        Assert.DoesNotContain(summonedCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Same(sentinelChain, gameState.currentActionChain);
+        Assert.Equal(producedEventsBefore, sentinelChain.producedEvents.Count);
+    }
+
     private static ActionChainState createSentinelActionChain()
     {
         var sentinelChain = new ActionChainState
@@ -778,6 +945,23 @@ public class ActionRequestProcessorSummonTreasureCardTests
                 ownerPlayerId = ownerPlayerId,
                 publicOrPrivate = publicOrPrivate,
             });
+    }
+
+    private static void createCardInPlayerHand(
+        RuleCore.GameState.GameState gameState,
+        PlayerState playerState,
+        CardInstanceId cardInstanceId,
+        string definitionId)
+    {
+        gameState.cardInstances[cardInstanceId] = new CardInstance
+        {
+            cardInstanceId = cardInstanceId,
+            definitionId = definitionId,
+            ownerPlayerId = playerState.playerId,
+            zoneId = playerState.handZoneId,
+            zoneKey = ZoneKey.hand,
+        };
+        gameState.zones[playerState.handZoneId].cardInstanceIds.Add(cardInstanceId);
     }
 
     private static void setRunningTurnForPlayer(

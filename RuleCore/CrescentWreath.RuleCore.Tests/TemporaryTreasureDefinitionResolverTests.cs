@@ -5,8 +5,8 @@ namespace CrescentWreath.RuleCore.Tests;
 public class TemporaryTreasureDefinitionResolverTests
 {
     [Theory]
-    [InlineData("starter:magicCircuit", 1, 0, null, false)]
-    [InlineData("starter:kourindouCoupon", 0, 1, null, false)]
+    [InlineData("starter:magicCircuit", 1, 0, 0, false)]
+    [InlineData("starter:kourindouCoupon", 0, 1, 0, false)]
     [InlineData("test-summon-card", 0, 0, 1, false)]
     [InlineData("T001", 1, 1, 3, false)]
     [InlineData("T002", 2, 1, 2, false)]

@@ -2,9 +2,28 @@
 
 ## Preconditions
 - Server WebSocket host is running (`ws://127.0.0.1:18080/ws`).
+  - Recommended startup: `dotnet run --project Server/CrescentWreath.ServerPrototype.Host/CrescentWreath.ServerPrototype.Host.csproj -- 18080`
 - Unity scene has `SocketDebugPanel` active.
 - Default local IDs: `viewerPlayerNumericId == actorPlayerNumericId == 1`.
 - Use `Flow Checklist` mode switch to choose `A / B / C`.
+- Before each full regression, run `调试：重开本局` once to freeze a clean single-session baseline.
+- 若重开后仍停在 `start` 阶段，先点击一次 `调试：进入行动`，再执行 Checklist A。
+
+## Multi-Client (4) Startup Notes
+- The host now binds connection identity via query: `?viewerPlayerNumericId=1..4`.
+- Open up to four Unity clients and set each client `viewerPlayerNumericId`/`actorPlayerNumericId` to the same value (`1`, `2`, `3`, `4`).
+- Connect each client to the same URL base: `ws://127.0.0.1:18080/ws` (bridge appends viewer query automatically).
+- If one viewer ID is already occupied, the extra connection is rejected with `409`.
+- Successful actions from one client are broadcast to other connected viewers as push updates.
+
+---
+
+## One-Click Macro Usage
+- `Run A Full`: auto-drive Checklist A until pass/fail stop.
+- `Run B Full`: auto-drive Checklist B until pass/fail stop.
+- `Run C Full`: auto-drive Checklist C until pass/fail stop.
+- `停止 Full`: stop current macro run manually.
+- Failure responses do **not** auto-skip steps; check `Flow Trace` and red local intercept banner.
 
 ---
 
@@ -12,14 +31,13 @@
 | Step | Action | Expected Key Fields | Result | Notes |
 |---|---|---|---|---|
 | A1 | Connect | `connection=connected` | ☐ Pass ☐ Fail | |
-| A2 | EnterAction | `currentPhase=action` | ☐ Pass ☐ Fail | |
-| A3 | Draw | `handCards.Count` increases | ☐ Pass ☐ Fail | |
-| A4 | Select hand + Play Selected | `hand` decreases or `field` increases; selected hand cleared | ☐ Pass ☐ Fail | |
-| A5 | EnterSummon | `currentPhase=summon` | ☐ Pass ☐ Fail | |
-| A6 | Select summon/sakura + Summon Selected | `summonZone/sakura` changes; selected summon cleared | ☐ Pass ☐ Fail | |
-| A7 | EnterEnd | `currentPhase=end` | ☐ Pass ☐ Fail | |
-| A8 | StartNextTurn | `turnNumber` increases and `currentPlayerNumericId` switches | ☐ Pass ☐ Fail | |
-| A9 | Next Player EnterAction | `currentPhase=action` with switched player | ☐ Pass ☐ Fail | |
+| A2 | Draw | `handCards.Count` increases and `currentPhase=action` | ☐ Pass ☐ Fail | |
+| A3 | Select hand + Play Selected | `hand` decreases or `field` increases; selected hand cleared | ☐ Pass ☐ Fail | |
+| A4 | EnterSummon | `currentPhase=summon` | ☐ Pass ☐ Fail | |
+| A5 | Select summon/sakura + Summon Selected | `summonZone/sakura` changes; selected summon cleared | ☐ Pass ☐ Fail | |
+| A6 | End Turn (`enterEndPhase`) | 请求成功返回 | ☐ Pass ☐ Fail | |
+| A7 | Verify next player switched | `turnNumber` increases and `currentPlayerNumericId` switches | ☐ Pass ☐ Fail | |
+| A8 | Verify next player action ready | `currentPhase=action` for switched player | ☐ Pass ☐ Fail | |
 
 Key checks:
 - `currentPhase`
@@ -43,7 +61,7 @@ Key checks:
 | B8 | Verify hp event | `eventLog` contains `hpChanged` | ☐ Pass ☐ Fail | |
 
 Tips:
-- If local actor mismatches current responder, use panel button `将操作者切到当前响应者`.
+- 非响应者客户端只会显示观察信息，不会显示 response/defense 提交按钮。
 
 ---
 

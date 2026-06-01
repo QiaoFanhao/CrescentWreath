@@ -11,20 +11,20 @@ public sealed class InMemoryTreasureDefinitionSource : ITreasureDefinitionSource
             definitionId = "starter:magicCircuit",
             manaGainOnEnterField = 1,
             sigilPreviewGainOnEnterField = 0,
-            summonSigilCost = null,
+            summonSigilCost = 0,
             persistOnFieldAcrossEnd = false,
-            defenseValue = null,
-            defenseTypeKey = null,
+            defenseValue = 2,
+            defenseTypeKey = "dual",
         },
         new()
         {
             definitionId = "starter:kourindouCoupon",
             manaGainOnEnterField = 0,
             sigilPreviewGainOnEnterField = 1,
-            summonSigilCost = null,
+            summonSigilCost = 0,
             persistOnFieldAcrossEnd = false,
-            defenseValue = null,
-            defenseTypeKey = null,
+            defenseValue = 2,
+            defenseTypeKey = "dual",
         },
         new()
         {

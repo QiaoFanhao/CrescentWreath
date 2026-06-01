@@ -62,10 +62,16 @@ public class ServerBridgePlayModeTests
         var previousProjection = ProjectionViewModel.createDefault(1);
         previousProjection.isSucceeded = true;
         previousProjection.hasStateProjection = true;
-        previousProjection.currentPhase = "start";
+        previousProjection.currentPhase = "action";
         previousProjection.turnNumber = 1;
         previousProjection.currentPlayerNumericId = 1;
-        previousProjection.viewerHandCardCount = 0;
+        previousProjection.viewerHandCardCount = 1;
+        previousProjection.handCards.Add(new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = 1001,
+            definitionId = "T001",
+            zoneKey = "hand",
+        });
 
         bridge.OnRawRequest += _ => rawRequestCount++;
         bridge.OnRawResponse += _ => rawResponseCount++;
@@ -77,15 +83,9 @@ public class ServerBridgePlayModeTests
         long? selectedHandCardId = null;
         long? selectedSummonCardId = null;
 
-        bridge.SendEnterActionPhase();
-        fakeSocketClient.EmitText(buildResponse("action", 1, 1, new[] { 1001L }, new[] { 9001L }, "phaseChanged"));
-        Assert.That(latestProjection, Is.Not.Null);
-        Assert.That(latestProjection!.currentPhase, Is.EqualTo("action"));
-        flowRuntime.RecordProjectionResponse("enterActionPhase", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
-        previousProjection = latestProjection.deepClone();
-
         bridge.SendDrawOneCard();
         fakeSocketClient.EmitText(buildResponse("action", 1, 1, new[] { 1001L, 1002L }, new[] { 9001L }, "cardMoved"));
+        Assert.That(latestProjection, Is.Not.Null);
         Assert.That(latestProjection!.handCards.Count, Is.EqualTo(2));
         flowRuntime.RecordProjectionResponse("drawOneCard", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
         previousProjection = latestProjection.deepClone();
@@ -125,30 +125,17 @@ public class ServerBridgePlayModeTests
         previousProjection = latestProjection.deepClone();
 
         bridge.SendEnterEndPhase();
-        fakeSocketClient.EmitText(buildResponse("end", 1, 1, new[] { 1002L }, new[] { 9002L }, "phaseChanged"));
-        Assert.That(latestProjection.currentPhase, Is.EqualTo("end"));
-        flowRuntime.RecordProjectionResponse("enterEndPhase", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
-        previousProjection = latestProjection.deepClone();
-
-        bridge.SendStartNextTurn();
-        fakeSocketClient.EmitText(buildResponse("start", 2, 2, new[] { 1002L }, new[] { 9002L }, "turnStarted"));
-        Assert.That(latestProjection.currentPhase, Is.EqualTo("start"));
+        fakeSocketClient.EmitText(buildResponse("action", 2, 2, new[] { 1002L }, new[] { 9002L }, "turnStarted"));
+        Assert.That(latestProjection.currentPhase, Is.EqualTo("action"));
         Assert.That(latestProjection.turnNumber, Is.EqualTo(2));
         Assert.That(latestProjection.currentPlayerNumericId, Is.EqualTo(2));
-        flowRuntime.RecordProjectionResponse("startNextTurn", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
-        previousProjection = latestProjection.deepClone();
+        flowRuntime.RecordProjectionResponse("enterEndPhase", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
 
-        bridge.SendEnterActionPhase();
-        fakeSocketClient.EmitText(buildResponse("action", 2, 2, new[] { 1002L }, new[] { 9002L }, "phaseChanged"));
-        Assert.That(latestProjection.currentPhase, Is.EqualTo("action"));
-        Assert.That(latestProjection.currentPlayerNumericId, Is.EqualTo(2));
-        flowRuntime.RecordProjectionResponse("enterActionPhase", latestProjection, previousProjection, playSelectionCleared: true, summonSelectionCleared: true);
-
-        Assert.That(rawRequestCount, Is.EqualTo(8));
-        Assert.That(rawResponseCount, Is.EqualTo(8));
+        Assert.That(rawRequestCount, Is.EqualTo(5));
+        Assert.That(rawResponseCount, Is.EqualTo(5));
         Assert.That(latestProjection.eventLog, Is.Not.Empty);
         Assert.That(flowRuntime.isCompleted, Is.True);
-        Assert.That(flowRuntime.currentStepIndex, Is.EqualTo(10));
+        Assert.That(flowRuntime.currentStepIndex, Is.EqualTo(9));
     }
 
     [Test]

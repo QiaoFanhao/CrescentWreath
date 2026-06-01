@@ -64,7 +64,7 @@ public sealed class ServerBridge : IDisposable
         throwIfDisposed();
         lastProjectionModel = null;
         latestProjectionForUi = null;
-        socketClient.Connect(wsUrl);
+        socketClient.Connect(appendViewerToSocketUrl(wsUrl, viewerPlayerNumericId));
     }
 
     public void Disconnect()
@@ -212,9 +212,51 @@ public sealed class ServerBridge : IDisposable
 
     public void SendDebugOpenDamageResponseWindow()
     {
+        SendDebugOpenDamageResponseWindow(0, 2, "physical");
+    }
+
+    public void SendDebugOpenDamageResponseWindow(long targetCharacterInstanceNumericId, int baseDamageValue, string damageTypeKey)
+    {
+        if (baseDamageValue <= 0)
+        {
+            OnError?.Invoke("DebugOpenDamageResponseWindow requires baseDamageValue > 0.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(damageTypeKey))
+        {
+            damageTypeKey = "physical";
+        }
+
         sendEnvelope(
             "debugOpenDamageResponseWindow",
-            () => buildDebugOpenDamageResponseWindowPayload());
+            () => buildDebugOpenDamageResponseWindowPayload(targetCharacterInstanceNumericId, baseDamageValue, damageTypeKey));
+    }
+
+    public void SendDebugMoveTreasureToHandByDefinition(string treasureDefinitionId)
+    {
+        if (string.IsNullOrWhiteSpace(treasureDefinitionId))
+        {
+            OnError?.Invoke("DebugMoveTreasureToHandByDefinition requires a non-empty treasureDefinitionId.");
+            return;
+        }
+
+        sendEnvelope(
+            "debugMoveTreasureToHandByDefinition",
+            () => buildDebugTreasureByDefinitionPayload(treasureDefinitionId));
+    }
+
+    public void SendDebugPutTreasureOnTopByDefinition(string treasureDefinitionId)
+    {
+        if (string.IsNullOrWhiteSpace(treasureDefinitionId))
+        {
+            OnError?.Invoke("DebugPutTreasureOnTopByDefinition requires a non-empty treasureDefinitionId.");
+            return;
+        }
+
+        sendEnvelope(
+            "debugPutTreasureOnTopByDefinition",
+            () => buildDebugTreasureByDefinitionPayload(treasureDefinitionId));
     }
 
     public void SendDebugResetMatch()
@@ -387,14 +429,14 @@ public sealed class ServerBridge : IDisposable
             + "}";
     }
 
-    private string buildDebugOpenDamageResponseWindowPayload()
+    private string buildDebugOpenDamageResponseWindowPayload(long targetCharacterInstanceNumericId, int baseDamageValue, string damageTypeKey)
     {
         return
             "{"
             + "\"actorPlayerNumericId\":" + actorPlayerNumericId
-            + ",\"targetCharacterInstanceNumericId\":0"
-            + ",\"baseDamageValue\":2"
-            + ",\"damageTypeKey\":\"physical\""
+            + ",\"targetCharacterInstanceNumericId\":" + targetCharacterInstanceNumericId
+            + ",\"baseDamageValue\":" + baseDamageValue
+            + ",\"damageTypeKey\":\"" + escapeJsonString(damageTypeKey) + "\""
             + "}";
     }
 
@@ -403,6 +445,15 @@ public sealed class ServerBridge : IDisposable
         return
             "{"
             + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "}";
+    }
+
+    private string buildDebugTreasureByDefinitionPayload(string treasureDefinitionId)
+    {
+        return
+            "{"
+            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + ",\"treasureDefinitionId\":\"" + escapeJsonString(treasureDefinitionId.Trim()) + "\""
             + "}";
     }
 
@@ -491,6 +542,12 @@ public sealed class ServerBridge : IDisposable
             .Replace("\r", "\\r")
             .Replace("\n", "\\n")
             .Replace("\t", "\\t");
+    }
+
+    private static string appendViewerToSocketUrl(string wsUrl, long viewerPlayerNumericId)
+    {
+        var separator = wsUrl.Contains("?") ? "&" : "?";
+        return wsUrl + separator + "viewerPlayerNumericId=" + viewerPlayerNumericId;
     }
 
 }

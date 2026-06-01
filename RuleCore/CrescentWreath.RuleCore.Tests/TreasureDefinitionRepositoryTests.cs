@@ -1,6 +1,9 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using CrescentWreath.RuleCore.Definitions;
+using Newtonsoft.Json;
 
 namespace CrescentWreath.RuleCore.Tests;
 
@@ -20,11 +23,6 @@ public class TreasureDefinitionRepositoryTests
         Assert.Contains(definitions, d => d.definitionId == "test:defenseSpell2");
         Assert.Contains(definitions, d => d.definitionId == "test:defenseDual2");
         Assert.Contains(definitions, d => d.definitionId == "S001");
-
-        foreach (var treasureId in Enumerable.Range(1, 29).Select(i => $"T{i:000}"))
-        {
-            Assert.Contains(definitions, d => string.Equals(d.definitionId, treasureId, StringComparison.Ordinal));
-        }
     }
 
     [Fact]
@@ -33,37 +31,86 @@ public class TreasureDefinitionRepositoryTests
         var source = new InMemoryTreasureDefinitionSource();
         var definitions = source.getTreasureDefinitions();
 
-        var realTreasureDefinitions = definitions.Where(d => d.definitionId.Length == 4 && d.definitionId.StartsWith("T", StringComparison.Ordinal));
+        var realTreasureDefinitions = definitions.Where(
+            d => d.definitionId.Length == 4 && d.definitionId.StartsWith("T", StringComparison.Ordinal));
         Assert.Equal(29, realTreasureDefinitions.Count());
     }
 
-    [Theory]
-    [InlineData("starter:magicCircuit", 1, 0, null, false, null, null)]
-    [InlineData("starter:kourindouCoupon", 0, 1, null, false, null, null)]
-    [InlineData("test-summon-card", 0, 0, 1, false, null, null)]
-    [InlineData("T001", 1, 1, 3, false, 2, "dual")]
-    [InlineData("T002", 2, 1, 2, false, 4, "spell")]
-    [InlineData("T003", 2, 2, 6, false, 4, "physical")]
-    [InlineData("T016", 0, 0, 4, true, 3, "dual")]
-    [InlineData("S001", 1, 2, 3, false, 3, "dual")]
-    public void ResolveByDefinitionId_WhenKnownDefinition_ShouldReturnExpectedValues(
-        string definitionId,
-        int expectedManaGainOnEnterField,
-        int expectedSigilPreviewGainOnEnterField,
-        int? expectedSummonSigilCost,
-        bool expectedPersistOnFieldAcrossEnd,
-        int? expectedDefenseValue,
-        string? expectedDefenseTypeKey)
+    [Fact]
+    public void InMemoryTreasureDefinitionSource_GameplayTreasureDefinitions_ShouldAlwaysHaveSummonCost()
     {
-        var definition = TreasureDefinitionRepository.resolveByDefinitionId(definitionId);
+        var source = new InMemoryTreasureDefinitionSource();
+        var definitions = source.getTreasureDefinitions();
 
-        Assert.Equal(definitionId, definition.definitionId);
-        Assert.Equal(expectedManaGainOnEnterField, definition.manaGainOnEnterField);
-        Assert.Equal(expectedSigilPreviewGainOnEnterField, definition.sigilPreviewGainOnEnterField);
-        Assert.Equal(expectedSummonSigilCost, definition.summonSigilCost);
-        Assert.Equal(expectedPersistOnFieldAcrossEnd, definition.persistOnFieldAcrossEnd);
-        Assert.Equal(expectedDefenseValue, definition.defenseValue);
-        Assert.Equal(expectedDefenseTypeKey, definition.defenseTypeKey);
+        var gameplayTreasureDefinitions = definitions.Where(
+            d => d.definitionId.StartsWith("starter:", StringComparison.Ordinal)
+                || d.definitionId.Equals("S001", StringComparison.Ordinal)
+                || (d.definitionId.Length == 4 && d.definitionId.StartsWith("T", StringComparison.Ordinal)));
+
+        Assert.All(gameplayTreasureDefinitions, definition => Assert.True(
+            definition.summonSigilCost.HasValue,
+            $"Gameplay treasure definition '{definition.definitionId}' must define summonSigilCost."));
+        Assert.Equal(0, definitions.Single(d => d.definitionId == "starter:magicCircuit").summonSigilCost);
+        Assert.Equal(0, definitions.Single(d => d.definitionId == "starter:kourindouCoupon").summonSigilCost);
+    }
+
+    [Fact]
+    public void TreasureBaseline_ShouldContainExactlyT001ToT029()
+    {
+        var baselineEntries = loadTreasureBaselineEntries();
+        var baselineDefinitionIds = baselineEntries.Select(entry => entry.definitionId).ToArray();
+        var expectedDefinitionIds = Enumerable.Range(1, 29).Select(index => $"T{index:000}").ToArray();
+
+        Assert.Equal(29, baselineDefinitionIds.Length);
+        Assert.Equal(expectedDefinitionIds, baselineDefinitionIds);
+        Assert.Equal(29, baselineDefinitionIds.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void ResolveByDefinitionId_WhenRealTreasureDefinitionsAreLoadedFromBaseline_ShouldMatchAllNumericFields()
+    {
+        var baselineEntries = loadTreasureBaselineEntries();
+
+        foreach (var baselineEntry in baselineEntries)
+        {
+            var definition = TreasureDefinitionRepository.resolveByDefinitionId(baselineEntry.definitionId);
+
+            Assert.Equal(baselineEntry.definitionId, definition.definitionId);
+            Assert.Equal(baselineEntry.initialPublicDeckCopies, definition.initialPublicDeckCopies);
+            Assert.Equal(baselineEntry.summonSigilCost, definition.summonSigilCost);
+            Assert.Equal(baselineEntry.manaGainOnEnterField, definition.manaGainOnEnterField);
+            Assert.Equal(baselineEntry.sigilPreviewGainOnEnterField, definition.sigilPreviewGainOnEnterField);
+            Assert.Equal(baselineEntry.defenseTypeKey, definition.defenseTypeKey);
+            Assert.Equal(baselineEntry.defenseValue, definition.defenseValue);
+            Assert.Equal(baselineEntry.persistOnFieldAcrossEnd, definition.persistOnFieldAcrossEnd);
+        }
+    }
+
+    [Fact]
+    public void RealTreasureBaseline_ShouldCoverPhysicalSpellAndDualDefenseTypes()
+    {
+        var defenseTypeKeys = loadTreasureBaselineEntries()
+            .Select(entry => entry.defenseTypeKey)
+            .Where(defenseTypeKey => !string.IsNullOrWhiteSpace(defenseTypeKey))
+            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("physical", defenseTypeKeys);
+        Assert.Contains("spell", defenseTypeKeys);
+        Assert.Contains("dual", defenseTypeKeys);
+    }
+
+    [Fact]
+    public void ResolveByDefinitionId_WhenRealTreasureDefinitionsAreLoadedFromBaseline_ShouldKeepCanDefenseEquivalentShape()
+    {
+        foreach (var baselineEntry in loadTreasureBaselineEntries())
+        {
+            var definition = TreasureDefinitionRepository.resolveByDefinitionId(baselineEntry.definitionId);
+            var baselineCanDefense = baselineEntry.defenseValue.HasValue && !string.IsNullOrWhiteSpace(baselineEntry.defenseTypeKey);
+            var definitionCanDefense = definition.defenseValue.HasValue && !string.IsNullOrWhiteSpace(definition.defenseTypeKey);
+
+            Assert.Equal(baselineCanDefense, definitionCanDefense);
+        }
     }
 
     [Fact]
@@ -94,5 +141,33 @@ public class TreasureDefinitionRepositoryTests
 
         Assert.Equal(expectedDefenseValue, definition.defenseValue);
         Assert.Equal(expectedDefenseTypeKey, definition.defenseTypeKey);
+    }
+
+    private static IReadOnlyList<TreasureBaselineEntry> loadTreasureBaselineEntries()
+    {
+        var baselinePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestData",
+            "treasure_t001_t029_baseline.json");
+
+        Assert.True(File.Exists(baselinePath), $"Treasure baseline file not found: {baselinePath}");
+
+        var json = File.ReadAllText(baselinePath);
+        var baselineEntries = JsonConvert.DeserializeObject<List<TreasureBaselineEntry>>(json);
+        Assert.NotNull(baselineEntries);
+
+        return baselineEntries!;
+    }
+
+    private sealed class TreasureBaselineEntry
+    {
+        public string definitionId { get; set; } = string.Empty;
+        public int initialPublicDeckCopies { get; set; }
+        public int summonSigilCost { get; set; }
+        public int manaGainOnEnterField { get; set; }
+        public int sigilPreviewGainOnEnterField { get; set; }
+        public string? defenseTypeKey { get; set; }
+        public int? defenseValue { get; set; }
+        public bool persistOnFieldAcrossEnd { get; set; }
     }
 }

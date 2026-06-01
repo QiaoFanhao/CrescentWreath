@@ -45,6 +45,9 @@ public static class ProjectionParser
                 }
             }
 
+            fillTeamSummaries(projection, response.stateProjection?.teams);
+            fillPlayerSummaries(projection, response.stateProjection?.players, response.stateProjection?.characters);
+
             var viewerPlayer = response.stateProjection?.players?
                 .FirstOrDefault(player => player is not null && player.playerNumericId == resolvedViewerPlayerNumericId);
 
@@ -60,6 +63,7 @@ public static class ProjectionParser
                 projection.discardCount = viewerPlayer.discardZone?.cardCount ?? 0;
 
                 fillCards(projection.handCards, viewerPlayer.handZone);
+                fillCards(projection.discardCards, viewerPlayer.discardZone);
                 fillCards(projection.fieldCards, viewerPlayer.fieldZone);
 
                 if (viewerPlayer.activeCharacterInstanceNumericId > 0 && response.stateProjection?.characters is not null)
@@ -83,6 +87,7 @@ public static class ProjectionParser
 
             fillCards(projection.summonZoneCards, response.stateProjection?.publicZones?.summonZone);
             fillCards(projection.sakuraCakeCards, response.stateProjection?.publicZones?.sakuraCakeDeckZone);
+            fillCards(projection.gapZoneCards, response.stateProjection?.publicZones?.gapZone);
             fillInteraction(projection, response.interaction);
             fillEventLog(projection, response.eventLog);
 
@@ -121,6 +126,111 @@ public static class ProjectionParser
         }
     }
 
+    private static void fillTeamSummaries(
+        ProjectionViewModel projection,
+        TeamProjectionDto[]? teams)
+    {
+        if (teams is null)
+        {
+            return;
+        }
+
+        foreach (var team in teams)
+        {
+            if (team is null || team.teamNumericId <= 0)
+            {
+                continue;
+            }
+
+            projection.teamSummaries.Add(new ProjectionTeamSummaryViewModel
+            {
+                teamNumericId = team.teamNumericId,
+                leyline = team.leyline,
+                killScore = team.killScore,
+            });
+        }
+    }
+
+    private static void fillPlayerSummaries(
+        ProjectionViewModel projection,
+        PlayerProjectionDto[]? players,
+        CharacterProjectionDto[]? characters)
+    {
+        if (players is null)
+        {
+            return;
+        }
+
+        foreach (var player in players)
+        {
+            if (player is null || player.playerNumericId <= 0)
+            {
+                continue;
+            }
+
+            var summary = new ProjectionPlayerSummaryViewModel
+            {
+                playerNumericId = player.playerNumericId,
+                teamNumericId = player.teamNumericId,
+                isCurrentPlayer = projection.currentPlayerNumericId.HasValue &&
+                                  projection.currentPlayerNumericId.Value == player.playerNumericId,
+                isViewerPlayer = player.playerNumericId == projection.viewerPlayerNumericId,
+                mana = player.mana,
+                skillPoint = player.skillPoint,
+                sigilPreview = player.sigilPreview,
+                isSigilLocked = player.isSigilLocked,
+                lockedSigil = player.isSigilLocked ? player.lockedSigil : null,
+                handCount = player.handCardCount > 0
+                    ? player.handCardCount
+                    : player.handZone?.cardCount ?? 0,
+                fieldCount = player.fieldZone?.cardCount ?? 0,
+                discardCount = player.discardZone?.cardCount ?? 0,
+                activeCharacterInstanceNumericId = player.activeCharacterInstanceNumericId > 0
+                    ? player.activeCharacterInstanceNumericId
+                    : null,
+            };
+
+            if (player.statusKeys is not null)
+            {
+                foreach (var statusKey in player.statusKeys)
+                {
+                    if (string.IsNullOrWhiteSpace(statusKey))
+                    {
+                        continue;
+                    }
+
+                    summary.playerStatusKeys.Add(statusKey);
+                }
+            }
+
+            if (summary.activeCharacterInstanceNumericId.HasValue && characters is not null)
+            {
+                var activeCharacter = characters.FirstOrDefault(character =>
+                    character is not null &&
+                    character.characterInstanceNumericId == summary.activeCharacterInstanceNumericId.Value);
+                if (activeCharacter is not null)
+                {
+                    summary.activeCharacterCurrentHp = activeCharacter.currentHp;
+                    summary.activeCharacterMaxHp = activeCharacter.maxHp;
+                    if (activeCharacter.statusKeys is not null)
+                    {
+                        foreach (var statusKey in activeCharacter.statusKeys)
+                        {
+                            if (string.IsNullOrWhiteSpace(statusKey))
+                            {
+                                continue;
+                            }
+
+                            summary.activeCharacterStatusKeys.Add(statusKey);
+                        }
+                    }
+                }
+            }
+
+            projection.playerSummaries.Add(summary);
+        }
+    }
+
     private static void fillInteraction(ProjectionViewModel projection, InteractionDto? interaction)
     {
         if (interaction?.inputContext is not null &&
@@ -133,6 +243,36 @@ public static class ProjectionParser
                 projection.interaction.inputRequiredPlayerNumericId = interaction.inputContext.requiredPlayerNumericId;
             }
 
+            if (interaction.inputContext.requiredPlayerNumericIds is not null)
+            {
+                foreach (var requiredPlayerNumericId in interaction.inputContext.requiredPlayerNumericIds)
+                {
+                    if (requiredPlayerNumericId <= 0)
+                    {
+                        continue;
+                    }
+
+                    projection.interaction.inputRequiredPlayerNumericIds.Add(requiredPlayerNumericId);
+                }
+            }
+
+            if (interaction.inputContext.submittedPlayerNumericIds is not null)
+            {
+                foreach (var submittedPlayerNumericId in interaction.inputContext.submittedPlayerNumericIds)
+                {
+                    if (submittedPlayerNumericId <= 0)
+                    {
+                        continue;
+                    }
+
+                    projection.interaction.inputSubmittedPlayerNumericIds.Add(submittedPlayerNumericId);
+                }
+            }
+
+            projection.interaction.inputRequiredPlayerCount = interaction.inputContext.requiredPlayerCount;
+            projection.interaction.inputSubmittedPlayerCount = interaction.inputContext.submittedPlayerCount;
+            projection.interaction.isViewerRequiredPlayerForInput = interaction.inputContext.isViewerRequiredPlayer;
+            projection.interaction.isViewerSubmittedInput = interaction.inputContext.isViewerSubmittedPlayer;
             projection.interaction.inputTypeKey = interaction.inputContext.inputTypeKey ?? string.Empty;
             projection.interaction.contextKey = interaction.inputContext.contextKey ?? string.Empty;
             projection.interaction.inputChoiceCount = interaction.inputContext.choiceCount;
@@ -163,6 +303,11 @@ public static class ProjectionParser
             projection.interaction.responseWindowNumericId = null;
             projection.interaction.responseCurrentResponderPlayerNumericId = null;
             projection.interaction.responseResponderCount = 0;
+            projection.interaction.responseWindowOriginType = string.Empty;
+            projection.interaction.pendingDamageResponseStageKey = string.Empty;
+            projection.interaction.pendingDamageTypeKey = string.Empty;
+            projection.interaction.pendingDamageTargetCharacterInstanceNumericId = null;
+            projection.interaction.pendingDamageDefenderPlayerNumericId = null;
             return;
         }
 
@@ -174,6 +319,20 @@ public static class ProjectionParser
         }
 
         projection.interaction.responseResponderCount = interaction.responseWindow.responderPlayerNumericIds?.Length ?? 0;
+        projection.interaction.responseWindowOriginType = interaction.responseWindow.responseWindowOriginType ?? string.Empty;
+        projection.interaction.pendingDamageResponseStageKey = interaction.responseWindow.pendingDamageResponseStageKey ?? string.Empty;
+        projection.interaction.pendingDamageTypeKey = interaction.responseWindow.pendingDamageTypeKey ?? string.Empty;
+        if (interaction.responseWindow.pendingDamageTargetCharacterInstanceNumericId > 0)
+        {
+            projection.interaction.pendingDamageTargetCharacterInstanceNumericId =
+                interaction.responseWindow.pendingDamageTargetCharacterInstanceNumericId;
+        }
+
+        if (interaction.responseWindow.pendingDamageDefenderPlayerNumericId > 0)
+        {
+            projection.interaction.pendingDamageDefenderPlayerNumericId =
+                interaction.responseWindow.pendingDamageDefenderPlayerNumericId;
+        }
     }
 
     private static void fillEventLog(ProjectionViewModel projection, EventLogEntryDto[]? eventLog)
@@ -249,9 +408,18 @@ public static class ProjectionParser
     private sealed class StateProjectionDto
     {
         public TurnDto? turn;
+        public TeamProjectionDto[]? teams;
         public PlayerProjectionDto[]? players;
         public PublicZonesProjectionDto? publicZones;
         public CharacterProjectionDto[]? characters;
+    }
+
+    [Serializable]
+    private sealed class TeamProjectionDto
+    {
+        public long teamNumericId;
+        public int leyline;
+        public int killScore;
     }
 
     [Serializable]
@@ -266,6 +434,7 @@ public static class ProjectionParser
     private sealed class PlayerProjectionDto
     {
         public long playerNumericId;
+        public long teamNumericId;
         public long activeCharacterInstanceNumericId;
         public int mana;
         public int skillPoint;
@@ -273,6 +442,7 @@ public static class ProjectionParser
         public int lockedSigil;
         public bool isSigilLocked;
         public int handCardCount;
+        public string[]? statusKeys;
         public ZoneProjectionDto? handZone;
         public ZoneProjectionDto? fieldZone;
         public ZoneProjectionDto? discardZone;
@@ -283,6 +453,7 @@ public static class ProjectionParser
     {
         public ZoneProjectionDto? summonZone;
         public ZoneProjectionDto? sakuraCakeDeckZone;
+        public ZoneProjectionDto? gapZone;
     }
 
     [Serializable]
@@ -321,6 +492,12 @@ public static class ProjectionParser
     {
         public long inputContextNumericId;
         public long requiredPlayerNumericId;
+        public long[]? requiredPlayerNumericIds;
+        public long[]? submittedPlayerNumericIds;
+        public int requiredPlayerCount;
+        public int submittedPlayerCount;
+        public bool isViewerRequiredPlayer;
+        public bool isViewerSubmittedPlayer;
         public string? inputTypeKey;
         public string? contextKey;
         public int choiceCount;
@@ -332,8 +509,13 @@ public static class ProjectionParser
     private sealed class ResponseWindowDto
     {
         public long responseWindowNumericId;
+        public string? responseWindowOriginType;
         public long currentResponderPlayerNumericId;
         public long[]? responderPlayerNumericIds;
+        public string? pendingDamageResponseStageKey;
+        public string? pendingDamageTypeKey;
+        public long pendingDamageTargetCharacterInstanceNumericId;
+        public long pendingDamageDefenderPlayerNumericId;
     }
 
     [Serializable]

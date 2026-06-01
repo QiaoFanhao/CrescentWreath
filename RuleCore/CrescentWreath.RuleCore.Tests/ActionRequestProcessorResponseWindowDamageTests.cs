@@ -522,7 +522,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
     }
 
     [Fact]
-    public void SubmitDefense_ThenCounter_ShouldResolveBaseDamage()
+    public void SubmitDefense_WithFixedReduce1_ShouldResolveReducedDamageAndCloseWindow()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -561,29 +561,13 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseTypeKey = "fixedReduce1",
         };
 
-        var eventsAfterDefense = processor.processActionRequest(gameState, defenseRequest);
-        Assert.Single(eventsAfterDefense);
-        Assert.NotNull(gameState.currentResponseWindow);
-        Assert.Equal("awaitCounter", gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.Equal("fixedReduce1", gameState.currentResponseWindow.pendingDamageDefenseDeclarationKey);
-        Assert.Equal(sourcePlayerId, gameState.currentResponseWindow.currentResponderPlayerId);
-        Assert.Equal(10, targetCharacter.currentHp);
-
-        var counterRequest = new SubmitDamageCounterActionRequest
-        {
-            requestId = 7235,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = openedEvent.responseWindowId!.Value,
-            counterTypeKey = "cancelFixedReduce1",
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, counterRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         Assert.Same(existingActionChain, gameState.currentActionChain);
         Assert.True(gameState.currentActionChain!.isCompleted);
         Assert.Null(gameState.currentActionChain.pendingContinuationKey);
         Assert.Null(gameState.currentResponseWindow);
-        Assert.Equal(8, targetCharacter.currentHp);
+        Assert.Equal(9, targetCharacter.currentHp);
 
         Assert.Equal(4, finalEvents.Count);
         openedEvent = Assert.IsType<InteractionWindowEvent>(finalEvents[0]);
@@ -593,17 +577,17 @@ public class ActionRequestProcessorResponseWindowDamageTests
         Assert.Equal(openedEvent.responseWindowId, closedEvent.responseWindowId);
 
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
-        Assert.Equal(2, damageResolvedEvent.finalDamageValue);
+        Assert.Equal(1, damageResolvedEvent.finalDamageValue);
         Assert.True(damageResolvedEvent.didDealDamage);
 
         var hpChangedEvent = Assert.IsType<HpChangedEvent>(finalEvents[3]);
         Assert.Equal(10, hpChangedEvent.hpBefore);
-        Assert.Equal(8, hpChangedEvent.hpAfter);
-        Assert.Equal(-2, hpChangedEvent.delta);
+        Assert.Equal(9, hpChangedEvent.hpAfter);
+        Assert.Equal(-1, hpChangedEvent.delta);
     }
 
     [Fact]
-    public void SubmitDefense_ThenSourceNoResponse_ShouldResolveReducedDamage()
+    public void SubmitDefense_ThenSourceNoResponse_ShouldThrowBecauseResponseWindowIsClosed()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -642,11 +626,9 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         var eventsAfterDefense = processor.processActionRequest(gameState, defenseRequest);
-        Assert.Single(eventsAfterDefense);
-        Assert.NotNull(gameState.currentResponseWindow);
-        Assert.Equal("awaitCounter", gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.Equal("fixedReduce1", gameState.currentResponseWindow.pendingDamageDefenseDeclarationKey);
-        Assert.Equal(sourcePlayerId, gameState.currentResponseWindow.currentResponderPlayerId);
+        Assert.Equal(4, eventsAfterDefense.Count);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.Equal(9, targetCharacter.currentHp);
 
         var submitNoResponseRequest = new SubmitResponseActionRequest
         {
@@ -657,30 +639,26 @@ public class ActionRequestProcessorResponseWindowDamageTests
             responseKey = null,
         };
 
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
-
-        Assert.True(gameState.currentActionChain!.isCompleted);
-        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
-        Assert.Null(gameState.currentResponseWindow);
-        Assert.Equal(9, targetCharacter.currentHp);
-
-        Assert.Equal(4, finalEvents.Count);
-        var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
-        Assert.Equal(1, damageResolvedEvent.finalDamageValue);
-        Assert.True(damageResolvedEvent.didDealDamage);
-
-        var hpChangedEvent = Assert.IsType<HpChangedEvent>(finalEvents[3]);
-        Assert.Equal(10, hpChangedEvent.hpBefore);
-        Assert.Equal(9, hpChangedEvent.hpAfter);
-        Assert.Equal(-1, hpChangedEvent.delta);
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => processor.processActionRequest(gameState, submitNoResponseRequest));
+        Assert.Equal(
+            "SubmitResponseActionRequest requires an active currentResponseWindow.",
+            exception.Message);
     }
 
     [Theory]
     [InlineData("physical", "test:defensePhysical2", "physical", 1, 9)]
     [InlineData("physical", "test:defenseSpell2", "spell", 3, 7)]
+    [InlineData("physical", "T002", "physical", 3, 7)]
+    [InlineData("spell", "T002", "spell", 0, 10)]
+    [InlineData("spell", "test:defensePhysical2", "spell", 3, 7)]
     [InlineData("spell", "test:defenseDual2", "dual", 1, 9)]
+    [InlineData("physical", "test:defenseDual2", "physical", 1, 9)]
+    [InlineData("spell", "test:defenseDual2", "spell", 1, 9)]
     [InlineData("physical", "T001", "dual", 1, 9)]
-    public void SubmitDefense_WithDefinitionDefenseTypeMatchingRules_ShouldResolveExpectedDamage(
+    [InlineData("physical", "T019", "spell", 3, 7)]
+    [InlineData("physical", "T029", "dual", 3, 7)]
+    public void SubmitDefense_WithDeclaredDefenseTypeAndCardSupportRules_ShouldResolveExpectedDamage(
         string damageTypeKey,
         string defenseCardDefinitionId,
         string declaredDefenseTypeKey,
@@ -715,7 +693,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -725,39 +702,24 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseTypeKey = declaredDefenseTypeKey,
         };
 
-        var eventsAfterDefense = processor.processActionRequest(gameState, defenseRequest);
-        Assert.Equal(2, eventsAfterDefense.Count);
-        Assert.IsType<InteractionWindowEvent>(eventsAfterDefense[0]);
-        var defensePlaceMovedEvent = Assert.IsType<CardMovedEvent>(eventsAfterDefense[1]);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
+        Assert.Equal(5, finalEvents.Count);
+        Assert.IsType<InteractionWindowEvent>(finalEvents[0]);
+        var defensePlaceMovedEvent = Assert.IsType<CardMovedEvent>(finalEvents[1]);
         Assert.Equal(CardMoveReason.defensePlace, defensePlaceMovedEvent.moveReason);
         Assert.Equal(ZoneKey.hand, defensePlaceMovedEvent.fromZoneKey);
         Assert.Equal(ZoneKey.field, defensePlaceMovedEvent.toZoneKey);
         Assert.Equal(targetPlayerState.fieldZoneId, gameState.cardInstances[defenseCardInstanceId].zoneId);
         Assert.True(gameState.cardInstances[defenseCardInstanceId].isDefensePlacedOnField);
-        Assert.Equal("awaitCounter", gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.Equal(sourcePlayerId, gameState.currentResponseWindow.currentResponderPlayerId);
-        Assert.StartsWith("cardDefense:", gameState.currentResponseWindow.pendingDamageDefenseDeclarationKey);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72415,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
 
         Assert.True(gameState.currentActionChain!.isCompleted);
         Assert.Null(gameState.currentActionChain.pendingContinuationKey);
         Assert.Null(gameState.currentResponseWindow);
         Assert.Equal(expectedTargetHp, targetCharacter.currentHp);
 
-        Assert.Equal(5, finalEvents.Count);
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[3]);
         Assert.Equal(expectedFinalDamageValue, damageResolvedEvent.finalDamageValue);
-        Assert.True(damageResolvedEvent.didDealDamage);
+        Assert.Equal(expectedFinalDamageValue > 0, damageResolvedEvent.didDealDamage);
         var hpChangedEvent = Assert.IsType<HpChangedEvent>(finalEvents[4]);
         Assert.Equal(10, hpChangedEvent.hpBefore);
         Assert.Equal(expectedTargetHp, hpChangedEvent.hpAfter);
@@ -800,7 +762,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -809,23 +770,95 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = defenseCardInstanceId,
             defenseTypeKey = "physical",
         };
-        var eventsAfterDefense = processor.processActionRequest(gameState, defenseRequest);
-        Assert.Single(eventsAfterDefense);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
+        Assert.Equal(4, finalEvents.Count);
         Assert.Equal(targetPlayerState.fieldZoneId, defenseCard.zoneId);
         Assert.True(defenseCard.isDefensePlacedOnField);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72455,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
         Assert.Equal(1, damageResolvedEvent.finalDamageValue);
         Assert.Equal(9, targetCharacter.currentHp);
+    }
+
+    [Fact]
+    public void SubmitDefense_WithT014_WhenDefenderSurvives_ShouldHealFourAndMoveCardToDiscard()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72460);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73460);
+        var targetCharacterInstanceId = new CharacterInstanceId(72461);
+        var defenseCardInstanceId = new CardInstanceId(72462);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        gameState.teams.Add(sourcePlayerState.teamId, new TeamState
+        {
+            teamId = sourcePlayerState.teamId,
+            killScore = 10,
+            leyline = 0,
+        });
+        gameState.teams.Add(targetPlayerState.teamId, new TeamState
+        {
+            teamId = targetPlayerState.teamId,
+            killScore = 1,
+            leyline = 0,
+        });
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 2);
+        targetCharacter.maxHp = 10;
+        targetPlayerState.activeCharacterInstanceId = targetCharacterInstanceId;
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "T014");
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72463,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 3,
+            damageTypeKey = "physical",
+        });
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72464,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "physical",
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
+        Assert.Equal(6, targetCharacter.currentHp);
+
+        var defenseCard = gameState.cardInstances[defenseCardInstanceId];
+        Assert.Equal(targetPlayerState.discardZoneId, defenseCard.zoneId);
+        Assert.Equal(ZoneKey.discard, defenseCard.zoneKey);
+        Assert.False(defenseCard.isDefensePlacedOnField);
+        Assert.DoesNotContain(defenseCardInstanceId, gameState.zones[targetPlayerState.fieldZoneId].cardInstanceIds);
+        Assert.Contains(defenseCardInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 0);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetPlayerId == targetPlayerId &&
+                         hpChangedEvent.delta == 4);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                         cardMovedEvent.cardInstanceId == defenseCardInstanceId &&
+                         cardMovedEvent.moveReason == CardMoveReason.discard &&
+                         cardMovedEvent.fromZoneKey == ZoneKey.field &&
+                         cardMovedEvent.toZoneKey == ZoneKey.discard);
     }
 
     [Fact]
@@ -861,7 +894,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -871,18 +903,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseTypeKey = "physical",
         };
 
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72421,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[3]);
         Assert.Equal(2, damageResolvedEvent.finalDamageValue);
@@ -927,7 +948,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -937,18 +957,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseTypeKey = "physical",
         };
 
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72436,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[3]);
         Assert.Equal(2, damageResolvedEvent.finalDamageValue);
@@ -988,7 +997,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -998,18 +1006,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseTypeKey = "physical",
         };
 
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72445,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         Assert.Equal(5, finalEvents.Count);
         Assert.IsType<InteractionWindowEvent>(finalEvents[0]);
@@ -1306,8 +1303,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             baseDamageValue = 2,
             damageTypeKey = "physical",
         };
-        var secondOpenEvents = processor.processActionRequest(gameState, secondOpenRequest);
-        var secondResponseWindowId = Assert.IsType<InteractionWindowEvent>(secondOpenEvents[0]).responseWindowId!.Value;
+        processor.processActionRequest(gameState, secondOpenRequest);
 
         var secondDefenseRequest = new SubmitDefenseActionRequest
         {
@@ -1316,17 +1312,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = new CardInstanceId(0),
             defenseTypeKey = "fixedReduce1",
         };
-        processor.processActionRequest(gameState, secondDefenseRequest);
-
-        var secondSubmitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72490,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = secondResponseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var secondFinalEvents = processor.processActionRequest(gameState, secondSubmitNoResponseRequest);
+        var secondFinalEvents = processor.processActionRequest(gameState, secondDefenseRequest);
 
         var secondDamageResolvedEvent = Assert.IsType<DamageResolvedEvent>(secondFinalEvents[2]);
         Assert.Equal(1, secondDamageResolvedEvent.finalDamageValue);
@@ -1567,7 +1553,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -1576,17 +1561,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = defenseCardInstanceId,
             defenseTypeKey = "physical",
         };
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72506,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[3]);
         Assert.Equal(1, damageResolvedEvent.finalDamageValue);
@@ -1632,7 +1607,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -1641,17 +1615,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = defenseCardInstanceId,
             defenseTypeKey = "physical",
         };
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72516,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, defenseRequest);
 
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[3]);
         Assert.Equal(0, damageResolvedEvent.finalDamageValue);
@@ -1717,7 +1681,6 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         processor.processActionRequest(gameState, secondOpenRequest);
-        var secondWindowId = gameState.currentResponseWindow!.responseWindowId;
 
         var secondDefenseRequest = new SubmitDefenseActionRequest
         {
@@ -1726,17 +1689,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = defenseCardInstanceId,
             defenseTypeKey = "physical",
         };
-        processor.processActionRequest(gameState, secondDefenseRequest);
-
-        var secondNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72528,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = secondWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var secondFinalEvents = processor.processActionRequest(gameState, secondNoResponseRequest);
+        var secondFinalEvents = processor.processActionRequest(gameState, secondDefenseRequest);
         var secondDamageResolved = Assert.IsType<DamageResolvedEvent>(secondFinalEvents[3]);
         Assert.Equal(0, secondDamageResolved.finalDamageValue);
         Assert.Equal(10, targetCharacter.currentHp);
@@ -1781,8 +1734,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             baseDamageValue = 2,
         };
 
-        var openEvents = processor.processActionRequest(gameState, openRequest);
-        var openedEvent = Assert.IsType<InteractionWindowEvent>(openEvents[0]);
+        processor.processActionRequest(gameState, openRequest);
 
         var defenseRequest = new SubmitDefenseActionRequest
         {
@@ -1791,18 +1743,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             defenseCardInstanceId = new CardInstanceId(72465),
             defenseTypeKey = "fixedReduce1",
         };
-        processor.processActionRequest(gameState, defenseRequest);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72466,
-            actorPlayerId = sourcePlayerId,
-            responseWindowId = openedEvent.responseWindowId!.Value,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var eventsAfterDamageSubmit = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var eventsAfterDamageSubmit = processor.processActionRequest(gameState, defenseRequest);
 
         Assert.True(gameState.currentActionChain!.isCompleted);
         Assert.Null(gameState.currentActionChain.pendingContinuationKey);
@@ -2006,14 +1947,10 @@ public class ActionRequestProcessorResponseWindowDamageTests
         };
 
         processor.processActionRequest(gameState, openRequest);
-        var defenseRequest = new SubmitDefenseActionRequest
-        {
-            requestId = 7268,
-            actorPlayerId = targetPlayerId,
-            defenseCardInstanceId = new CardInstanceId(7269),
-            defenseTypeKey = "fixedReduce1",
-        };
-        processor.processActionRequest(gameState, defenseRequest);
+        forceAwaitCounterStateForTests(
+            gameState.currentResponseWindow!,
+            targetPlayerId,
+            sourcePlayerId);
 
         var existingActionChain = gameState.currentActionChain;
         var existingResponseWindow = gameState.currentResponseWindow;
@@ -2064,15 +2001,10 @@ public class ActionRequestProcessorResponseWindowDamageTests
             baseDamageValue = 2,
         };
         processor.processActionRequest(gameState, openRequest);
-
-        var defenseRequest = new SubmitDefenseActionRequest
-        {
-            requestId = 72698,
-            actorPlayerId = targetPlayerId,
-            defenseCardInstanceId = new CardInstanceId(72699),
-            defenseTypeKey = "fixedReduce1",
-        };
-        processor.processActionRequest(gameState, defenseRequest);
+        forceAwaitCounterStateForTests(
+            gameState.currentResponseWindow!,
+            targetPlayerId,
+            sourcePlayerId);
 
         var existingActionChain = gameState.currentActionChain;
         var existingResponseWindow = gameState.currentResponseWindow;
@@ -2131,15 +2063,10 @@ public class ActionRequestProcessorResponseWindowDamageTests
             baseDamageValue = 2,
         };
         processor.processActionRequest(gameState, openRequest);
-
-        var defenseRequest = new SubmitDefenseActionRequest
-        {
-            requestId = 7274,
-            actorPlayerId = targetPlayerId,
-            defenseCardInstanceId = new CardInstanceId(7275),
-            defenseTypeKey = "fixedReduce1",
-        };
-        processor.processActionRequest(gameState, defenseRequest);
+        forceAwaitCounterStateForTests(
+            gameState.currentResponseWindow!,
+            targetPlayerId,
+            sourcePlayerId);
         var existingActionChain = gameState.currentActionChain;
         var existingResponseWindow = gameState.currentResponseWindow;
         var producedEventsBefore = existingActionChain!.producedEvents.Count;
@@ -2189,15 +2116,10 @@ public class ActionRequestProcessorResponseWindowDamageTests
             baseDamageValue = 2,
         };
         processor.processActionRequest(gameState, openRequest);
-
-        var defenseRequest = new SubmitDefenseActionRequest
-        {
-            requestId = 72724,
-            actorPlayerId = targetPlayerId,
-            defenseCardInstanceId = new CardInstanceId(72725),
-            defenseTypeKey = "fixedReduce1",
-        };
-        processor.processActionRequest(gameState, defenseRequest);
+        forceAwaitCounterStateForTests(
+            gameState.currentResponseWindow!,
+            targetPlayerId,
+            sourcePlayerId);
 
         var existingActionChain = gameState.currentActionChain;
         var existingResponseWindow = gameState.currentResponseWindow;
@@ -2716,6 +2638,18 @@ public class ActionRequestProcessorResponseWindowDamageTests
                 durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
                 stackCount = 1,
             });
+    }
+
+    private static void forceAwaitCounterStateForTests(
+        ResponseWindowState responseWindowState,
+        PlayerId pendingDamageDefenderPlayerId,
+        PlayerId pendingDamageSourcePlayerId)
+    {
+        responseWindowState.pendingDamageResponseStageKey = "awaitCounter";
+        responseWindowState.pendingDamageDefenderPlayerId = pendingDamageDefenderPlayerId;
+        responseWindowState.pendingDamageSourcePlayerId = pendingDamageSourcePlayerId;
+        responseWindowState.pendingDamageDefenseDeclarationKey = "fixedReduce1";
+        responseWindowState.currentResponderPlayerId = pendingDamageSourcePlayerId;
     }
 
     private static PlayerState createPlayerState(PlayerId playerId, TeamId teamId, long zoneIdBase)

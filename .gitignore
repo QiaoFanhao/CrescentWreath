@@ -29,6 +29,13 @@ TestResults/
 !*.sln
 !*.csproj
 
+# UnityClient local generated project artifacts (do not track)
+UnityClient/CrescentWreathClinet/*.csproj
+UnityClient/CrescentWreathClinet/*.sln
+UnityClient/CrescentWreathClinet/*.slnx
+UnityClient/CrescentWreathClinet/*.csproj.lscache
+*.lscache
+
 # ---------- Unity (only relevant for UnityClient or future Unity project dirs) ----------
 [Ll]ibrary/
 [Tt]emp/
@@ -68,6 +75,10 @@ mono_crash.*
 
 # ---------- Optional local artifacts ----------
 *.zip
+UnityClient/CrescentWreathClinet/Assets/*.zip.meta
+UnityClient/CrescentWreathClinet/Assets/_Recovery/
+build_tests_diag.txt
+build_tests_msbuild_diag.txt
 # ---------- Local environment / tooling caches ----------
 bin/
 obj/

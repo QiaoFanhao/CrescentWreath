@@ -4,6 +4,7 @@ using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.ResponseSystem;
 using CrescentWreath.RuleCore.Ids;
+using CrescentWreath.RuleCore.StatusSystem;
 using CrescentWreath.RuleCore.Zones;
 using CrescentWreath.ServerPrototype;
 
@@ -34,6 +35,122 @@ public class ServerGameSessionTests
         Assert.True(summonZoneState.cardInstanceIds.Count > 0);
         Assert.True(publicTreasureDeckZoneState.cardInstanceIds.Count > 0);
         Assert.Equal(15, sakuraCakeDeckZoneState.cardInstanceIds.Count);
+    }
+
+    [Fact]
+    public void DebugResetMatch_ShouldReinitializeSingleSessionState()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var stateBeforeReset = session.gameState;
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorPlayerStateBefore = session.gameState.players[actorPlayerId];
+        var handZoneBefore = session.gameState.zones[actorPlayerStateBefore.handZoneId];
+        var handCountBefore = handZoneBefore.cardInstanceIds.Count;
+
+        var drawResult = session.processDrawOneCard(new ServerDrawOneCardRequestDto
+        {
+            requestId = 989901,
+            actorPlayerNumericId = actorPlayerId.Value,
+        });
+        Assert.True(drawResult.isSucceeded);
+        Assert.Equal(handCountBefore + 1, handZoneBefore.cardInstanceIds.Count);
+
+        var resetResult = session.debugResetMatch(new ServerDebugResetMatchRequestDto
+        {
+            requestId = 989902,
+            actorPlayerNumericId = actorPlayerId.Value,
+        });
+
+        Assert.True(resetResult.isSucceeded);
+        Assert.Empty(resetResult.producedEvents);
+        Assert.NotNull(resetResult.stateProjection);
+        Assert.NotSame(stateBeforeReset, session.gameState);
+        Assert.Equal(RuleCore.GameState.MatchState.running, session.gameState.matchState);
+        Assert.Equal(1, session.gameState.turnState!.turnNumber);
+        Assert.Equal(RuleCore.GameState.TurnPhase.start, session.gameState.turnState.currentPhase);
+
+        var actorPlayerStateAfter = session.gameState.players[session.gameState.turnState.currentPlayerId];
+        var handZoneAfter = session.gameState.zones[actorPlayerStateAfter.handZoneId];
+        Assert.Equal(6, handZoneAfter.cardInstanceIds.Count);
+
+        var publicStateAfter = session.gameState.publicState!;
+        Assert.Equal(6, session.gameState.zones[publicStateAfter.summonZoneId].cardInstanceIds.Count);
+        Assert.Equal(15, session.gameState.zones[publicStateAfter.sakuraCakeDeckZoneId].cardInstanceIds.Count);
+    }
+
+    [Fact]
+    public void DebugMoveTreasureToHandByDefinition_ShouldMoveCardFromPublicTreasureDeckToActorHand()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var handZoneState = session.gameState.zones[actorPlayerState.handZoneId];
+        var publicTreasureDeckZoneState = session.gameState.zones[session.gameState.publicState!.publicTreasureDeckZoneId];
+        var customCardInstanceId = new CardInstanceId(880001);
+
+        publicTreasureDeckZoneState.cardInstanceIds.Clear();
+        createPublicCardInZone(
+            session.gameState,
+            customCardInstanceId,
+            "TEST:DEBUG_INJECT",
+            session.gameState.publicState.publicTreasureDeckZoneId,
+            ZoneKey.publicTreasureDeck);
+
+        var handCountBefore = handZoneState.cardInstanceIds.Count;
+
+        var result = session.debugMoveTreasureToHandByDefinition(new ServerDebugMoveTreasureToHandByDefinitionRequestDto
+        {
+            requestId = 880101,
+            actorPlayerNumericId = actorPlayerId.Value,
+            treasureDefinitionId = "TEST:DEBUG_INJECT",
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Contains(customCardInstanceId, handZoneState.cardInstanceIds);
+        Assert.DoesNotContain(customCardInstanceId, publicTreasureDeckZoneState.cardInstanceIds);
+        Assert.Equal(handCountBefore + 1, handZoneState.cardInstanceIds.Count);
+        Assert.Single(result.producedEvents);
+        var movedCardInstance = session.gameState.cardInstances[customCardInstanceId];
+        Assert.Equal(actorPlayerState.handZoneId, movedCardInstance.zoneId);
+        Assert.Equal(ZoneKey.hand, movedCardInstance.zoneKey);
+        Assert.Equal(actorPlayerId, movedCardInstance.ownerPlayerId);
+    }
+
+    [Fact]
+    public void DebugPutTreasureOnTopByDefinition_ShouldPlaceCardToTopOfPublicTreasureDeck()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var publicTreasureDeckZoneState = session.gameState.zones[session.gameState.publicState!.publicTreasureDeckZoneId];
+        var cardA = new CardInstanceId(880201);
+        var cardB = new CardInstanceId(880202);
+
+        publicTreasureDeckZoneState.cardInstanceIds.Clear();
+        createPublicCardInZone(
+            session.gameState,
+            cardA,
+            "TEST:TOP_A",
+            session.gameState.publicState.publicTreasureDeckZoneId,
+            ZoneKey.publicTreasureDeck);
+        createPublicCardInZone(
+            session.gameState,
+            cardB,
+            "TEST:TOP_B",
+            session.gameState.publicState.publicTreasureDeckZoneId,
+            ZoneKey.publicTreasureDeck);
+
+        Assert.Equal(new[] { cardA, cardB }, publicTreasureDeckZoneState.cardInstanceIds);
+
+        var result = session.debugPutTreasureOnTopByDefinition(new ServerDebugPutTreasureOnTopByDefinitionRequestDto
+        {
+            requestId = 880301,
+            actorPlayerNumericId = actorPlayerId.Value,
+            treasureDefinitionId = "TEST:TOP_B",
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Equal(cardB, publicTreasureDeckZoneState.cardInstanceIds[0]);
+        Assert.Equal(cardA, publicTreasureDeckZoneState.cardInstanceIds[1]);
     }
 
     [Fact]
@@ -427,11 +544,15 @@ public class ServerGameSessionTests
                          cardMovedEvent.moveReason == CardMoveReason.summon);
     }
     [Fact]
-    public void ProcessEnterEndPhase_WhenRequestIsValid_ShouldReturnSuccessAndAdvanceToEnd()
+    public void ProcessEnterEndPhase_WhenRequestIsValidAndNoPendingInteraction_ShouldAutoAdvanceToNextPlayerAction()
     {
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
         var currentPlayerId = session.gameState.turnState.currentPlayerId;
+        var seatOrder = session.gameState.matchMeta!.seatOrder;
+        var currentSeatIndex = seatOrder.IndexOf(currentPlayerId);
+        var expectedNextPlayerId = seatOrder[(currentSeatIndex + 1) % seatOrder.Count];
+        var turnNumberBefore = session.gameState.turnState.turnNumber;
         var currentPlayerState = session.gameState.players[currentPlayerId];
         currentPlayerState.mana = 4;
         currentPlayerState.lockedSigil = 2;
@@ -446,7 +567,9 @@ public class ServerGameSessionTests
         Assert.True(result.isSucceeded);
         Assert.Null(result.errorMessage);
         Assert.Same(session.gameState, result.updatedState);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
+        Assert.Equal(turnNumberBefore + 1, session.gameState.turnState.turnNumber);
+        Assert.Equal(expectedNextPlayerId, session.gameState.turnState.currentPlayerId);
+        Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
         Assert.Equal(0, currentPlayerState.mana);
         Assert.Null(currentPlayerState.lockedSigil);
         Assert.False(currentPlayerState.isSigilLocked);
@@ -508,6 +631,9 @@ public class ServerGameSessionTests
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
         var currentPlayerId = session.gameState.turnState.currentPlayerId;
+        var seatOrder = session.gameState.matchMeta!.seatOrder;
+        var currentSeatIndex = seatOrder.IndexOf(currentPlayerId);
+        var expectedNextPlayerId = seatOrder[(currentSeatIndex + 1) % seatOrder.Count];
 
         var enterSummonResult = session.processEnterSummonPhase(new ServerEnterSummonPhaseRequestDto
         {
@@ -524,31 +650,24 @@ public class ServerGameSessionTests
         });
 
         Assert.True(enterEndResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
+        Assert.Equal(expectedNextPlayerId, session.gameState.turnState.currentPlayerId);
+        Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
     }
 
     [Fact]
     public void ProcessStartNextTurn_WhenRequestIsValid_ShouldAdvanceTurnAndSwitchCurrentPlayer()
     {
         var session = ServerGameSession.createStandard2v2();
-        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.end;
         var currentPlayerId = session.gameState.turnState.currentPlayerId;
         var turnNumberBefore = session.gameState.turnState.turnNumber;
         var seatOrder = session.gameState.matchMeta!.seatOrder;
         var currentSeatIndex = seatOrder.IndexOf(currentPlayerId);
         var expectedNextPlayerId = seatOrder[(currentSeatIndex + 1) % seatOrder.Count];
 
-        var enterEndResult = session.processEnterEndPhase(new ServerEnterEndPhaseRequestDto
-        {
-            requestId = 990400,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(enterEndResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
-
         var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
         {
-            requestId = 990401,
+            requestId = 990400,
             actorPlayerNumericId = currentPlayerId.Value,
         });
 
@@ -564,7 +683,7 @@ public class ServerGameSessionTests
     public void ProcessStartNextTurn_WhenDefensePlacedCardExistsOnNextPlayerField_ShouldReturnCardToHandAndClearFlag()
     {
         var session = ServerGameSession.createStandard2v2();
-        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.end;
         var currentPlayerId = session.gameState.turnState.currentPlayerId;
         var seatOrder = session.gameState.matchMeta!.seatOrder;
         var currentSeatIndex = seatOrder.IndexOf(currentPlayerId);
@@ -587,16 +706,9 @@ public class ServerGameSessionTests
         nextPlayerFieldZoneState.cardInstanceIds.Add(defensePlacedCardInstanceId);
         var nextPlayerHandCountBefore = nextPlayerHandZoneState.cardInstanceIds.Count;
 
-        var enterEndResult = session.processEnterEndPhase(new ServerEnterEndPhaseRequestDto
-        {
-            requestId = 990402,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(enterEndResult.isSucceeded);
-
         var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
         {
-            requestId = 990403,
+            requestId = 990402,
             actorPlayerNumericId = currentPlayerId.Value,
         });
 
@@ -618,23 +730,16 @@ public class ServerGameSessionTests
     public void ProcessStartNextTurn_WhenActorIsNotCurrentPlayer_ShouldReturnFailureAndKeepStateUnchanged()
     {
         var session = ServerGameSession.createStandard2v2();
-        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.end;
         var currentPlayerId = session.gameState.turnState.currentPlayerId;
         var otherPlayerId = session.gameState.players.Keys.First(playerId => playerId != currentPlayerId);
-
-        var enterEndResult = session.processEnterEndPhase(new ServerEnterEndPhaseRequestDto
-        {
-            requestId = 990404,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(enterEndResult.isSucceeded);
 
         var phaseBefore = session.gameState.turnState.currentPhase;
         var turnNumberBefore = session.gameState.turnState.turnNumber;
 
         var result = session.processStartNextTurn(new ServerStartNextTurnRequestDto
         {
-            requestId = 990405,
+            requestId = 990404,
             actorPlayerNumericId = otherPlayerId.Value,
         });
 
@@ -671,7 +776,7 @@ public class ServerGameSessionTests
     }
 
     [Fact]
-    public void ProcessEnterSummonPhaseThenEnterEndThenStartNextTurn_WhenRequestsAreValid_ShouldAdvanceTurnFlowWithoutManualMutation()
+    public void ProcessEnterSummonPhaseThenEnterEnd_WhenRequestsAreValid_ShouldAutoAdvanceTurnFlowWithoutManualMutation()
     {
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
@@ -694,17 +799,8 @@ public class ServerGameSessionTests
             actorPlayerNumericId = currentPlayerId.Value,
         });
         Assert.True(enterEndResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
-
-        var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
-        {
-            requestId = 990409,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-
-        Assert.True(startNextTurnResult.isSucceeded);
         Assert.Equal(expectedNextPlayerId, session.gameState.turnState.currentPlayerId);
-        Assert.Equal(RuleCore.GameState.TurnPhase.start, session.gameState.turnState.currentPhase);
+        Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
     }
 
     [Fact]
@@ -772,7 +868,7 @@ public class ServerGameSessionTests
     }
 
     [Fact]
-    public void ProcessStartNextTurnThenEnterActionThenEnterSummon_WhenRequestsAreValid_ShouldAdvancePhasesWithoutManualMutation()
+    public void ProcessEnterEndPhaseThenEnterSummon_WhenRequestsAreValid_ShouldAdvancePhasesWithoutManualMutation()
     {
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
@@ -784,28 +880,12 @@ public class ServerGameSessionTests
             actorPlayerNumericId = currentPlayerId.Value,
         });
         Assert.True(enterEndResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
-
-        var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
-        {
-            requestId = 990504,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(startNextTurnResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.start, session.gameState.turnState.currentPhase);
-
-        var nextPlayerId = session.gameState.turnState.currentPlayerId;
-        var enterActionResult = session.processEnterActionPhase(new ServerEnterActionPhaseRequestDto
-        {
-            requestId = 990505,
-            actorPlayerNumericId = nextPlayerId.Value,
-        });
-        Assert.True(enterActionResult.isSucceeded);
         Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
+        var nextPlayerId = session.gameState.turnState.currentPlayerId;
 
         var enterSummonResult = session.processEnterSummonPhase(new ServerEnterSummonPhaseRequestDto
         {
-            requestId = 990506,
+            requestId = 990504,
             actorPlayerNumericId = nextPlayerId.Value,
         });
 
@@ -1000,7 +1080,7 @@ public class ServerGameSessionTests
     }
 
     [Fact]
-    public void ProcessStartNextTurnThenEnterActionThenUseSkill_WhenRequestsAreValid_ShouldSucceedWithoutManualPhaseMutation()
+    public void ProcessEnterEndPhaseThenUseSkill_WhenRequestsAreValid_ShouldSucceedWithoutManualPhaseMutation()
     {
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
@@ -1012,33 +1092,17 @@ public class ServerGameSessionTests
             actorPlayerNumericId = currentPlayerId.Value,
         });
         Assert.True(enterEndResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.end, session.gameState.turnState.currentPhase);
-
-        var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
-        {
-            requestId = 990610,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(startNextTurnResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.start, session.gameState.turnState.currentPhase);
 
         var nextPlayerId = session.gameState.turnState.currentPlayerId;
         var nextPlayerState = session.gameState.players[nextPlayerId];
         var nextPlayerCharacterInstanceId = ensureActiveCharacterDefinitionId(session, nextPlayerId, "C004");
         nextPlayerState.mana = 5;
         nextPlayerState.skillPoint = 0;
-
-        var enterActionResult = session.processEnterActionPhase(new ServerEnterActionPhaseRequestDto
-        {
-            requestId = 990611,
-            actorPlayerNumericId = nextPlayerId.Value,
-        });
-        Assert.True(enterActionResult.isSucceeded);
         Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
 
         var useSkillResult = session.processUseSkill(new ServerUseSkillRequestDto
         {
-            requestId = 990612,
+            requestId = 990610,
             actorPlayerNumericId = nextPlayerId.Value,
             characterInstanceNumericId = nextPlayerCharacterInstanceId.Value,
             skillKey = "C004:1",
@@ -1074,10 +1138,16 @@ public class ServerGameSessionTests
         Assert.Null(result.errorMessage);
         Assert.Same(session.gameState, result.updatedState);
         Assert.DoesNotContain(result.producedEvents, gameEvent => gameEvent is CardMovedEvent);
-        Assert.NotNull(session.gameState.currentResponseWindow);
-        Assert.Equal("awaitCounter", session.gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.Equal("fixedReduce1", session.gameState.currentResponseWindow.pendingDamageDefenseDeclarationKey);
-        Assert.Equal(sourcePlayerId, session.gameState.currentResponseWindow.currentResponderPlayerId);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.NotNull(session.gameState.currentActionChain);
+        Assert.True(session.gameState.currentActionChain!.isCompleted);
+        Assert.Null(session.gameState.currentActionChain.pendingContinuationKey);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "responseWindowClosed");
+        Assert.Contains(result.producedEvents, gameEvent => gameEvent is DamageResolvedEvent);
+        Assert.Contains(result.producedEvents, gameEvent => gameEvent is HpChangedEvent);
     }
 
     [Fact]
@@ -1111,8 +1181,64 @@ public class ServerGameSessionTests
                 cardMovedEvent.toZoneKey == ZoneKey.field);
         Assert.Equal(defenderPlayerState.fieldZoneId, session.gameState.cardInstances[defenseCardInstanceId].zoneId);
         Assert.True(session.gameState.cardInstances[defenseCardInstanceId].isDefensePlacedOnField);
-        Assert.Equal("awaitCounter", session.gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.StartsWith("cardDefense:", session.gameState.currentResponseWindow.pendingDamageDefenseDeclarationKey);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.NotNull(session.gameState.currentActionChain);
+        Assert.True(session.gameState.currentActionChain!.isCompleted);
+        Assert.Null(session.gameState.currentActionChain.pendingContinuationKey);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "responseWindowClosed");
+        Assert.Contains(result.producedEvents, gameEvent => gameEvent is DamageResolvedEvent);
+        Assert.Contains(result.producedEvents, gameEvent => gameEvent is HpChangedEvent);
+    }
+
+    [Fact]
+    public void ProcessSubmitDefense_WhenDeclaredDefenseTypeIsNotSupportedByCard_ShouldStillSucceedWithZeroReduction()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+        var defenderPlayerId = session.gameState.players.Keys.First(playerId => playerId != sourcePlayerId);
+        var defenderPlayerState = session.gameState.players[defenderPlayerId];
+        var defenseCardInstanceId = new CardInstanceId(993111);
+        createCardInPlayerHand(session.gameState, defenderPlayerState, defenseCardInstanceId, "T002");
+        prepareDamageResponseWindowForDefense(session, sourcePlayerId, defenderPlayerId, 993110);
+
+        var defenderCharacterInstanceId = defenderPlayerState.activeCharacterInstanceId!.Value;
+        var hpBefore = session.gameState.characterInstances[defenderCharacterInstanceId].currentHp;
+
+        var result = session.processSubmitDefense(new ServerSubmitDefenseRequestDto
+        {
+            requestId = 990711,
+            actorPlayerNumericId = defenderPlayerId.Value,
+            defenseTypeKey = "physical",
+            defenseCardInstanceNumericId = defenseCardInstanceId.Value,
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Null(result.errorMessage);
+        Assert.NotNull(session.gameState.currentActionChain);
+        Assert.True(session.gameState.currentActionChain!.isCompleted);
+        Assert.Null(session.gameState.currentActionChain.pendingContinuationKey);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.Equal(defenderPlayerState.fieldZoneId, session.gameState.cardInstances[defenseCardInstanceId].zoneId);
+        Assert.True(session.gameState.cardInstances[defenseCardInstanceId].isDefensePlacedOnField);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent =>
+                gameEvent is CardMovedEvent cardMovedEvent &&
+                cardMovedEvent.cardInstanceId == defenseCardInstanceId &&
+                cardMovedEvent.moveReason == CardMoveReason.defensePlace &&
+                cardMovedEvent.fromZoneKey == ZoneKey.hand &&
+                cardMovedEvent.toZoneKey == ZoneKey.field);
+        var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(
+            result.producedEvents.First(gameEvent => gameEvent is DamageResolvedEvent));
+        Assert.Equal(2, damageResolvedEvent.finalDamageValue);
+        Assert.True(damageResolvedEvent.didDealDamage);
+        var hpChangedEvent = Assert.IsType<HpChangedEvent>(
+            result.producedEvents.First(gameEvent => gameEvent is HpChangedEvent));
+        Assert.Equal(hpBefore, hpChangedEvent.hpBefore);
+        Assert.Equal(hpBefore - 2, hpChangedEvent.hpAfter);
     }
 
     [Fact]
@@ -1164,7 +1290,256 @@ public class ServerGameSessionTests
     }
 
     [Fact]
-    public void ProcessStartNextTurnThenEnterActionThenSubmitDefense_WhenDefenseWindowPrepared_ShouldSucceedWithoutManualPhaseMutation()
+    public void ProcessSubmitResponse_WhenNoResponseWindowIsActive_ShouldReturnFailureAndKeepStateUnchanged()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var currentPlayerId = session.gameState.turnState!.currentPlayerId;
+
+        var result = session.processSubmitResponse(new ServerSubmitResponseRequestDto
+        {
+            requestId = 990708,
+            actorPlayerNumericId = currentPlayerId.Value,
+            responseWindowNumericId = 1,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.Empty(result.producedEvents);
+        Assert.Equal(
+            "SubmitResponseActionRequest requires an active currentActionChain.",
+            result.errorMessage);
+        Assert.Null(session.gameState.currentResponseWindow);
+    }
+
+    [Fact]
+    public void ProcessSubmitResponse_WhenResponderMatchesAndNoResponse_ShouldSucceedAndCloseResponseWindow()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+        var defenderPlayerId = session.gameState.players.Keys.First(playerId => playerId != sourcePlayerId);
+        prepareDamageResponseWindowForDefense(session, sourcePlayerId, defenderPlayerId, 993040);
+        Assert.NotNull(session.gameState.currentResponseWindow);
+        var responseWindowId = session.gameState.currentResponseWindow!.responseWindowId;
+        var actionChainState = session.gameState.currentActionChain!;
+
+        var result = session.processSubmitResponse(new ServerSubmitResponseRequestDto
+        {
+            requestId = 990709,
+            actorPlayerNumericId = defenderPlayerId.Value,
+            responseWindowNumericId = responseWindowId.Value,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.True(actionChainState.isCompleted);
+        Assert.Null(actionChainState.pendingContinuationKey);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "responseWindowClosed");
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent => gameEvent is DamageResolvedEvent);
+    }
+
+    [Fact]
+    public void ProcessSubmitResponse_WhenActorIsNotCurrentResponder_ShouldReturnFailureAndKeepResponseWindow()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+        var defenderPlayerId = session.gameState.players.Keys.First(playerId => playerId != sourcePlayerId);
+        prepareDamageResponseWindowForDefense(session, sourcePlayerId, defenderPlayerId, 993050);
+        Assert.NotNull(session.gameState.currentResponseWindow);
+        var responseWindowId = session.gameState.currentResponseWindow!.responseWindowId;
+
+        var result = session.processSubmitResponse(new ServerSubmitResponseRequestDto
+        {
+            requestId = 990710,
+            actorPlayerNumericId = sourcePlayerId.Value,
+            responseWindowNumericId = responseWindowId.Value,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.Equal(
+            "SubmitResponseActionRequest actorPlayerId does not match currentResponseWindow.currentResponderPlayerId.",
+            result.errorMessage);
+        Assert.NotNull(session.gameState.currentResponseWindow);
+        Assert.Equal(responseWindowId, session.gameState.currentResponseWindow!.responseWindowId);
+    }
+
+    [Fact]
+    public void DebugOpenDamageResponseWindow_WhenTargetIsAutoResolved_ShouldOpenResponseWindow()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+
+        var result = session.debugOpenDamageResponseWindow(new ServerDebugOpenDamageResponseWindowRequestDto
+        {
+            requestId = 990711,
+            actorPlayerNumericId = sourcePlayerId.Value,
+            targetCharacterInstanceNumericId = 0,
+            baseDamageValue = 0,
+            damageTypeKey = null,
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.NotNull(session.gameState.currentResponseWindow);
+        Assert.Equal("damageResponse", session.gameState.currentResponseWindow!.windowTypeKey);
+        Assert.True(session.gameState.currentResponseWindow.responseWindowId.Value > 0);
+        Assert.Equal(2, session.gameState.currentResponseWindow.pendingDamageBaseDamageValue);
+        Assert.Equal("physical", session.gameState.currentResponseWindow.pendingDamageTypeKey);
+        Assert.NotEqual(sourcePlayerId, session.gameState.currentResponseWindow.currentResponderPlayerId);
+        Assert.NotNull(result.interaction);
+        Assert.NotNull(result.interaction!.responseWindow);
+        Assert.True(result.interaction.responseWindow!.responseWindowNumericId > 0);
+    }
+
+    [Fact]
+    public void DebugOpenDamageResponseWindow_ThenSubmitResponseNo_ShouldResolveDamageAndCloseWindow()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        var sourcePlayerId = session.gameState.turnState!.currentPlayerId;
+
+        var openResult = session.debugOpenDamageResponseWindow(new ServerDebugOpenDamageResponseWindowRequestDto
+        {
+            requestId = 990712,
+            actorPlayerNumericId = sourcePlayerId.Value,
+            targetCharacterInstanceNumericId = 0,
+            baseDamageValue = 2,
+            damageTypeKey = "physical",
+        });
+
+        Assert.True(openResult.isSucceeded);
+        Assert.NotNull(session.gameState.currentResponseWindow);
+
+        var responseWindowState = session.gameState.currentResponseWindow!;
+        Assert.True(responseWindowState.pendingDamageTargetCharacterInstanceId.HasValue);
+        Assert.True(responseWindowState.currentResponderPlayerId.HasValue);
+
+        var targetCharacterInstanceId = responseWindowState.pendingDamageTargetCharacterInstanceId!.Value;
+        var hpBefore = session.gameState.characterInstances[targetCharacterInstanceId].currentHp;
+
+        var submitResult = session.processSubmitResponse(new ServerSubmitResponseRequestDto
+        {
+            requestId = 990713,
+            actorPlayerNumericId = responseWindowState.currentResponderPlayerId!.Value.Value,
+            responseWindowNumericId = responseWindowState.responseWindowId.Value,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.True(submitResult.isSucceeded);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.Contains(submitResult.eventLog, entry => entry.eventTypeKey == "responseWindowOpened");
+        Assert.Contains(submitResult.eventLog, entry => entry.eventTypeKey == "damageResolved");
+        Assert.Contains(submitResult.eventLog, entry => entry.eventTypeKey == "hpChanged");
+        Assert.Equal(hpBefore - 2, session.gameState.characterInstances[targetCharacterInstanceId].currentHp);
+    }
+
+    [Fact]
+    public void ProcessSubmitInputChoice_WhenInputContextIsValid_ShouldSucceedAndCloseInputContext()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var inputContextId = prepareSimpleInputContextForSubmitChoice(session, actorPlayerId, 994000, "confirm", "decline");
+
+        var result = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 990714,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = inputContextId.Value,
+            choiceKey = "confirm",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Null(session.gameState.currentInputContext);
+        Assert.NotNull(session.gameState.currentActionChain);
+        Assert.True(session.gameState.currentActionChain!.isCompleted);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "inputContextClosed");
+    }
+
+    [Fact]
+    public void ProcessSubmitInputChoice_WhenCurrentInputContextIsMissing_ShouldReturnFailureAndKeepStateUnchanged()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+
+        var result = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 990715,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = 1,
+            choiceKey = "confirm",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.Equal(
+            "SubmitInputChoiceActionRequest requires an active currentActionChain.",
+            result.errorMessage);
+        Assert.Null(session.gameState.currentInputContext);
+    }
+
+    [Fact]
+    public void ProcessSubmitInputChoice_WhenActorIsNotRequiredPlayer_ShouldReturnFailureAndKeepInputContext()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var requiredPlayerId = session.gameState.turnState!.currentPlayerId;
+        var nonRequiredPlayerId = session.gameState.players.Keys.First(playerId => playerId != requiredPlayerId);
+        var inputContextId = prepareSimpleInputContextForSubmitChoice(session, requiredPlayerId, 994100, "confirm", "decline");
+
+        var result = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 990716,
+            actorPlayerNumericId = nonRequiredPlayerId.Value,
+            inputContextNumericId = inputContextId.Value,
+            choiceKey = "confirm",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.Equal(
+            "SubmitInputChoiceActionRequest actorPlayerId does not match currentInputContext.requiredPlayerId.",
+            result.errorMessage);
+        Assert.NotNull(session.gameState.currentInputContext);
+        Assert.Equal(inputContextId, session.gameState.currentInputContext!.inputContextId);
+    }
+
+    [Fact]
+    public void ProcessSubmitInputChoice_WhenChoiceKeyIsInvalid_ShouldReturnFailureAndKeepInputContext()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var inputContextId = prepareSimpleInputContextForSubmitChoice(session, actorPlayerId, 994200, "confirm");
+
+        var result = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 990717,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = inputContextId.Value,
+            choiceKey = "invalidChoice",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.False(result.isSucceeded);
+        Assert.Equal(
+            "SubmitInputChoiceActionRequest choiceKey is not allowed by currentInputContext.choiceKeys.",
+            result.errorMessage);
+        Assert.NotNull(session.gameState.currentInputContext);
+        Assert.Equal(inputContextId, session.gameState.currentInputContext!.inputContextId);
+    }
+
+    [Fact]
+    public void ProcessEnterEndPhaseThenSubmitDefense_WhenDefenseWindowPrepared_ShouldSucceedWithoutManualPhaseMutation()
     {
         var session = ServerGameSession.createStandard2v2();
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
@@ -1176,22 +1551,7 @@ public class ServerGameSessionTests
             actorPlayerNumericId = currentPlayerId.Value,
         });
         Assert.True(enterEndResult.isSucceeded);
-
-        var startNextTurnResult = session.processStartNextTurn(new ServerStartNextTurnRequestDto
-        {
-            requestId = 990705,
-            actorPlayerNumericId = currentPlayerId.Value,
-        });
-        Assert.True(startNextTurnResult.isSucceeded);
-        Assert.Equal(RuleCore.GameState.TurnPhase.start, session.gameState.turnState.currentPhase);
-
         var sourcePlayerId = session.gameState.turnState.currentPlayerId;
-        var enterActionResult = session.processEnterActionPhase(new ServerEnterActionPhaseRequestDto
-        {
-            requestId = 990706,
-            actorPlayerNumericId = sourcePlayerId.Value,
-        });
-        Assert.True(enterActionResult.isSucceeded);
         Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
 
         var defenderPlayerId = session.gameState.players.Keys.First(playerId => playerId != sourcePlayerId);
@@ -1206,8 +1566,15 @@ public class ServerGameSessionTests
         });
 
         Assert.True(submitDefenseResult.isSucceeded);
-        Assert.Equal("awaitCounter", session.gameState.currentResponseWindow!.pendingDamageResponseStageKey);
-        Assert.Equal(sourcePlayerId, session.gameState.currentResponseWindow.currentResponderPlayerId);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.NotNull(session.gameState.currentActionChain);
+        Assert.True(session.gameState.currentActionChain!.isCompleted);
+        Assert.Null(session.gameState.currentActionChain.pendingContinuationKey);
+        Assert.Contains(
+            submitDefenseResult.producedEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "responseWindowClosed");
+        Assert.Contains(submitDefenseResult.producedEvents, gameEvent => gameEvent is DamageResolvedEvent);
     }
 
     [Fact]
@@ -1503,6 +1870,360 @@ public class ServerGameSessionTests
         Assert.Contains(summonedCardInstanceId, session.gameState.zones[summonZoneId].cardInstanceIds);
     }
 
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT002_ShouldOpenInputContextAndResolveTargetHeal()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var targetPlayerId = session.gameState.players.Keys.First(playerId => playerId != actorPlayerId);
+        var targetPlayerState = session.gameState.players[targetPlayerId];
+        Assert.NotNull(targetPlayerState.activeCharacterInstanceId);
+        var targetCharacter = session.gameState.characterInstances[targetPlayerState.activeCharacterInstanceId!.Value];
+        targetCharacter.currentHp = Math.Max(1, targetCharacter.maxHp - 2);
+
+        var cardInstanceId = new CardInstanceId(994500);
+        createCardInPlayerHand(session.gameState, actorPlayerState, cardInstanceId, "T002");
+        var manaBefore = actorPlayerState.mana;
+        var sigilBefore = actorPlayerState.sigilPreview;
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994501,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = cardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Contains($"player:{targetPlayerId.Value}", playResult.interaction.inputContext!.choiceKeys);
+        Assert.Equal(manaBefore + 2, actorPlayerState.mana);
+        Assert.Equal(sigilBefore + 1, actorPlayerState.sigilPreview);
+
+        var hpBefore = targetCharacter.currentHp;
+        var submitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994502,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = $"player:{targetPlayerId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(submitResult.isSucceeded);
+        Assert.Null(submitResult.interaction!.inputContext);
+        Assert.Equal(Math.Min(targetCharacter.maxHp, hpBefore + 1), targetCharacter.currentHp);
+        Assert.Equal(manaBefore + 2, actorPlayerState.mana);
+        Assert.Equal(sigilBefore + 1, actorPlayerState.sigilPreview);
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "hpChanged");
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT009_ShouldOpenOpponentInputContextAndApplySealToSelectedOpponent()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorTeamId = session.gameState.players[actorPlayerId].teamId;
+        var enemyPlayerId = session.gameState.players.Keys.First(
+            playerId => session.gameState.players[playerId].teamId != actorTeamId);
+        var allyPlayerId = session.gameState.players.Keys.First(
+            playerId => playerId != actorPlayerId && session.gameState.players[playerId].teamId == actorTeamId);
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var enemyPlayerState = session.gameState.players[enemyPlayerId];
+        Assert.NotNull(enemyPlayerState.activeCharacterInstanceId);
+
+        var cardInstanceId = new CardInstanceId(994510);
+        createCardInPlayerHand(session.gameState, actorPlayerState, cardInstanceId, "T009");
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994511,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = cardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Contains($"player:{enemyPlayerId.Value}", playResult.interaction.inputContext!.choiceKeys);
+        Assert.DoesNotContain($"player:{actorPlayerId.Value}", playResult.interaction.inputContext.choiceKeys);
+        Assert.DoesNotContain($"player:{allyPlayerId.Value}", playResult.interaction.inputContext.choiceKeys);
+
+        var submitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994512,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = $"player:{enemyPlayerId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(submitResult.isSucceeded);
+        Assert.Null(submitResult.interaction!.inputContext);
+        Assert.True(StatusRuntime.hasStatusOnCharacter(
+            session.gameState,
+            enemyPlayerState.activeCharacterInstanceId!.Value,
+            "Seal"));
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "statusChanged");
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT008_ShouldResolveDirectDamageWithoutOpeningResponseWindow()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorTeamId = session.gameState.players[actorPlayerId].teamId;
+        var targetPlayerId = session.gameState.players.Keys.First(
+            playerId => session.gameState.players[playerId].teamId != actorTeamId);
+        var allyPlayerId = session.gameState.players.Keys.First(
+            playerId => playerId != actorPlayerId && session.gameState.players[playerId].teamId == actorTeamId);
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var targetPlayerState = session.gameState.players[targetPlayerId];
+        Assert.NotNull(targetPlayerState.activeCharacterInstanceId);
+        var targetCharacter = session.gameState.characterInstances[targetPlayerState.activeCharacterInstanceId!.Value];
+        targetCharacter.currentHp = Math.Max(1, targetCharacter.maxHp - 1);
+
+        var cardInstanceId = new CardInstanceId(994520);
+        createCardInPlayerHand(session.gameState, actorPlayerState, cardInstanceId, "T008");
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994521,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = cardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Contains($"player:{targetPlayerId.Value}", playResult.interaction.inputContext!.choiceKeys);
+        Assert.DoesNotContain($"player:{actorPlayerId.Value}", playResult.interaction.inputContext.choiceKeys);
+        Assert.DoesNotContain($"player:{allyPlayerId.Value}", playResult.interaction.inputContext.choiceKeys);
+        var hpBefore = targetCharacter.currentHp;
+
+        var submitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994522,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext!.inputContextNumericId,
+            choiceKey = $"player:{targetPlayerId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(submitResult.isSucceeded);
+        Assert.Null(session.gameState.currentResponseWindow);
+        Assert.Null(submitResult.interaction!.responseWindow);
+        Assert.Equal(hpBefore - 1, targetCharacter.currentHp);
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "damageResolved");
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "hpChanged");
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT005_ShouldGainSkillPointAndRequireSelectedOpponentDiscard()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState!.currentPlayerId;
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var actorSkillPointBefore = actorPlayerState.skillPoint;
+        var actorTeamId = actorPlayerState.teamId;
+        var targetPlayerId = session.gameState.players.Keys.First(
+            playerId => session.gameState.players[playerId].teamId != actorTeamId);
+        var targetPlayerState = session.gameState.players[targetPlayerId];
+        var targetHandZoneState = session.gameState.zones[targetPlayerState.handZoneId];
+        var targetDiscardZoneState = session.gameState.zones[targetPlayerState.discardZoneId];
+        var targetHandCountBefore = targetHandZoneState.cardInstanceIds.Count;
+        var targetDiscardCountBefore = targetDiscardZoneState.cardInstanceIds.Count;
+
+        var t005CardInstanceId = new CardInstanceId(994525);
+        createCardInPlayerHand(session.gameState, actorPlayerState, t005CardInstanceId, "T005");
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994526,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = t005CardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Equal(actorSkillPointBefore + 1, actorPlayerState.skillPoint);
+        Assert.Contains($"player:{targetPlayerId.Value}", playResult.interaction.inputContext!.choiceKeys);
+
+        var targetSelectResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994527,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = $"player:{targetPlayerId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(targetSelectResult.isSucceeded);
+        Assert.NotNull(targetSelectResult.interaction);
+        Assert.NotNull(targetSelectResult.interaction!.inputContext);
+        Assert.Equal(targetPlayerId.Value, targetSelectResult.interaction.inputContext.requiredPlayerNumericId);
+        Assert.NotNull(session.gameState.currentInputContext);
+        Assert.Equal(targetPlayerId, session.gameState.currentInputContext!.requiredPlayerId);
+        Assert.NotEmpty(session.gameState.currentInputContext.choiceKeys);
+        Assert.All(
+            session.gameState.currentInputContext.choiceKeys,
+            choiceKey => Assert.StartsWith(TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix, choiceKey, StringComparison.Ordinal));
+
+        var discardChoiceKey = session.gameState.currentInputContext.choiceKeys[0];
+        var discardResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994528,
+            actorPlayerNumericId = targetPlayerId.Value,
+            inputContextNumericId = session.gameState.currentInputContext.inputContextId.Value,
+            choiceKey = discardChoiceKey,
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(discardResult.isSucceeded);
+        Assert.Null(discardResult.interaction!.inputContext);
+        Assert.Equal(targetHandCountBefore - 1, targetHandZoneState.cardInstanceIds.Count);
+        Assert.Equal(targetDiscardCountBefore + 1, targetDiscardZoneState.cardInstanceIds.Count);
+        Assert.Equal(actorSkillPointBefore + 1, actorPlayerState.skillPoint);
+        Assert.Contains(
+            discardResult.eventLog,
+            eventEntry =>
+                eventEntry.eventTypeKey == "cardMoved" &&
+                string.Equals(eventEntry.moveReason, CardMoveReason.discard.ToString(), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT027_ShouldDrawTwoAndCompleteTwoStepDiscardInputContinuation()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState.currentPlayerId;
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+
+        var cardInstanceId = new CardInstanceId(994530);
+        createCardInPlayerHand(session.gameState, actorPlayerState, cardInstanceId, "T027");
+        var handBefore = session.gameState.zones[actorPlayerState.handZoneId].cardInstanceIds.Count;
+        var discardBefore = session.gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds.Count;
+        var deckBefore = session.gameState.zones[actorPlayerState.deckZoneId].cardInstanceIds.Count;
+        var manaBefore = actorPlayerState.mana;
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994531,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = cardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Equal(
+            TreasureOnPlayEffectRuntime.ContinuationKeyT027OnPlayDraw2Discard2Step1,
+            session.gameState.currentActionChain!.pendingContinuationKey);
+        Assert.All(
+            playResult.interaction.inputContext!.choiceKeys,
+            choiceKey => Assert.StartsWith(TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix, choiceKey, StringComparison.Ordinal));
+        Assert.Equal(manaBefore + 2, actorPlayerState.mana);
+
+        var firstChoice = playResult.interaction.inputContext.choiceKeys[0];
+        var firstSubmitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994532,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = firstChoice,
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(firstSubmitResult.isSucceeded);
+        Assert.NotNull(firstSubmitResult.interaction);
+        Assert.NotNull(firstSubmitResult.interaction!.inputContext);
+        Assert.Equal(
+            TreasureOnPlayEffectRuntime.ContinuationKeyT027OnPlayDraw2Discard2Step2,
+            session.gameState.currentActionChain!.pendingContinuationKey);
+        Assert.NotEmpty(firstSubmitResult.interaction.inputContext!.choiceKeys);
+        Assert.Equal(
+            session.gameState.zones[actorPlayerState.handZoneId].cardInstanceIds.Count,
+            firstSubmitResult.interaction.inputContext.choiceKeys.Count);
+
+        var secondChoice = firstSubmitResult.interaction.inputContext.choiceKeys[0];
+        var secondSubmitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994533,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = firstSubmitResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = secondChoice,
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(secondSubmitResult.isSucceeded);
+        Assert.Null(secondSubmitResult.interaction!.inputContext);
+        Assert.Null(session.gameState.currentActionChain!.pendingContinuationKey);
+        Assert.True(session.gameState.currentActionChain.isCompleted);
+        Assert.Equal(handBefore - 1, session.gameState.zones[actorPlayerState.handZoneId].cardInstanceIds.Count);
+        Assert.Equal(discardBefore + 2, session.gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds.Count);
+        Assert.Equal(deckBefore - 2, session.gameState.zones[actorPlayerState.deckZoneId].cardInstanceIds.Count);
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCard_WhenPlayingT022_ShouldSupportOptionalBanishAndApplySelfShackle()
+    {
+        var session = ServerGameSession.createStandard2v2(12345);
+        session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var actorPlayerId = session.gameState.turnState.currentPlayerId;
+        var actorPlayerState = session.gameState.players[actorPlayerId];
+        var actorCharacterInstanceId = actorPlayerState.activeCharacterInstanceId!.Value;
+
+        var t022CardInstanceId = new CardInstanceId(994540);
+        var banishTargetCardInstanceId = new CardInstanceId(994541);
+        createCardInPlayerHand(session.gameState, actorPlayerState, t022CardInstanceId, "T022");
+        createCardInPlayerDiscard(session.gameState, actorPlayerState, banishTargetCardInstanceId, "T001");
+
+        var playResult = session.processPlayTreasureCard(new ServerPlayTreasureCardRequestDto
+        {
+            requestId = 994542,
+            actorPlayerNumericId = actorPlayerId.Value,
+            cardInstanceNumericId = t022CardInstanceId.Value,
+            playMode = "normal",
+        });
+
+        Assert.True(playResult.isSucceeded);
+        Assert.NotNull(playResult.interaction);
+        Assert.NotNull(playResult.interaction!.inputContext);
+        Assert.Contains(
+            TreasureOnPlayEffectRuntime.ChoiceKeyDeclineOptionalBanish,
+            playResult.interaction.inputContext!.choiceKeys);
+        Assert.Contains(
+            $"{TreasureOnPlayEffectRuntime.ChoiceKeyBanishCardPrefix}{banishTargetCardInstanceId.Value}",
+            playResult.interaction.inputContext.choiceKeys);
+
+        var submitResult = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 994543,
+            actorPlayerNumericId = actorPlayerId.Value,
+            inputContextNumericId = playResult.interaction.inputContext.inputContextNumericId,
+            choiceKey = $"{TreasureOnPlayEffectRuntime.ChoiceKeyBanishCardPrefix}{banishTargetCardInstanceId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(submitResult.isSucceeded);
+        Assert.Null(submitResult.interaction!.inputContext);
+        Assert.Contains(banishTargetCardInstanceId, session.gameState.zones[session.gameState.publicState!.gapZoneId].cardInstanceIds);
+        Assert.True(StatusRuntime.hasStatusOnCharacter(session.gameState, actorCharacterInstanceId, "Shackle"));
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "cardMoved");
+        Assert.Contains(submitResult.eventLog, eventEntry => eventEntry.eventTypeKey == "statusChanged");
+    }
+
     private static void enterSummonPhaseOrThrow(ServerGameSession session, long requestId)
     {
         session.gameState.turnState!.currentPhase = RuleCore.GameState.TurnPhase.action;
@@ -1543,6 +2264,24 @@ public class ServerGameSessionTests
             ownerPlayerId = playerState.playerId,
             zoneId = playerState.handZoneId,
             zoneKey = ZoneKey.hand,
+        };
+    }
+
+    private static void createCardInPlayerDiscard(
+        RuleCore.GameState.GameState gameState,
+        RuleCore.GameState.PlayerState playerState,
+        CardInstanceId cardInstanceId,
+        string definitionId)
+    {
+        var discardZoneState = gameState.zones[playerState.discardZoneId];
+        discardZoneState.cardInstanceIds.Add(cardInstanceId);
+        gameState.cardInstances[cardInstanceId] = new CardInstance
+        {
+            cardInstanceId = cardInstanceId,
+            definitionId = definitionId,
+            ownerPlayerId = playerState.playerId,
+            zoneId = playerState.discardZoneId,
+            zoneKey = ZoneKey.discard,
         };
     }
 
@@ -1603,6 +2342,41 @@ public class ServerGameSessionTests
 
         gameState.cardInstances.Add(cardInstanceId, cardInstance);
         gameState.zones[zoneId].cardInstanceIds.Add(cardInstanceId);
+    }
+
+    private static InputContextId prepareSimpleInputContextForSubmitChoice(
+        ServerGameSession session,
+        PlayerId requiredPlayerId,
+        long idBase,
+        params string[] choiceKeys)
+    {
+        var actionChainId = new ActionChainId(idBase);
+        var inputContextId = new InputContextId(idBase + 1);
+
+        session.gameState.currentActionChain = new ActionChainState
+        {
+            actionChainId = actionChainId,
+            actorPlayerId = requiredPlayerId,
+            pendingContinuationKey = null,
+            currentFrameIndex = 0,
+            isCompleted = false,
+        };
+
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = requiredPlayerId,
+            inputTypeKey = "serverTest",
+            contextKey = "server:submitInputChoice",
+            selectedChoiceKey = null,
+        };
+        foreach (var choiceKey in choiceKeys)
+        {
+            inputContextState.choiceKeys.Add(choiceKey);
+        }
+
+        session.gameState.currentInputContext = inputContextState;
+        return inputContextId;
     }
 }
 

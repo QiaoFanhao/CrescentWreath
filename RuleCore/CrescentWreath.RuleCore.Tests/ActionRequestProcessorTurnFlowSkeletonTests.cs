@@ -1111,7 +1111,7 @@ public class ActionRequestProcessorTurnFlowSkeletonTests
                 },
             }));
 
-        Assert.Equal("SubmitInputChoiceActionRequest requires choiceKeys to contain exactly four unique values from currentInputContext.choiceKeys for continuation:turnStartShackleDiscard.", exception.Message);
+        Assert.Equal("SubmitInputChoiceActionRequest requires either choiceKey=shackle:decline, or choiceKeys to contain exactly four unique values from currentInputContext.choiceKeys for continuation:turnStartShackleDiscard.", exception.Message);
         Assert.Equal(handCountBefore, gameState.zones[nextPlayerState.handZoneId].cardInstanceIds.Count);
         Assert.Equal(discardCountBefore, gameState.zones[nextPlayerState.discardZoneId].cardInstanceIds.Count);
         Assert.Equal(phaseBefore, gameState.turnState.currentPhase);

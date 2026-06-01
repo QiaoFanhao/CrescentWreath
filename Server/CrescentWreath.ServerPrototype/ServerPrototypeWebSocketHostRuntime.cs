@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -12,15 +13,20 @@ namespace CrescentWreath.ServerPrototype;
 public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
 {
     private const int MaxLoggedMessageLength = 280;
+    private const int MaxConcurrentConnections = 4;
+    private const long MinViewerPlayerNumericId = 1;
+    private const long MaxViewerPlayerNumericId = 4;
 
     private readonly ServerGameSession session;
     private readonly ServerSocketActionRouter actionRouter;
     private readonly JsonSerializerOptions serializerOptions;
+    private readonly SemaphoreSlim actionExecutionLock = new(1, 1);
+    private readonly object connectionLock = new();
+    private readonly Dictionary<long, WebSocket> activeConnectionsByViewerPlayerId = new();
 
     private HttpListener? listener;
     private CancellationTokenSource? cancellationTokenSource;
     private Task? acceptLoopTask;
-    private int hasActiveWebSocketConnection;
 
     public ServerPrototypeWebSocketHostRuntime()
         : this(ServerGameSession.createStandard2v2())
@@ -83,7 +89,34 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
         acceptLoopTask = null;
         cancellationTokenSource?.Dispose();
         cancellationTokenSource = null;
-        hasActiveWebSocketConnection = 0;
+
+        List<WebSocket> socketsToClose;
+        lock (connectionLock)
+        {
+            socketsToClose = new List<WebSocket>(activeConnectionsByViewerPlayerId.Values);
+            activeConnectionsByViewerPlayerId.Clear();
+        }
+
+        foreach (var socket in socketsToClose)
+        {
+            try
+            {
+                if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
+                {
+                    await socket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "host-stopped",
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (WebSocketException)
+            {
+            }
+            finally
+            {
+                socket.Dispose();
+            }
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -129,7 +162,7 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
         {
             var remoteEndpoint = context.Request.RemoteEndPoint?.ToString() ?? "unknown";
             var requestPath = context.Request.Url?.AbsolutePath ?? string.Empty;
-            if (!string.Equals(context.Request.Url?.AbsolutePath, "/ws", StringComparison.Ordinal))
+            if (!string.Equals(requestPath, "/ws", StringComparison.Ordinal))
             {
                 logInfo($"Rejected request from {remoteEndpoint}: unsupported path '{requestPath}' (404).");
                 context.Response.StatusCode = 404;
@@ -145,55 +178,101 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
                 return;
             }
 
-            if (Interlocked.CompareExchange(ref hasActiveWebSocketConnection, 1, 0) != 0)
+            if (!tryParseViewerPlayerNumericId(context.Request, out var viewerPlayerNumericId, out var viewerParseFailureReason))
             {
-                logInfo($"Rejected websocket upgrade from {remoteEndpoint}: active connection already exists (409).");
-                context.Response.StatusCode = 409;
+                logInfo($"Rejected websocket upgrade from {remoteEndpoint}: {viewerParseFailureReason} (400).");
+                context.Response.StatusCode = 400;
                 context.Response.Close();
                 return;
             }
 
             WebSocket? socket = null;
+            var connectionRegistered = false;
             try
             {
                 var webSocketContext = await context.AcceptWebSocketAsync(subProtocol: null).ConfigureAwait(false);
                 socket = webSocketContext.WebSocket;
-                logInfo($"WebSocket connected: remote={remoteEndpoint}, path={requestPath}.");
+
+                if (!tryRegisterConnection(viewerPlayerNumericId, socket, out var registerFailureReason))
+                {
+                    logInfo($"Rejected websocket from {remoteEndpoint}: {registerFailureReason} (409).");
+                    await socket.CloseAsync(
+                        WebSocketCloseStatus.PolicyViolation,
+                        registerFailureReason,
+                        CancellationToken.None).ConfigureAwait(false);
+                    socket.Dispose();
+                    return;
+                }
+
+                connectionRegistered = true;
+                logInfo(
+                    $"WebSocket connected: remote={remoteEndpoint}, path={requestPath}, viewerPlayerNumericId={viewerPlayerNumericId}, activeConnections={getActiveConnectionCount()}.");
+
+                var initialSnapshotEnvelope = createInitialSnapshotEnvelope(viewerPlayerNumericId);
+                var initialSnapshotJson = JsonSerializer.Serialize(initialSnapshotEnvelope, serializerOptions);
+                await sendTextAsync(socket, initialSnapshotJson, cancellationToken).ConfigureAwait(false);
+                logInfo(
+                    $"Sent initial snapshot: requestId={initialSnapshotEnvelope.requestId}, viewerPlayerNumericId={initialSnapshotEnvelope.viewerPlayerNumericId}, bytes={Encoding.UTF8.GetByteCount(initialSnapshotJson)}.");
+
                 while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
                     var requestMessage = await readTextMessageAsync(socket, cancellationToken).ConfigureAwait(false);
                     if (requestMessage is null)
                     {
-                        logInfo($"WebSocket message loop ended: remote={remoteEndpoint}.");
+                        logInfo($"WebSocket message loop ended: remote={remoteEndpoint}, viewerPlayerNumericId={viewerPlayerNumericId}.");
                         break;
                     }
 
                     tryExtractRequestInfo(requestMessage, out var requestId, out var actionType);
                     logInfo(
-                        $"Received message: remote={remoteEndpoint}, requestId={requestId}, actionType={actionType}, payload={truncateForLog(requestMessage)}");
+                        $"Received message: remote={remoteEndpoint}, viewerPlayerNumericId={viewerPlayerNumericId}, requestId={requestId}, actionType={actionType}, payload={truncateForLog(requestMessage)}");
 
-                    var responseEnvelope = actionRouter.routeMessage(requestMessage);
-                    logInfo(
-                        $"Routed message: requestId={responseEnvelope.requestId}, actionType={actionType}, isSucceeded={responseEnvelope.isSucceeded}, errorCode={responseEnvelope.error?.code ?? "(none)"}.");
-                    var responseJson = JsonSerializer.Serialize(responseEnvelope, serializerOptions);
-                    var responseBytes = Encoding.UTF8.GetBytes(responseJson);
-                    await socket.SendAsync(
-                        new ArraySegment<byte>(responseBytes),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        cancellationToken).ConfigureAwait(false);
-                    logInfo(
-                        $"Sent response: requestId={responseEnvelope.requestId}, isSucceeded={responseEnvelope.isSucceeded}, bytes={responseBytes.Length}.");
+                    await actionExecutionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        var routeOutcome = actionRouter.routeMessageDetailed(
+                            requestMessage,
+                            new ServerSocketRouteOptions
+                            {
+                                forcedViewerPlayerNumericId = viewerPlayerNumericId,
+                                requiredActorPlayerNumericId = viewerPlayerNumericId,
+                            });
+
+                        logInfo(
+                            $"Routed message: requestId={routeOutcome.responseEnvelope.requestId}, actionType={routeOutcome.actionType}, isSucceeded={routeOutcome.responseEnvelope.isSucceeded}, errorCode={routeOutcome.responseEnvelope.error?.code ?? "(none)"}, viewerPlayerNumericId={routeOutcome.responseEnvelope.viewerPlayerNumericId}.");
+
+                        var directResponseJson = JsonSerializer.Serialize(routeOutcome.responseEnvelope, serializerOptions);
+                        await sendTextAsync(socket, directResponseJson, cancellationToken).ConfigureAwait(false);
+                        logInfo(
+                            $"Sent response: requestId={routeOutcome.responseEnvelope.requestId}, isSucceeded={routeOutcome.responseEnvelope.isSucceeded}, viewerPlayerNumericId={routeOutcome.responseEnvelope.viewerPlayerNumericId}, bytes={Encoding.UTF8.GetByteCount(directResponseJson)}.");
+
+                        if (routeOutcome.actionResult is { isSucceeded: true } actionResult)
+                        {
+                            await broadcastSuccessfulActionAsync(
+                                viewerPlayerNumericId,
+                                routeOutcome.actionType,
+                                actionResult,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        actionExecutionLock.Release();
+                    }
                 }
             }
             catch (Exception exception)
             {
-                logError($"WebSocket processing failed for remote={remoteEndpoint}: {exception.Message}");
+                logError($"WebSocket processing failed for remote={remoteEndpoint}, viewerPlayerNumericId={viewerPlayerNumericId}: {exception.Message}");
                 throw;
             }
             finally
             {
-                Interlocked.Exchange(ref hasActiveWebSocketConnection, 0);
+                if (connectionRegistered)
+                {
+                    unregisterConnection(viewerPlayerNumericId, socket);
+                }
+
                 if (socket is not null)
                 {
                     try
@@ -213,7 +292,8 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
                     socket.Dispose();
                 }
 
-                logInfo($"WebSocket disconnected: remote={remoteEndpoint}.");
+                logInfo(
+                    $"WebSocket disconnected: remote={remoteEndpoint}, viewerPlayerNumericId={viewerPlayerNumericId}, activeConnections={getActiveConnectionCount()}.");
             }
         }
         catch (Exception exception)
@@ -231,6 +311,161 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
                 }
             }
         }
+    }
+
+    private async Task broadcastSuccessfulActionAsync(
+        long requesterViewerPlayerNumericId,
+        string actionType,
+        ServerActionProcessResult actionResult,
+        CancellationToken cancellationToken)
+    {
+        List<KeyValuePair<long, WebSocket>> connectionSnapshot;
+        lock (connectionLock)
+        {
+            connectionSnapshot = new List<KeyValuePair<long, WebSocket>>(activeConnectionsByViewerPlayerId);
+        }
+
+        if (connectionSnapshot.Count <= 1)
+        {
+            return;
+        }
+
+        var broadcastCount = 0;
+        foreach (var connection in connectionSnapshot)
+        {
+            var viewerPlayerNumericId = connection.Key;
+            if (viewerPlayerNumericId == requesterViewerPlayerNumericId)
+            {
+                continue;
+            }
+
+            var socket = connection.Value;
+            if (socket.State != WebSocketState.Open)
+            {
+                continue;
+            }
+
+            var viewerScopedActionResult = session.projectResultForViewer(actionResult, viewerPlayerNumericId);
+            var broadcastEnvelope = ServerSocketActionRouter.convertActionResultToSocketResponse(viewerScopedActionResult);
+            var broadcastJson = JsonSerializer.Serialize(broadcastEnvelope, serializerOptions);
+            try
+            {
+                await sendTextAsync(socket, broadcastJson, cancellationToken).ConfigureAwait(false);
+                broadcastCount++;
+            }
+            catch (WebSocketException exception)
+            {
+                logError(
+                    $"Failed to broadcast actionType={actionType} requestId={actionResult.requestId} to viewerPlayerNumericId={viewerPlayerNumericId}: {exception.Message}");
+            }
+        }
+
+        if (broadcastCount > 0)
+        {
+            logInfo(
+                $"Broadcasted actionType={actionType}, requestId={actionResult.requestId} to {broadcastCount} peer connection(s).");
+        }
+    }
+
+    private static async Task sendTextAsync(WebSocket socket, string responseJson, CancellationToken cancellationToken)
+    {
+        var responseBytes = Encoding.UTF8.GetBytes(responseJson);
+        await socket.SendAsync(
+            new ArraySegment<byte>(responseBytes),
+            WebSocketMessageType.Text,
+            endOfMessage: true,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private ServerSocketResponseEnvelope createInitialSnapshotEnvelope(long viewerPlayerNumericId)
+    {
+        var initialSnapshotResult = new ServerActionProcessResult
+        {
+            requestId = 0,
+            isSucceeded = true,
+            viewerPlayerNumericId = viewerPlayerNumericId,
+            error = null,
+            producedEvents = new List<RuleCore.Events.GameEvent>(),
+            updatedState = session.gameState,
+            errorMessage = null,
+        };
+
+        var viewerScopedResult = session.projectResultForViewer(initialSnapshotResult, viewerPlayerNumericId);
+        return ServerSocketActionRouter.convertActionResultToSocketResponse(viewerScopedResult);
+    }
+
+    private bool tryRegisterConnection(long viewerPlayerNumericId, WebSocket socket, out string failureReason)
+    {
+        lock (connectionLock)
+        {
+            if (activeConnectionsByViewerPlayerId.ContainsKey(viewerPlayerNumericId))
+            {
+                failureReason = $"viewerPlayerNumericId {viewerPlayerNumericId} is already occupied by an active connection";
+                return false;
+            }
+
+            if (activeConnectionsByViewerPlayerId.Count >= MaxConcurrentConnections)
+            {
+                failureReason = $"active connection limit ({MaxConcurrentConnections}) reached";
+                return false;
+            }
+
+            activeConnectionsByViewerPlayerId[viewerPlayerNumericId] = socket;
+            failureReason = string.Empty;
+            return true;
+        }
+    }
+
+    private void unregisterConnection(long viewerPlayerNumericId, WebSocket? socket)
+    {
+        lock (connectionLock)
+        {
+            if (!activeConnectionsByViewerPlayerId.TryGetValue(viewerPlayerNumericId, out var registeredSocket))
+            {
+                return;
+            }
+
+            if (socket is not null && !ReferenceEquals(registeredSocket, socket))
+            {
+                return;
+            }
+
+            activeConnectionsByViewerPlayerId.Remove(viewerPlayerNumericId);
+        }
+    }
+
+    private int getActiveConnectionCount()
+    {
+        lock (connectionLock)
+        {
+            return activeConnectionsByViewerPlayerId.Count;
+        }
+    }
+
+    private static bool tryParseViewerPlayerNumericId(HttpListenerRequest request, out long viewerPlayerNumericId, out string failureReason)
+    {
+        viewerPlayerNumericId = 0;
+        var viewerText = request.QueryString["viewerPlayerNumericId"];
+        if (string.IsNullOrWhiteSpace(viewerText))
+        {
+            failureReason = "query parameter viewerPlayerNumericId is required";
+            return false;
+        }
+
+        if (!long.TryParse(viewerText, out viewerPlayerNumericId))
+        {
+            failureReason = "query parameter viewerPlayerNumericId must be an integer";
+            return false;
+        }
+
+        if (viewerPlayerNumericId < MinViewerPlayerNumericId || viewerPlayerNumericId > MaxViewerPlayerNumericId)
+        {
+            failureReason = $"query parameter viewerPlayerNumericId must be in range [{MinViewerPlayerNumericId}, {MaxViewerPlayerNumericId}]";
+            return false;
+        }
+
+        failureReason = string.Empty;
+        return true;
     }
 
     private static async Task<string?> readTextMessageAsync(WebSocket socket, CancellationToken cancellationToken)

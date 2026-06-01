@@ -14,7 +14,7 @@ namespace CrescentWreath.RuleCore.ActionSystem;
 
 public sealed class ActionRequestProcessor
 {
-    private const string ContinuationKeyStagedResponseDamage = "continuation:stagedResponseDamage";
+    internal const string ContinuationKeyStagedResponseDamage = "continuation:stagedResponseDamage";
     private const string DefenseTypeKeyFixedReduce1 = "fixedReduce1";
     private const string DefenseTypeKeyPhysical = "physical";
     private const string DefenseTypeKeySpell = "spell";
@@ -23,8 +23,8 @@ public sealed class ActionRequestProcessor
     private const string DamageTypeKeySpell = "spell";
     private const string DamageTypeKeyDirect = "direct";
     private const string DefenseDeclarationPrefixCard = "cardDefense:";
-    private const string DamageResponseStageAwaitDefense = "awaitDefense";
-    private const string DamageResponseStageAwaitCounter = "awaitCounter";
+    internal const string DamageResponseStageAwaitDefense = "awaitDefense";
+    internal const string DamageResponseStageAwaitCounter = "awaitCounter";
     private const string DamageCounterTypeKeyCancelFixedReduce1 = "cancelFixedReduce1";
     private const string SkillKeyC002_2 = "C002:2";
     private const string SkillKeyC004_1 = "C004:1";
@@ -33,6 +33,7 @@ public sealed class ActionRequestProcessor
     private const string SkillKeyC029_4 = "C029:4";
     private const string StatusKeyCharm = "Charm";
     private const string StatusKeyPenetrate = "Penetrate";
+    private const string TreasureDefinitionIdT014 = "T014";
 
     private enum DamageResponseStage
     {
@@ -44,6 +45,8 @@ public sealed class ActionRequestProcessor
     {
         public readonly string? pendingContinuationKey;
         public readonly bool isInputChoiceDamageContinuation;
+        public readonly bool isTreasureOnPlayContinuation;
+        public readonly bool isTreasureArrivalContinuation;
         public readonly bool isEndPhaseHandDiscardContinuation;
         public readonly bool isTurnStartShackleDiscardContinuation;
         public readonly bool isAnomalyContinuation;
@@ -53,6 +56,10 @@ public sealed class ActionRequestProcessor
             this.pendingContinuationKey = pendingContinuationKey;
             isInputChoiceDamageContinuation =
                 pendingContinuationKey == TemporaryOnPlayProbeResolver.ContinuationKeyInputChoiceDamage;
+            isTreasureOnPlayContinuation =
+                TreasureOnPlayEffectRuntime.isTreasureOnPlayContinuationKey(pendingContinuationKey);
+            isTreasureArrivalContinuation =
+                TreasureArrivalEffectRuntime.isTreasureArrivalContinuationKey(pendingContinuationKey);
             isEndPhaseHandDiscardContinuation =
                 pendingContinuationKey == EndPhaseProcessor.ContinuationKeyEndPhaseHandDiscard;
             isTurnStartShackleDiscardContinuation =
@@ -63,6 +70,8 @@ public sealed class ActionRequestProcessor
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly DamageProcessor damageProcessor;
+    private readonly TreasureOnPlayEffectRuntime treasureOnPlayEffectRuntime;
+    private readonly TreasureArrivalEffectRuntime treasureArrivalEffectRuntime;
     private readonly TurnTransitionProcessor turnTransitionProcessor;
     private readonly EndPhaseProcessor endPhaseProcessor;
     private readonly AnomalyProcessor anomalyProcessor;
@@ -84,6 +93,15 @@ public sealed class ActionRequestProcessor
         this.zoneMovementService = zoneMovementService;
         this.damageProcessor = damageProcessor;
         Func<long> nextInputContextIdSupplier = () => Interlocked.Increment(ref nextInputContextNumericId);
+        Func<long> nextResponseWindowIdSupplier = () => Interlocked.Increment(ref nextResponseWindowNumericId);
+        treasureOnPlayEffectRuntime = new TreasureOnPlayEffectRuntime(
+            nextInputContextIdSupplier,
+            nextResponseWindowIdSupplier,
+            zoneMovementService,
+            this.damageProcessor);
+        treasureArrivalEffectRuntime = new TreasureArrivalEffectRuntime(
+            nextInputContextIdSupplier,
+            zoneMovementService);
         endPhaseProcessor = new EndPhaseProcessor(
             zoneMovementService,
             nextInputContextIdSupplier);
@@ -380,6 +398,7 @@ public sealed class ActionRequestProcessor
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.producedEvents.Add(cardMovedEvent);
 
+        var enteredSummonZoneCardInstanceIds = new List<CardInstanceId>();
         if (isSummonZoneSource && publicTreasureDeckZoneState.cardInstanceIds.Count > 0)
         {
             var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
@@ -392,9 +411,25 @@ public sealed class ActionRequestProcessor
                 actionChainState.actionChainId,
                 summonTreasureCardActionRequest.requestId);
             actionChainState.producedEvents.Add(refillSummonZoneEvent);
+            enteredSummonZoneCardInstanceIds.Add(topPublicTreasureCardInstanceId);
         }
 
-        actionChainState.isCompleted = true;
+        if (enteredSummonZoneCardInstanceIds.Count > 0 &&
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            treasureArrivalEffectRuntime.tryStartArrivalEffectsForEnteredSummonZoneCards(
+                gameState,
+                actionChainState,
+                summonTreasureCardActionRequest.requestId,
+                enteredSummonZoneCardInstanceIds);
+        }
+
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey);
         return actionChainState.producedEvents;
     }
 
@@ -498,7 +533,10 @@ public sealed class ActionRequestProcessor
         }
 
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
-        actionChainState.isCompleted = true;
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey);
         return actionChainState.producedEvents;
     }
 
@@ -595,7 +633,10 @@ public sealed class ActionRequestProcessor
             characterInstance);
 
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
-        actionChainState.isCompleted = true;
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey);
         return actionChainState.producedEvents;
     }
 
@@ -883,6 +924,65 @@ public sealed class ActionRequestProcessor
             delta = hpAfter - hpBefore,
         });
     }
+
+    private void applyT014OnDefensePostResolution(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId,
+        GameState.PlayerState defenderPlayerState,
+        CardInstance defenseCardInstance,
+        int producedEventsStartIndexForDamageResolution,
+        CharacterInstanceId? defenderActiveCharacterInstanceIdBeforeResolution)
+    {
+        var defenderWasKilledInThisResolution = false;
+        if (defenderActiveCharacterInstanceIdBeforeResolution.HasValue)
+        {
+            for (var eventIndex = Math.Max(0, producedEventsStartIndexForDamageResolution);
+                 eventIndex < actionChainState.producedEvents.Count;
+                 eventIndex++)
+            {
+                if (actionChainState.producedEvents[eventIndex] is not KillRecordedEvent killRecordedEvent)
+                {
+                    continue;
+                }
+
+                if (killRecordedEvent.killedCharacterInstanceId == defenderActiveCharacterInstanceIdBeforeResolution.Value)
+                {
+                    defenderWasKilledInThisResolution = true;
+                    break;
+                }
+            }
+        }
+
+        if (!defenderWasKilledInThisResolution &&
+            defenderActiveCharacterInstanceIdBeforeResolution.HasValue &&
+            gameState.characterInstances.TryGetValue(
+                defenderActiveCharacterInstanceIdBeforeResolution.Value,
+                out var defenderCharacterInstance) &&
+            defenderCharacterInstance.isAlive &&
+            defenderCharacterInstance.isInPlay)
+        {
+            appendHealOnCharacter(
+                actionChainState,
+                requestId,
+                defenderCharacterInstance,
+                healAmount: 4);
+        }
+
+        if (defenseCardInstance.zoneId == defenderPlayerState.fieldZoneId &&
+            defenseCardInstance.isDefensePlacedOnField)
+        {
+            var movedEvent = zoneMovementService.moveCard(
+                gameState,
+                defenseCardInstance,
+                defenderPlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                requestId);
+            actionChainState.producedEvents.Add(movedEvent);
+            defenseCardInstance.isDefensePlacedOnField = false;
+        }
+    }
     private List<GameEvent> processEnterActionPhaseActionRequest(
         GameState.GameState gameState,
         EnterActionPhaseActionRequest enterActionPhaseActionRequest)
@@ -1000,6 +1100,15 @@ public sealed class ActionRequestProcessor
         PlayTreasureCardActionRequest playTreasureCardActionRequest,
         CardInstance cardInstance)
     {
+        if (treasureOnPlayEffectRuntime.tryOpenOnPlayInputContext(
+                gameState,
+                actionChainState,
+                playTreasureCardActionRequest,
+                cardInstance))
+        {
+            return;
+        }
+
         var onPlayProbeEffectKind = TemporaryOnPlayProbeResolver.resolveOnPlayProbeEffectKind(cardInstance.definitionId);
         switch (onPlayProbeEffectKind)
         {
@@ -1454,6 +1563,7 @@ public sealed class ActionRequestProcessor
         {
             throw new InvalidOperationException("SubmitDefenseActionRequest requires actorPlayerId to exist in gameState.players.");
         }
+        var defenderActiveCharacterInstanceIdBeforeResolution = actorPlayerState.activeCharacterInstanceId;
 
         var pendingDamageSourcePlayerId = responseWindowState.pendingDamageSourcePlayerId;
         if (!pendingDamageSourcePlayerId.HasValue)
@@ -1473,6 +1583,9 @@ public sealed class ActionRequestProcessor
             throw new InvalidOperationException("SubmitDefenseActionRequest actorPlayerId cannot defend while Charm status is active.");
         }
 
+        CardInstance? formalDefenseCardInstance = null;
+        var shouldApplyT014OnDefensePostResolution = false;
+        var producedEventsCountBeforeDamageResolution = actionChainState.producedEvents.Count;
         if (submitDefenseActionRequest.defenseTypeKey == DefenseTypeKeyFixedReduce1)
         {
             responseWindowState.pendingDamageDefenseDeclarationKey = DefenseTypeKeyFixedReduce1;
@@ -1488,6 +1601,9 @@ public sealed class ActionRequestProcessor
             {
                 throw new InvalidOperationException("SubmitDefenseActionRequest requires defenseCardInstanceId to exist in gameState.cardInstances.");
             }
+            formalDefenseCardInstance = defenseCardInstance;
+            shouldApplyT014OnDefensePostResolution =
+                string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT014, StringComparison.Ordinal);
 
             if (defenseCardInstance.ownerPlayerId != submitDefenseActionRequest.actorPlayerId)
             {
@@ -1512,11 +1628,12 @@ public sealed class ActionRequestProcessor
             {
                 throw new InvalidOperationException("SubmitDefenseActionRequest requires defense card definition to provide defenseValue and defenseTypeKey.");
             }
-
-            if (submitDefenseActionRequest.defenseTypeKey != definitionDefenseTypeKey)
-            {
-                throw new InvalidOperationException("SubmitDefenseActionRequest defenseTypeKey must match defense card definitionTypeKey.");
-            }
+            var supportsDeclaredDefenseType = isCardDefinitionDefenseTypeSupportingDeclaredDefenseType(
+                definitionDefenseTypeKey,
+                submitDefenseActionRequest.defenseTypeKey);
+            var effectiveDeclaredDefenseValue = supportsDeclaredDefenseType
+                ? definitionDefenseValue.Value
+                : 0;
 
             if (isDefenseCardInActorHand)
             {
@@ -1532,16 +1649,28 @@ public sealed class ActionRequestProcessor
             }
 
             responseWindowState.pendingDamageDefenseDeclarationKey = createCardDefenseDeclarationKey(
-                definitionDefenseTypeKey,
-                definitionDefenseValue.Value);
+                submitDefenseActionRequest.defenseTypeKey,
+                effectiveDeclaredDefenseValue);
         }
 
-        setDamageResponseStage(
+        var producedEvents = closeDamageResponseWindowAndResolveDamage(
+            gameState,
+            actionChainState,
             responseWindowState,
-            DamageResponseStage.awaitCounter,
-            pendingDamageSourcePlayerId.Value);
-        actionChainState.isCompleted = false;
-        return actionChainState.producedEvents;
+            submitDefenseActionRequest.requestId);
+        if (shouldApplyT014OnDefensePostResolution && formalDefenseCardInstance is not null)
+        {
+            applyT014OnDefensePostResolution(
+                gameState,
+                actionChainState,
+                submitDefenseActionRequest.requestId,
+                actorPlayerState,
+                formalDefenseCardInstance,
+                producedEventsCountBeforeDamageResolution,
+                defenderActiveCharacterInstanceIdBeforeResolution);
+        }
+
+        return producedEvents;
     }
 
     private List<GameEvent> processSubmitDamageCounterActionRequest(
@@ -1841,6 +1970,23 @@ public sealed class ActionRequestProcessor
                defenseTypeKey == DefenseTypeKeyDual;
     }
 
+    private static bool isCardDefinitionDefenseTypeSupportingDeclaredDefenseType(
+        string cardDefinitionDefenseTypeKey,
+        string declaredDefenseTypeKey)
+    {
+        if (!isFormalDefenseTypeKey(declaredDefenseTypeKey))
+        {
+            return false;
+        }
+
+        if (cardDefinitionDefenseTypeKey == DefenseTypeKeyDual)
+        {
+            return true;
+        }
+
+        return cardDefinitionDefenseTypeKey == declaredDefenseTypeKey;
+    }
+
     private static string createCardDefenseDeclarationKey(string defenseTypeKey, int defenseValue)
     {
         return $"{DefenseDeclarationPrefixCard}{defenseTypeKey}:{defenseValue}";
@@ -1985,12 +2131,28 @@ public sealed class ActionRequestProcessor
             throw new InvalidOperationException("SubmitInputChoiceActionRequest inputContextId mismatch.");
         }
 
-        if (submitInputChoiceActionRequest.actorPlayerId != inputContextState.requiredPlayerId)
+        var continuationState = new SubmitInputChoiceContinuationState(actionChainState.pendingContinuationKey);
+        ensureSubmitInputChoiceActorAllowed(inputContextState, submitInputChoiceActionRequest.actorPlayerId);
+
+        if (continuationState.isTreasureArrivalContinuation &&
+            treasureArrivalEffectRuntime.isParallelTreasureArrivalInputContext(inputContextState))
         {
-            throw new InvalidOperationException("SubmitInputChoiceActionRequest actorPlayerId does not match currentInputContext.requiredPlayerId.");
+            if (!treasureArrivalEffectRuntime.tryContinueOnSubmitInputChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest treasure arrival continuation could not be resolved.");
+            }
+
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
+            return actionChainState.producedEvents;
         }
 
-        var continuationState = new SubmitInputChoiceContinuationState(actionChainState.pendingContinuationKey);
         var shouldSkipSelectedChoiceKeyAssignmentForAnomalyContinuation =
             ensureValidSubmitInputChoiceByContinuationGroup(
                 gameState,
@@ -2014,6 +2176,7 @@ public sealed class ActionRequestProcessor
             inputContextId = inputContextState.inputContextId,
             isOpened = false,
         });
+        var producedEventsCountBeforeContinuation = actionChainState.producedEvents.Count;
 
         var shouldContinueScriptedOnPlayChooseDamage =
             continuationState.isInputChoiceDamageContinuation &&
@@ -2029,6 +2192,28 @@ public sealed class ActionRequestProcessor
                 continuationState))
         {
             return actionChainState.producedEvents;
+        }
+
+        if (continuationState.isTreasureArrivalContinuation)
+        {
+            if (!treasureArrivalEffectRuntime.tryContinueOnSubmitInputChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest treasure arrival continuation could not be resolved.");
+            }
+        }
+        else if (continuationState.isTreasureOnPlayContinuation)
+        {
+            if (!treasureOnPlayEffectRuntime.tryContinueOnSubmitInputChoice(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest treasure on-play continuation could not be resolved.");
+            }
         }
 
         if (shouldContinueScriptedOnPlayChooseDamage)
@@ -2047,8 +2232,64 @@ public sealed class ActionRequestProcessor
             actionChainState.pendingContinuationKey = null;
         }
 
-        actionChainState.isCompleted = true;
+        tryOpenTreasureArrivalEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            producedEventsCountBeforeContinuation);
+
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            actionChainState.pendingContinuationKey is null;
         return actionChainState.producedEvents;
+    }
+
+    private void tryOpenTreasureArrivalEffectsFromProducedEvents(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        int producedEventsStartIndex)
+    {
+        if (producedEventsStartIndex < 0 ||
+            producedEventsStartIndex >= actionChainState.producedEvents.Count)
+        {
+            return;
+        }
+
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            return;
+        }
+
+        var enteredSummonZoneCardInstanceIds = new List<CardInstanceId>();
+        for (var eventIndex = producedEventsStartIndex; eventIndex < actionChainState.producedEvents.Count; eventIndex++)
+        {
+            if (actionChainState.producedEvents[eventIndex] is not CardMovedEvent cardMovedEvent)
+            {
+                continue;
+            }
+
+            if (cardMovedEvent.toZoneKey != ZoneKey.summonZone)
+            {
+                continue;
+            }
+
+            enteredSummonZoneCardInstanceIds.Add(cardMovedEvent.cardInstanceId);
+        }
+
+        if (enteredSummonZoneCardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        treasureArrivalEffectRuntime.tryStartArrivalEffectsForEnteredSummonZoneCards(
+            gameState,
+            actionChainState,
+            eventId,
+            enteredSummonZoneCardInstanceIds);
     }
 
     private bool ensureValidSubmitInputChoiceByContinuationGroup(
@@ -2063,7 +2304,7 @@ public sealed class ActionRequestProcessor
                     inputContextState,
                     submitInputChoiceActionRequest))
             {
-                throw new InvalidOperationException("SubmitInputChoiceActionRequest requires choiceKeys to contain exactly four unique values from currentInputContext.choiceKeys for continuation:turnStartShackleDiscard.");
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest requires either choiceKey=shackle:decline, or choiceKeys to contain exactly four unique values from currentInputContext.choiceKeys for continuation:turnStartShackleDiscard.");
             }
 
             return false;
@@ -2084,6 +2325,32 @@ public sealed class ActionRequestProcessor
         }
 
         return false;
+    }
+
+    private static void ensureSubmitInputChoiceActorAllowed(
+        InputContextState inputContextState,
+        PlayerId actorPlayerId)
+    {
+        if (inputContextState.requiredPlayerIds.Count > 0)
+        {
+            for (var index = 0; index < inputContextState.requiredPlayerIds.Count; index++)
+            {
+                if (inputContextState.requiredPlayerIds[index] == actorPlayerId)
+                {
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException("SubmitInputChoiceActionRequest actorPlayerId is not in currentInputContext.requiredPlayerIds.");
+        }
+
+        if (inputContextState.requiredPlayerId.HasValue &&
+            actorPlayerId == inputContextState.requiredPlayerId.Value)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("SubmitInputChoiceActionRequest actorPlayerId does not match currentInputContext.requiredPlayerId.");
     }
 
     private bool tryContinueSubmitInputChoiceByContinuationGroup(

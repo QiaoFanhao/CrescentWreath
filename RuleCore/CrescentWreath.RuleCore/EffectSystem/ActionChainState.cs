@@ -11,6 +11,7 @@ public sealed class ActionChainState
     public PlayerId? actorPlayerId { get; set; }
     public ActionRequest? rootActionRequest { get; set; }
     public string? pendingContinuationKey { get; set; }
+    public Dictionary<string, string> localState { get; } = new();
     public bool isCompleted { get; set; }
     public List<EffectFrame> effectFrames { get; } = new();
     public int currentFrameIndex { get; set; }

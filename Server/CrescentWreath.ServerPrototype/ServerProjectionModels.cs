@@ -115,7 +115,12 @@ public sealed class ServerInputContextProjection
 {
     public long inputContextNumericId { get; set; }
     public long? requiredPlayerNumericId { get; set; }
+    public List<long> requiredPlayerNumericIds { get; } = new();
+    public List<long> submittedPlayerNumericIds { get; } = new();
+    public int requiredPlayerCount { get; set; }
+    public int submittedPlayerCount { get; set; }
     public bool isViewerRequiredPlayer { get; set; }
+    public bool isViewerSubmittedPlayer { get; set; }
     public string? inputTypeKey { get; set; }
     public string? contextKey { get; set; }
     public int choiceCount { get; set; }
@@ -272,20 +277,56 @@ internal static class ServerProjectionBuilder
         var interactionProjection = new ServerInteractionProjection();
         if (gameState.currentInputContext is not null)
         {
-            var isViewerRequiredPlayer = gameState.currentInputContext.requiredPlayerId == viewerPlayerId;
+            var hasParallelRequiredPlayers = gameState.currentInputContext.requiredPlayerIds.Count > 0;
+            var isViewerRequiredPlayer = hasParallelRequiredPlayers
+                ? gameState.currentInputContext.requiredPlayerIds.Contains(viewerPlayerId)
+                : gameState.currentInputContext.requiredPlayerId == viewerPlayerId;
+            var isViewerSubmittedPlayer = hasParallelRequiredPlayers &&
+                gameState.currentInputContext.submittedPlayerIds.Contains(viewerPlayerId);
             var inputContextProjection = new ServerInputContextProjection
             {
                 inputContextNumericId = gameState.currentInputContext.inputContextId.Value,
                 requiredPlayerNumericId = gameState.currentInputContext.requiredPlayerId?.Value,
                 isViewerRequiredPlayer = isViewerRequiredPlayer,
+                isViewerSubmittedPlayer = isViewerSubmittedPlayer,
                 inputTypeKey = gameState.currentInputContext.inputTypeKey,
                 contextKey = gameState.currentInputContext.contextKey,
-                choiceCount = gameState.currentInputContext.choiceKeys.Count,
                 selectedChoiceKey = gameState.currentInputContext.selectedChoiceKey,
             };
-            if (gameState.currentInputContext.requiredPlayerId is null || isViewerRequiredPlayer)
+
+            if (hasParallelRequiredPlayers)
             {
-                inputContextProjection.choiceKeys.AddRange(gameState.currentInputContext.choiceKeys);
+                foreach (var requiredPlayerId in gameState.currentInputContext.requiredPlayerIds)
+                {
+                    inputContextProjection.requiredPlayerNumericIds.Add(requiredPlayerId.Value);
+                }
+
+                foreach (var submittedPlayerId in gameState.currentInputContext.submittedPlayerIds)
+                {
+                    inputContextProjection.submittedPlayerNumericIds.Add(submittedPlayerId.Value);
+                }
+
+                inputContextProjection.requiredPlayerCount = inputContextProjection.requiredPlayerNumericIds.Count;
+                inputContextProjection.submittedPlayerCount = inputContextProjection.submittedPlayerNumericIds.Count;
+
+                if (isViewerRequiredPlayer &&
+                    gameState.currentInputContext.choiceKeysByRequiredPlayerNumericId.TryGetValue(viewerPlayerId.Value, out var viewerChoiceKeys))
+                {
+                    inputContextProjection.choiceKeys.AddRange(viewerChoiceKeys);
+                }
+                inputContextProjection.choiceCount = inputContextProjection.choiceKeys.Count;
+            }
+            else
+            {
+                inputContextProjection.requiredPlayerCount =
+                    gameState.currentInputContext.requiredPlayerId.HasValue ? 1 : 0;
+                inputContextProjection.submittedPlayerCount = 0;
+                if (gameState.currentInputContext.requiredPlayerId is null || isViewerRequiredPlayer)
+                {
+                    inputContextProjection.choiceKeys.AddRange(gameState.currentInputContext.choiceKeys);
+                }
+
+                inputContextProjection.choiceCount = gameState.currentInputContext.choiceKeys.Count;
             }
 
             interactionProjection.inputContext = inputContextProjection;

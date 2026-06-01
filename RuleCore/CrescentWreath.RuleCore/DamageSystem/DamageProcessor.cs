@@ -279,6 +279,13 @@ public sealed class DamageProcessor
             sourceDamageContextId = sourceDamageContextId,
         });
 
+        appendStatusClearedEventsForKilledCharacter(
+            gameState,
+            producedEvents,
+            killedCharacterInstanceId,
+            killedPlayerId,
+            eventId);
+
         var killedTeamId = gameState.players[killedPlayerId].teamId;
         var killedTeamState = gameState.teams[killedTeamId];
         killedTeamState.killScore -= 1;
@@ -696,5 +703,45 @@ public sealed class DamageProcessor
             toZoneKey = toZoneState.zoneType,
             moveReason = moveReason,
         };
+    }
+
+    private static void appendStatusClearedEventsForKilledCharacter(
+        GameState.GameState gameState,
+        List<GameEvent> producedEvents,
+        CharacterInstanceId killedCharacterInstanceId,
+        PlayerId killedPlayerId,
+        long eventId)
+    {
+        var characterStatuses = StatusRuntime.queryStatusesForCharacter(gameState, killedCharacterInstanceId);
+        if (characterStatuses.Count <= 0)
+        {
+            return;
+        }
+
+        var distinctStatusKeys = characterStatuses
+            .Select(statusInstance => statusInstance.statusKey)
+            .Where(statusKey => !string.IsNullOrWhiteSpace(statusKey))
+            .Distinct(StringComparer.Ordinal);
+
+        foreach (var statusKey in distinctStatusKeys)
+        {
+            var removedStatuses = StatusRuntime.removeStatusesOnCharacter(
+                gameState,
+                killedCharacterInstanceId,
+                statusKey);
+            foreach (var removedStatus in removedStatuses)
+            {
+                producedEvents.Add(new StatusChangedEvent
+                {
+                    eventId = eventId,
+                    eventTypeKey = "statusChanged",
+                    sourceActionChainId = null,
+                    statusKey = removedStatus.statusKey,
+                    targetPlayerId = killedPlayerId,
+                    targetCharacterInstanceId = killedCharacterInstanceId,
+                    isApplied = false,
+                });
+            }
+        }
     }
 }

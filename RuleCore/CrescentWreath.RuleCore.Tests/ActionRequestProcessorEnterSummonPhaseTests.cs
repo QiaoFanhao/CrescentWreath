@@ -57,6 +57,51 @@ public class ActionRequestProcessorEnterSummonPhaseTests
     }
 
     [Fact]
+    public void HappyPath_WhenFieldContainsRealTreasureCards_ShouldLockSigilUsingRealTreasureSigilPreview()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var teamId = new TeamId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, teamId, 6150);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorPlayerState;
+        addFieldZone(gameState, actorPlayerState);
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(61501), "T022");
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(61502), "T010");
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(61503), "T019");
+        actorPlayerState.sigilPreview = 99;
+        actorPlayerState.lockedSigil = null;
+        actorPlayerState.isSigilLocked = false;
+        gameState.matchState = MatchState.running;
+        gameState.turnState = new TurnState
+        {
+            turnNumber = 1,
+            currentPlayerId = actorPlayerId,
+            currentTeamId = teamId,
+            currentPhase = TurnPhase.action,
+            phaseStepIndex = 7,
+        };
+
+        var expectedLockedSigil = SigilSnapshotCalculator.recomputeSigilPreviewFromCurrentFieldState(gameState, actorPlayerState);
+
+        var request = new EnterSummonPhaseActionRequest
+        {
+            requestId = 40107,
+            actorPlayerId = actorPlayerId,
+        };
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, request);
+
+        Assert.Empty(producedEvents);
+        Assert.Equal(TurnPhase.summon, gameState.turnState.currentPhase);
+        Assert.Equal(0, gameState.players[actorPlayerId].sigilPreview);
+        Assert.Equal(expectedLockedSigil, gameState.players[actorPlayerId].lockedSigil);
+        Assert.True(gameState.players[actorPlayerId].isSigilLocked);
+        Assert.NotNull(gameState.currentActionChain);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
     public void WhenActorIsNotCurrentTurnPlayer_ShouldThrowAndKeepStateUnchanged()
     {
         var actorPlayerId = new PlayerId(1);

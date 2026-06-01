@@ -1,4 +1,5 @@
 using CrescentWreath.RuleCore.ActionSystem;
+using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -134,6 +135,52 @@ public class ActionRequestProcessorPlayTreasureCardPlayModeTests
         Assert.Equal(CardMoveReason.play, movedEvent.moveReason);
         Assert.Equal(0, actorPlayerState.mana);
         Assert.Equal(1, actorPlayerState.sigilPreview);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCardActionRequest_WhenRealTreasureIsPlayed_ShouldApplyDefinitionResourceValues()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 2350);
+        var cardInstanceId = new CardInstanceId(23501);
+        var actorCharacterInstanceId = new CharacterInstanceId(923501);
+        const string realTreasureDefinitionId = "T022";
+        var expectedDefinition = TreasureDefinitionRepository.resolveByDefinitionId(realTreasureDefinitionId);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        addStandardPlayerZones(gameState, actorPlayerState);
+        actorPlayerState.activeCharacterInstanceId = actorCharacterInstanceId;
+        gameState.characterInstances[actorCharacterInstanceId] = new CharacterInstance
+        {
+            characterInstanceId = actorCharacterInstanceId,
+            definitionId = "starter:activeCharacter",
+            ownerPlayerId = actorPlayerId,
+            currentHp = 4,
+            maxHp = 4,
+            isAlive = true,
+            isInPlay = true,
+        };
+        setRunningTurnForActor(gameState, actorPlayerId, actorPlayerState.teamId);
+        createCardInPlayerHand(gameState, actorPlayerState, cardInstanceId, realTreasureDefinitionId);
+
+        var request = new PlayTreasureCardActionRequest
+        {
+            requestId = 23502,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = cardInstanceId,
+            playMode = "normal",
+        };
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, request);
+
+        var movedEvent = Assert.IsType<CardMovedEvent>(
+            Assert.Single(producedEvents, gameEvent => gameEvent is CardMovedEvent));
+        Assert.Equal(CardMoveReason.play, movedEvent.moveReason);
+        Assert.Equal(expectedDefinition.manaGainOnEnterField, actorPlayerState.mana);
+        Assert.Equal(expectedDefinition.sigilPreviewGainOnEnterField, actorPlayerState.sigilPreview);
         Assert.True(gameState.currentActionChain!.isCompleted);
     }
 

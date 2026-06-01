@@ -20,6 +20,7 @@ public sealed class TurnTransitionProcessor
     private const string StatusKeyShackle = "Shackle";
     private const string TurnStartShackleDiscardInputTypeKey = "turnStartShackleDiscardChoice";
     private const string TurnStartShackleDiscardContextKey = "turnStart:shackleDiscard";
+    private const string TurnStartShackleDeclineChoiceKey = "shackle:decline";
     private const string TurnStartShackleDiscardChoiceKeyPrefix = "discardCard:";
 
     private readonly ZoneMovementService zoneMovementService;
@@ -362,6 +363,31 @@ public sealed class TurnTransitionProcessor
             throw new InvalidOperationException("Turn-start shackle discard continuation requires actor player activeCharacterInstanceId.");
         }
 
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                TurnStartShackleDeclineChoiceKey,
+                StringComparison.Ordinal))
+        {
+            endPhaseProcessor.forceCompleteEndSettlementWithoutHandCapInput(
+                gameState,
+                actionChainState,
+                actorPlayerState,
+                submitInputChoiceActionRequest.requestId);
+            var removedShackleStatusesOnDecline = StatusRuntime.removeStatusesOnCharacter(
+                gameState,
+                actorPlayerState.activeCharacterInstanceId.Value,
+                StatusKeyShackle);
+            appendStatusRemovedEvents(
+                actionChainState,
+                removedShackleStatusesOnDecline,
+                submitInputChoiceActionRequest.requestId);
+
+            actionChainState.pendingContinuationKey = null;
+            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+            actionChainState.isCompleted = true;
+            return;
+        }
+
         var selectedCardInstanceIds = parseShackleDiscardChoiceKeys(submitInputChoiceActionRequest.choiceKeys);
         foreach (var selectedCardInstanceId in selectedCardInstanceIds)
         {
@@ -412,6 +438,15 @@ public sealed class TurnTransitionProcessor
         InputContextState inputContextState,
         SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
     {
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                TurnStartShackleDeclineChoiceKey,
+                StringComparison.Ordinal))
+        {
+            return submitInputChoiceActionRequest.choiceKeys.Count == 0 &&
+                   inputContextState.choiceKeys.Contains(TurnStartShackleDeclineChoiceKey);
+        }
+
         if (submitInputChoiceActionRequest.choiceKeys.Count != ShackleDiscardRequiredCount)
         {
             return false;
@@ -494,6 +529,7 @@ public sealed class TurnTransitionProcessor
             inputTypeKey = TurnStartShackleDiscardInputTypeKey,
             contextKey = TurnStartShackleDiscardContextKey,
         };
+        inputContextState.choiceKeys.Add(TurnStartShackleDeclineChoiceKey);
 
         foreach (var cardInstanceId in handZoneState.cardInstanceIds)
         {

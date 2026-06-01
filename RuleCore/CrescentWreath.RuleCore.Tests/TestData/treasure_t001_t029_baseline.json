@@ -1,0 +1,292 @@
+﻿[
+    {
+        "definitionId":  "T001",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  3,
+        "manaGainOnEnterField":  1,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  2,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T002",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  2,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "spell",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T003",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "physical",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T004",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  1,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "physical",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T005",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  5,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "spell",
+        "defenseValue":  5,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T006",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  3,
+        "manaGainOnEnterField":  4,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  1,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T007",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  3,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  2,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T008",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  3,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  2,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T009",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "physical",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T010",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  4,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T011",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  7,
+        "manaGainOnEnterField":  4,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "spell",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T012",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T013",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  5,
+        "manaGainOnEnterField":  1,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "spell",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T014",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  7,
+        "manaGainOnEnterField":  3,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  7,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T015",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  3,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T016",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  true
+    },
+    {
+        "definitionId":  "T017",
+        "initialPublicDeckCopies":  1,
+        "summonSigilCost":  9,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T018",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "physical",
+        "defenseValue":  5,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T019",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  4,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "spell",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T020",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  0,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  5,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T021",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  6,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "physical",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T022",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  5,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T023",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  7,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T024",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  1,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T025",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  5,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  2,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  4,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T026",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  5,
+        "manaGainOnEnterField":  3,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T027",
+        "initialPublicDeckCopies":  3,
+        "summonSigilCost":  4,
+        "manaGainOnEnterField":  2,
+        "sigilPreviewGainOnEnterField":  0,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T028",
+        "initialPublicDeckCopies":  2,
+        "summonSigilCost":  5,
+        "manaGainOnEnterField":  3,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  3,
+        "persistOnFieldAcrossEnd":  false
+    },
+    {
+        "definitionId":  "T029",
+        "initialPublicDeckCopies":  4,
+        "summonSigilCost":  2,
+        "manaGainOnEnterField":  1,
+        "sigilPreviewGainOnEnterField":  1,
+        "defenseTypeKey":  "dual",
+        "defenseValue":  0,
+        "persistOnFieldAcrossEnd":  false
+    }
+]

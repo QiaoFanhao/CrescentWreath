@@ -6,40 +6,31 @@ namespace CrescentWreath.Client.Tests.EditMode
 public class DebugFlowChecklistRuntimeTests
 {
     [Test]
-    public void Runtime_ShouldProgressToCompleted_WhenNineStepsAreValid()
+    public void Runtime_ShouldProgressToCompleted_WhenEightStepsAreValid()
     {
         var runtime = new DebugFlowChecklistRuntime();
 
         runtime.OnConnectionStateChanged("connected");
 
-        var baseline = buildProjection(phase: "start", turnNumber: 1, currentPlayerNumericId: 1, handCount: 1, fieldCount: 0, summonCount: 1, isSucceeded: true);
+        var baseline = buildProjection(phase: "action", turnNumber: 1, currentPlayerNumericId: 1, handCount: 1, fieldCount: 0, summonCount: 1, isSucceeded: true);
 
-        var step2 = buildProjection("action", 1, 1, 1, 0, 1, true);
-        runtime.RecordProjectionResponse("enterActionPhase", step2, baseline, playSelectionCleared: true, summonSelectionCleared: true);
+        var step2 = buildProjection("action", 1, 1, 2, 0, 1, true);
+        runtime.RecordProjectionResponse("drawOneCard", step2, baseline, playSelectionCleared: true, summonSelectionCleared: true);
 
-        var step3 = buildProjection("action", 1, 1, 2, 0, 1, true);
-        runtime.RecordProjectionResponse("drawOneCard", step3, step2, playSelectionCleared: true, summonSelectionCleared: true);
+        var step3 = buildProjection("action", 1, 1, 1, 1, 1, true);
+        runtime.RecordProjectionResponse("playTreasureCard", step3, step2, playSelectionCleared: true, summonSelectionCleared: true);
 
-        var step4 = buildProjection("action", 1, 1, 1, 1, 1, true);
-        runtime.RecordProjectionResponse("playTreasureCard", step4, step3, playSelectionCleared: true, summonSelectionCleared: true);
+        var step4 = buildProjection("summon", 1, 1, 1, 1, 2, true);
+        runtime.RecordProjectionResponse("enterSummonPhase", step4, step3, playSelectionCleared: true, summonSelectionCleared: true);
 
-        var step5 = buildProjection("summon", 1, 1, 1, 1, 2, true);
-        runtime.RecordProjectionResponse("enterSummonPhase", step5, step4, playSelectionCleared: true, summonSelectionCleared: true);
+        var step5 = buildProjection("summon", 1, 1, 1, 1, 1, true);
+        runtime.RecordProjectionResponse("summonTreasureCard", step5, step4, playSelectionCleared: true, summonSelectionCleared: true);
 
-        var step6 = buildProjection("summon", 1, 1, 1, 1, 1, true);
-        runtime.RecordProjectionResponse("summonTreasureCard", step6, step5, playSelectionCleared: true, summonSelectionCleared: true);
-
-        var step7 = buildProjection("end", 1, 1, 1, 1, 1, true);
-        runtime.RecordProjectionResponse("enterEndPhase", step7, step6, playSelectionCleared: true, summonSelectionCleared: true);
-
-        var step8 = buildProjection("start", 2, 2, 1, 1, 1, true);
-        runtime.RecordProjectionResponse("startNextTurn", step8, step7, playSelectionCleared: true, summonSelectionCleared: true);
-
-        var step9 = buildProjection("action", 2, 2, 1, 1, 1, true);
-        runtime.RecordProjectionResponse("enterActionPhase", step9, step8, playSelectionCleared: true, summonSelectionCleared: true);
+        var step6 = buildProjection("action", 2, 2, 1, 1, 1, true);
+        runtime.RecordProjectionResponse("enterEndPhase", step6, step5, playSelectionCleared: true, summonSelectionCleared: true);
 
         Assert.That(runtime.isCompleted, Is.True);
-        Assert.That(runtime.currentStepIndex, Is.EqualTo(10));
+        Assert.That(runtime.currentStepIndex, Is.EqualTo(9));
 
         var snapshot = runtime.getStepStatesSnapshot();
         Assert.That(snapshot.TrueForAll(step => step.status == DebugFlowStepStatus.passed), Is.True);
@@ -54,10 +45,10 @@ public class DebugFlowChecklistRuntimeTests
         var previous = buildProjection("start", 1, 1, 1, 0, 1, true);
         var current = buildProjection("start", 1, 1, 2, 0, 1, true);
 
-        runtime.RecordProjectionResponse("drawOneCard", current, previous, playSelectionCleared: true, summonSelectionCleared: true);
+        runtime.RecordProjectionResponse("enterSummonPhase", current, previous, playSelectionCleared: true, summonSelectionCleared: true);
 
         Assert.That(runtime.currentStepIndex, Is.EqualTo(2));
-        Assert.That(runtime.lastStepResultText, Does.Contain("expected action=enterActionPhase"));
+        Assert.That(runtime.lastStepResultText, Does.Contain("expected action=drawOneCard"));
 
         var snapshot = runtime.getStepStatesSnapshot();
         Assert.That(snapshot[1].status, Is.EqualTo(DebugFlowStepStatus.failed));
@@ -73,7 +64,7 @@ public class DebugFlowChecklistRuntimeTests
         var failed = buildProjection("start", 1, 1, 1, 0, 1, false);
         failed.errorCode = "request_rejected";
 
-        runtime.RecordProjectionResponse("enterActionPhase", failed, previous, playSelectionCleared: true, summonSelectionCleared: true);
+        runtime.RecordProjectionResponse("drawOneCard", failed, previous, playSelectionCleared: true, summonSelectionCleared: true);
 
         Assert.That(runtime.currentStepIndex, Is.EqualTo(2));
         Assert.That(runtime.lastStepResultText, Does.Contain("request_rejected"));
@@ -180,6 +171,37 @@ public class DebugFlowChecklistRuntimeTests
         Assert.That(runtime.isCompletedForMode(DebugChecklistMode.inputContextC), Is.True);
         var snapshot = runtime.getStepStatesSnapshot(DebugChecklistMode.inputContextC);
         Assert.That(snapshot.TrueForAll(step => step.status == DebugFlowStepStatus.passed), Is.True);
+    }
+
+    [Test]
+    public void Runtime_WhenModeSwitches_ShouldExposeModeSpecificRecommendedStep()
+    {
+        var runtime = new DebugFlowChecklistRuntime();
+        runtime.OnConnectionStateChanged("connected");
+
+        runtime.setCurrentMode(DebugChecklistMode.mainFlowA);
+        Assert.That(runtime.recommendedNextStep, Is.EqualTo("Draw"));
+
+        runtime.setCurrentMode(DebugChecklistMode.responseWindowB);
+        Assert.That(runtime.recommendedNextStep, Is.EqualTo("Debug Open DamageWindow"));
+
+        runtime.setCurrentMode(DebugChecklistMode.inputContextC);
+        Assert.That(runtime.recommendedNextStep, Is.EqualTo("EnterAction"));
+    }
+
+    [Test]
+    public void Runtime_GetStepStatus_ShouldReturnFailedAfterRequestRejected()
+    {
+        var runtime = new DebugFlowChecklistRuntime();
+        runtime.OnConnectionStateChanged("connected");
+
+        var previous = buildProjection("start", 1, 1, 1, 0, 1, true);
+        var failed = buildProjection("start", 1, 1, 1, 0, 1, false);
+        failed.errorCode = "request_rejected";
+
+        runtime.RecordProjectionResponse("drawOneCard", failed, previous, playSelectionCleared: true, summonSelectionCleared: true);
+
+        Assert.That(runtime.getStepStatus(DebugChecklistMode.mainFlowA, 2), Is.EqualTo(DebugFlowStepStatus.failed));
     }
 
     private static ProjectionViewModel buildProjection(

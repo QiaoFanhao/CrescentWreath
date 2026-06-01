@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using CrescentWreath.Client.Net;
 using NUnit.Framework;
@@ -26,6 +26,36 @@ public class ServerBridgeEditModeTests
         Assert.That(root.requestId, Is.EqualTo(1));
         Assert.That(root.viewerPlayerNumericId, Is.EqualTo(1001));
         Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(1001));
+    }
+
+    [Test]
+    public void Connect_ShouldAppendViewerQueryParameter()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 3,
+            actorPlayerNumericId = 3,
+        };
+
+        bridge.Connect("ws://127.0.0.1:18080/ws");
+
+        Assert.That(fakeSocketClient.lastConnectUrl, Is.EqualTo("ws://127.0.0.1:18080/ws?viewerPlayerNumericId=3"));
+    }
+
+    [Test]
+    public void Connect_WhenUrlAlreadyContainsQuery_ShouldAppendViewerWithAmpersand()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 4,
+            actorPlayerNumericId = 4,
+        };
+
+        bridge.Connect("ws://127.0.0.1:18080/ws?debug=true");
+
+        Assert.That(fakeSocketClient.lastConnectUrl, Is.EqualTo("ws://127.0.0.1:18080/ws?debug=true&viewerPlayerNumericId=4"));
     }
 
     [Test]
@@ -299,6 +329,26 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
+    public void SendDebugOpenDamageResponseWindow_WithTargetAndDamageArgs_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 1,
+            actorPlayerNumericId = 3,
+        };
+
+        bridge.SendDebugOpenDamageResponseWindow(targetCharacterInstanceNumericId: 200002, baseDamageValue: 3, damageTypeKey: "physical");
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("debugOpenDamageResponseWindow"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(3));
+        Assert.That(root.payload.targetCharacterInstanceNumericId, Is.EqualTo(200002));
+        Assert.That(root.payload.baseDamageValue, Is.EqualTo(3));
+        Assert.That(root.payload.damageTypeKey, Is.EqualTo("physical"));
+    }
+
+    [Test]
     public void SendDebugResetMatch_ShouldBuildExpectedEnvelope()
     {
         var fakeSocketClient = new FakeSocketClient();
@@ -364,23 +414,34 @@ public class ServerBridgeEditModeTests
             + "\"isSucceeded\":true,"
             + "\"stateProjection\":{"
             + "\"turn\":{\"turnNumber\":3,\"currentPhase\":\"summon\",\"currentPlayerNumericId\":2},"
+            + "\"teams\":[{\"teamNumericId\":1,\"leyline\":4,\"killScore\":9},{\"teamNumericId\":2,\"leyline\":6,\"killScore\":8}],"
             + "\"players\":[{"
             + "\"playerNumericId\":1,"
+            + "\"teamNumericId\":1,"
             + "\"activeCharacterInstanceNumericId\":200001,"
             + "\"mana\":4,\"skillPoint\":2,\"sigilPreview\":1,\"lockedSigil\":3,\"isSigilLocked\":true,"
             + "\"handCardCount\":2,"
             + "\"handZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":101,\"definitionId\":\"T001\",\"zoneKey\":\"hand\"},{\"cardInstanceNumericId\":102,\"definitionId\":\"T002\",\"zoneKey\":\"hand\"}]},"
             + "\"fieldZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":201,\"definitionId\":\"T003\",\"zoneKey\":\"field\"}]},"
             + "\"discardZone\":{\"cardCount\":5,\"cards\":[]}"
+            + "},{"
+            + "\"playerNumericId\":2,"
+            + "\"teamNumericId\":2,"
+            + "\"activeCharacterInstanceNumericId\":200002,"
+            + "\"mana\":6,\"skillPoint\":1,\"sigilPreview\":5,\"lockedSigil\":2,\"isSigilLocked\":true,"
+            + "\"handCardCount\":7,"
+            + "\"handZone\":{\"cardCount\":7,\"cards\":[]},"
+            + "\"fieldZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":202,\"definitionId\":\"T005\",\"zoneKey\":\"field\"},{\"cardInstanceNumericId\":203,\"definitionId\":\"T006\",\"zoneKey\":\"field\"}]},"
+            + "\"discardZone\":{\"cardCount\":3,\"cards\":[]}"
             + "}],"
             + "\"publicZones\":{"
             + "\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":301,\"definitionId\":\"T004\",\"zoneKey\":\"summonZone\"}]},"
             + "\"sakuraCakeDeckZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":401,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"},{\"cardInstanceNumericId\":402,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"}]}"
             + "},"
-            + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"statusKeys\":[\"Seal\",\"Shackle\"]}]"
+            + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"statusKeys\":[\"Seal\",\"Shackle\"]},{\"characterInstanceNumericId\":200002,\"currentHp\":2,\"maxHp\":4,\"statusKeys\":[\"Penetrate\"]}]"
             + "},"
             + "\"eventLog\":[{\"eventTypeKey\":\"cardMoved\",\"cardInstanceNumericId\":101,\"moveReason\":\"play\"}],"
-            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":66,\"requiredPlayerNumericId\":1,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:projection\",\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"],\"selectedChoiceKey\":\"decline\"},\"responseWindow\":{\"responseWindowNumericId\":88,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[1,2]}}"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":66,\"requiredPlayerNumericId\":1,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:projection\",\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"],\"selectedChoiceKey\":\"decline\"},\"responseWindow\":{\"responseWindowNumericId\":88,\"responseWindowOriginType\":\"damageResponse\",\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[1,2],\"pendingDamageResponseStageKey\":\"awaitDefense\",\"pendingDamageTypeKey\":\"physical\",\"pendingDamageTargetCharacterInstanceNumericId\":200001,\"pendingDamageDefenderPlayerNumericId\":1}}"
             + "}";
 
         var projection = ProjectionParser.Parse(responseJson, 1);
@@ -390,12 +451,43 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.turnNumber, Is.EqualTo(3));
         Assert.That(projection.currentPhase, Is.EqualTo("summon"));
         Assert.That(projection.currentPlayerNumericId, Is.EqualTo(2));
+        Assert.That(projection.teamSummaries.Count, Is.EqualTo(2));
+        var team1 = projection.teamSummaries.Find(team => team.teamNumericId == 1);
+        Assert.That(team1, Is.Not.Null);
+        Assert.That(team1!.leyline, Is.EqualTo(4));
+        Assert.That(team1.killScore, Is.EqualTo(9));
+        var team2 = projection.teamSummaries.Find(team => team.teamNumericId == 2);
+        Assert.That(team2, Is.Not.Null);
+        Assert.That(team2!.leyline, Is.EqualTo(6));
+        Assert.That(team2.killScore, Is.EqualTo(8));
+        Assert.That(projection.playerSummaries.Count, Is.EqualTo(2));
+
+        var viewerSummary = projection.playerSummaries.Find(summary => summary.playerNumericId == 1);
+        Assert.That(viewerSummary, Is.Not.Null);
+        Assert.That(viewerSummary!.isViewerPlayer, Is.True);
+        Assert.That(viewerSummary.isCurrentPlayer, Is.False);
+        Assert.That(viewerSummary.handCount, Is.EqualTo(2));
+        Assert.That(viewerSummary.fieldCount, Is.EqualTo(1));
+        Assert.That(viewerSummary.discardCount, Is.EqualTo(5));
+        Assert.That(viewerSummary.activeCharacterCurrentHp, Is.EqualTo(3));
+        Assert.That(viewerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Seal", "Shackle" }));
+
+        var currentPlayerSummary = projection.playerSummaries.Find(summary => summary.playerNumericId == 2);
+        Assert.That(currentPlayerSummary, Is.Not.Null);
+        Assert.That(currentPlayerSummary!.isCurrentPlayer, Is.True);
+        Assert.That(currentPlayerSummary.isViewerPlayer, Is.False);
+        Assert.That(currentPlayerSummary.handCount, Is.EqualTo(7));
+        Assert.That(currentPlayerSummary.fieldCount, Is.EqualTo(2));
+        Assert.That(currentPlayerSummary.discardCount, Is.EqualTo(3));
+        Assert.That(currentPlayerSummary.activeCharacterCurrentHp, Is.EqualTo(2));
+        Assert.That(currentPlayerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Penetrate" }));
         Assert.That(projection.mana, Is.EqualTo(4));
         Assert.That(projection.skillPoint, Is.EqualTo(2));
         Assert.That(projection.sigilPreview, Is.EqualTo(1));
         Assert.That(projection.lockedSigil, Is.EqualTo(3));
         Assert.That(projection.viewerHandCardCount, Is.EqualTo(2));
         Assert.That(projection.handCards.Count, Is.EqualTo(2));
+        Assert.That(projection.handCards.Exists(card => card.cardInstanceNumericId == 202 || card.cardInstanceNumericId == 203), Is.False);
         Assert.That(projection.fieldCards.Count, Is.EqualTo(1));
         Assert.That(projection.discardCount, Is.EqualTo(5));
         Assert.That(projection.summonZoneCards.Count, Is.EqualTo(1));
@@ -417,6 +509,11 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.interaction.responseWindowNumericId, Is.EqualTo(88));
         Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.EqualTo(2));
         Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(2));
+        Assert.That(projection.interaction.responseWindowOriginType, Is.EqualTo("damageResponse"));
+        Assert.That(projection.interaction.pendingDamageResponseStageKey, Is.EqualTo("awaitDefense"));
+        Assert.That(projection.interaction.pendingDamageTypeKey, Is.EqualTo("physical"));
+        Assert.That(projection.interaction.pendingDamageTargetCharacterInstanceNumericId, Is.EqualTo(200001));
+        Assert.That(projection.interaction.pendingDamageDefenderPlayerNumericId, Is.EqualTo(1));
     }
 
     [Test]
@@ -427,6 +524,7 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.isSucceeded, Is.False);
         Assert.That(projection.viewerPlayerNumericId, Is.EqualTo(1));
         Assert.That(projection.currentPhase, Is.EqualTo(string.Empty));
+        Assert.That(projection.teamSummaries, Is.Empty);
         Assert.That(projection.handCards, Is.Empty);
         Assert.That(projection.fieldCards, Is.Empty);
         Assert.That(projection.summonZoneCards, Is.Empty);
@@ -504,6 +602,46 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.interaction.responseWindowNumericId, Is.EqualTo(66));
         Assert.That(projection.interaction.responseCurrentResponderPlayerNumericId, Is.EqualTo(3));
         Assert.That(projection.interaction.responseResponderCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void ProjectionParser_WhenInputContextIdIsZero_ShouldNotMarkHasInputContext()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":0,\"requiredPlayerNumericId\":1,\"choiceCount\":1,\"choiceKeys\":[\"discardCard:1001\"]}}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasInputContext, Is.False);
+        Assert.That(projection.interaction.inputContextNumericId, Is.Null);
+        Assert.That(projection.interaction.inputRequiredPlayerNumericId, Is.Null);
+        Assert.That(projection.interaction.inputChoiceKeys, Is.Empty);
+    }
+
+    [Test]
+    public void ProjectionParser_WhenInputContextIdIsPositive_ShouldMarkHasInputContext()
+    {
+        const string responseJson =
+            "{"
+            + "\"isSucceeded\":true,"
+            + "\"viewerPlayerNumericId\":1,"
+            + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":77,\"requiredPlayerNumericId\":2,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:ctx\",\"choiceCount\":2,\"choiceKeys\":[\"a\",\"b\"],\"selectedChoiceKey\":\"b\"}}"
+            + "}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.interaction.hasInputContext, Is.True);
+        Assert.That(projection.interaction.inputContextNumericId, Is.EqualTo(77));
+        Assert.That(projection.interaction.inputRequiredPlayerNumericId, Is.EqualTo(2));
+        Assert.That(projection.interaction.inputTypeKey, Is.EqualTo("testInput"));
+        Assert.That(projection.interaction.contextKey, Is.EqualTo("test:ctx"));
+        Assert.That(projection.interaction.inputChoiceCount, Is.EqualTo(2));
+        Assert.That(projection.interaction.inputChoiceKeys, Is.EquivalentTo(new[] { "a", "b" }));
+        Assert.That(projection.interaction.selectedChoiceKey, Is.EqualTo("b"));
     }
 
     [Test]
@@ -640,6 +778,88 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
+    public void SelectionHelper_CollectShackleDiscardChoiceKeys_ShouldKeepOnlyDiscardCardOptions()
+    {
+        var inputChoiceKeys = new List<string>
+        {
+            "discardCard:100001",
+            "player:2",
+            "discardCard:100002",
+            "shackle:decline",
+        };
+
+        var shackleDiscardChoiceKeys = SocketDebugPanel.CollectShackleDiscardChoiceKeys(inputChoiceKeys);
+
+        Assert.That(shackleDiscardChoiceKeys, Is.EqualTo(new[] { "discardCard:100001", "discardCard:100002" }));
+    }
+
+    [Test]
+    public void SelectionHelper_PrunedSelectedChoiceKeysByAvailable_ShouldRemoveUnavailableSelections()
+    {
+        var selectedChoiceKeys = new List<string> { "discardCard:100001", "discardCard:100099" };
+        var availableChoiceKeys = new List<string> { "discardCard:100001", "discardCard:100002" };
+
+        SocketDebugPanel.PruneSelectedChoiceKeysByAvailable(selectedChoiceKeys, availableChoiceKeys);
+
+        Assert.That(selectedChoiceKeys, Is.EqualTo(new[] { "discardCard:100001" }));
+    }
+
+    [Test]
+    public void SelectionHelper_TryToggleBoundedChoiceSelection_WhenAddingFifthChoice_ShouldFail()
+    {
+        var selectedChoiceKeys = new List<string>
+        {
+            "discardCard:100001",
+            "discardCard:100002",
+            "discardCard:100003",
+            "discardCard:100004",
+        };
+
+        var toggled = SocketDebugPanel.TryToggleBoundedChoiceSelection(
+            selectedChoiceKeys,
+            "discardCard:100005",
+            4,
+            out var failureReason);
+
+        Assert.That(toggled, Is.False);
+        Assert.That(failureReason, Does.Contain("最多只能选择 4 张"));
+        Assert.That(selectedChoiceKeys.Count, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void SelectionHelper_TryToggleBoundedChoiceSelection_WhenChoiceAlreadySelected_ShouldUnselect()
+    {
+        var selectedChoiceKeys = new List<string>
+        {
+            "discardCard:100001",
+            "discardCard:100002",
+        };
+
+        var toggled = SocketDebugPanel.TryToggleBoundedChoiceSelection(
+            selectedChoiceKeys,
+            "discardCard:100002",
+            4,
+            out var failureReason);
+
+        Assert.That(toggled, Is.True);
+        Assert.That(failureReason, Is.Empty);
+        Assert.That(selectedChoiceKeys, Is.EqualTo(new[] { "discardCard:100001" }));
+    }
+
+    [Test]
+    public void SelectionHelper_IsTurnStartShackleInputContext_WhenContextKeyMatchesAndHasId_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasInputContext = true;
+        projection.interaction.inputContextNumericId = 9;
+        projection.interaction.contextKey = "turnStart:shackleDiscard";
+
+        var isShackleContext = SocketDebugPanel.IsTurnStartShackleInputContext(projection);
+
+        Assert.That(isShackleContext, Is.True);
+    }
+
+    [Test]
     public void SelectionHelper_TryApplyFieldCardSelection_ShouldKeepAllSelectionsUnchanged()
     {
         long? selectedHandCardId = 1001;
@@ -667,7 +887,7 @@ public class ServerBridgeEditModeTests
         var message = SocketDebugPanel.BuildFieldCardReadOnlyMessage(9001);
 
         Assert.That(message, Does.Contain("field card is read-only"));
-        Assert.That(message, Does.Contain("场上牌仅展示，不可操作"));
+        Assert.That(message, Does.Contain("鍦轰笂鐗屼粎灞曠ず"));
         Assert.That(message, Does.Contain("9001"));
     }
 
@@ -693,6 +913,62 @@ public class ServerBridgeEditModeTests
         var renderable = SocketDebugPanel.HasRenderableResponseWindow(projection);
 
         Assert.That(renderable, Is.True);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_IsAwaitDefenseStageForResponseWindow_WhenStageIsAwaitDefense_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 9;
+        projection.interaction.pendingDamageResponseStageKey = "awaitDefense";
+
+        var isAwaitDefense = SocketDebugPanel.IsAwaitDefenseStageForResponseWindow(projection);
+        var isAwaitCounter = SocketDebugPanel.IsLegacyAwaitCounterStageForResponseWindow(projection);
+
+        Assert.That(isAwaitDefense, Is.True);
+        Assert.That(isAwaitCounter, Is.False);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_IsAwaitDefenseStageForResponseWindow_WhenStageIsAwaitCounter_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 9;
+        projection.interaction.pendingDamageResponseStageKey = "awaitCounter";
+
+        var isAwaitDefense = SocketDebugPanel.IsAwaitDefenseStageForResponseWindow(projection);
+        var isAwaitCounter = SocketDebugPanel.IsLegacyAwaitCounterStageForResponseWindow(projection);
+
+        Assert.That(isAwaitDefense, Is.False);
+        Assert.That(isAwaitCounter, Is.True);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_IsLocalResponderForResponseWindow_WhenViewerMatchesResponder_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(2);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 9;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        var isLocalResponder = SocketDebugPanel.IsLocalResponderForResponseWindow(projection);
+
+        Assert.That(isLocalResponder, Is.True);
+    }
+
+    [Test]
+    public void ResponseWindowHelper_IsLocalResponderForResponseWindow_WhenViewerDiffersResponder_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(4);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 9;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        var isLocalResponder = SocketDebugPanel.IsLocalResponderForResponseWindow(projection);
+
+        Assert.That(isLocalResponder, Is.False);
     }
 
     [Test]
@@ -730,7 +1006,7 @@ public class ServerBridgeEditModeTests
 
         Assert.That(canSend, Is.False);
         Assert.That(responderPlayerNumericId, Is.EqualTo(3));
-        Assert.That(failureReason, Does.Contain("must match currentResponderPlayerNumericId"));
+        Assert.That(failureReason, Does.Contain("currentResponderPlayerNumericId"));
     }
 
     [Test]
@@ -745,7 +1021,383 @@ public class ServerBridgeEditModeTests
             out var failureReason);
 
         Assert.That(canSend, Is.False);
-        Assert.That(failureReason, Does.Contain("no active responseWindow"));
+        Assert.That(failureReason, Does.Contain("没有可用的响应窗口"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSubmitDefenseActor_WhenActorMatchesResponder_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 123;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        var canSend = SocketDebugPanel.TryValidateSubmitDefenseActor(
+            projection,
+            "2",
+            out var failureReason);
+
+        Assert.That(canSend, Is.True);
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSubmitDefenseActor_WhenActorMismatchesResponder_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasResponseWindow = true;
+        projection.interaction.responseWindowNumericId = 123;
+        projection.interaction.responseCurrentResponderPlayerNumericId = 2;
+
+        var canSend = SocketDebugPanel.TryValidateSubmitDefenseActor(
+            projection,
+            "1",
+            out var failureReason);
+
+        Assert.That(canSend, Is.False);
+        Assert.That(failureReason, Does.Contain("currentResponderPlayerNumericId"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSelectedDefenseCardInHand_WhenCardExists_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(2);
+        projection.handCards.Add(new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = 100004,
+            definitionId = "T001",
+            zoneKey = "hand",
+        });
+
+        var isValid = SocketDebugPanel.TryValidateSelectedDefenseCardInHand(
+            projection,
+            100004,
+            out var selectedCardId,
+            out var selectedCard,
+            out var failureReason);
+
+        Assert.That(isValid, Is.True);
+        Assert.That(selectedCardId, Is.EqualTo(100004));
+        Assert.That(selectedCard, Is.Not.Null);
+        Assert.That(selectedCard!.definitionId, Is.EqualTo("T001"));
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryValidateSelectedDefenseCardInHand_WhenCardNotInHand_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(2);
+        projection.handCards.Add(new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = 100004,
+            definitionId = "T001",
+            zoneKey = "hand",
+        });
+
+        var isValid = SocketDebugPanel.TryValidateSelectedDefenseCardInHand(
+            projection,
+            100099,
+            out _,
+            out _,
+            out var failureReason);
+
+        Assert.That(isValid, Is.False);
+        Assert.That(failureReason, Does.Contain("selected defense card is not in hand"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryInferDefenseTypeKeyFromDefinitionId_ForStarterCards_ShouldReturnDual()
+    {
+        var canInferMagicCircuit = SocketDebugPanel.TryInferDefenseTypeKeyFromDefinitionId("starter:magicCircuit", out var magicCircuitDefenseTypeKey);
+        var canInferKourindouCoupon = SocketDebugPanel.TryInferDefenseTypeKeyFromDefinitionId("starter:kourindouCoupon", out var kourindouCouponDefenseTypeKey);
+
+        Assert.That(canInferMagicCircuit, Is.True);
+        Assert.That(magicCircuitDefenseTypeKey, Is.EqualTo("dual"));
+        Assert.That(canInferKourindouCoupon, Is.True);
+        Assert.That(kourindouCouponDefenseTypeKey, Is.EqualTo("dual"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryInferDefenseTypeKeyFromDefinitionId_ForTreasureCards_ShouldReturnExpectedTypes()
+    {
+        var canInferT002 = SocketDebugPanel.TryInferDefenseTypeKeyFromDefinitionId("T002", out var t002DefenseTypeKey);
+        var canInferT003 = SocketDebugPanel.TryInferDefenseTypeKeyFromDefinitionId("T003", out var t003DefenseTypeKey);
+        var canInferT001 = SocketDebugPanel.TryInferDefenseTypeKeyFromDefinitionId("T001", out var t001DefenseTypeKey);
+
+        Assert.That(canInferT002, Is.True);
+        Assert.That(t002DefenseTypeKey, Is.EqualTo("spell"));
+        Assert.That(canInferT003, Is.True);
+        Assert.That(t003DefenseTypeKey, Is.EqualTo("physical"));
+        Assert.That(canInferT001, Is.True);
+        Assert.That(t001DefenseTypeKey, Is.EqualTo("dual"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryResolveFormalDefenseTypeKey_WhenSelectedCardCanInfer_ShouldPreferSelectedCardType()
+    {
+        var selectedCard = new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = 100005,
+            definitionId = "starter:magicCircuit",
+            zoneKey = "hand",
+        };
+
+        var resolved = SocketDebugPanel.TryResolveFormalDefenseTypeKey(
+            selectedCard,
+            "physical",
+            out var resolvedDefenseTypeKey,
+            out var sourceLabel);
+
+        Assert.That(resolved, Is.True);
+        Assert.That(resolvedDefenseTypeKey, Is.EqualTo("dual"));
+        Assert.That(sourceLabel, Is.EqualTo("已选防御牌定义"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryResolveFormalDefenseTypeKey_WhenSelectionCannotInfer_ShouldFallbackToManual()
+    {
+        var selectedCard = new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = 100006,
+            definitionId = "unknown:defenseCard",
+            zoneKey = "hand",
+        };
+
+        var resolved = SocketDebugPanel.TryResolveFormalDefenseTypeKey(
+            selectedCard,
+            "physical",
+            out var resolvedDefenseTypeKey,
+            out var sourceLabel);
+
+        Assert.That(resolved, Is.True);
+        Assert.That(resolvedDefenseTypeKey, Is.EqualTo("physical"));
+        Assert.That(sourceLabel, Is.EqualTo("手动输入"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryExtractFailedReasonKeyFromRawResponse_WhenPresent_ShouldReturnReasonKey()
+    {
+        const string responseJson =
+            "{"
+            + "\"requestId\":9,"
+            + "\"isSucceeded\":false,"
+            + "\"error\":{\"code\":\"request_rejected\",\"message\":\"rejected\",\"failedReasonKey\":\"defenseTypeMismatch\"}"
+            + "}";
+
+        var failedReasonKey = SocketDebugPanel.TryExtractFailedReasonKeyFromRawResponse(responseJson);
+
+        Assert.That(failedReasonKey, Is.EqualTo("defenseTypeMismatch"));
+    }
+
+    [Test]
+    public void ResponseWindowHelper_TryExtractFailedReasonKeyFromRawResponse_WhenMissing_ShouldReturnEmpty()
+    {
+        const string responseJson =
+            "{"
+            + "\"requestId\":10,"
+            + "\"isSucceeded\":false,"
+            + "\"error\":{\"code\":\"request_rejected\",\"message\":\"rejected\"}"
+            + "}";
+
+        var failedReasonKey = SocketDebugPanel.TryExtractFailedReasonKeyFromRawResponse(responseJson);
+
+        Assert.That(failedReasonKey, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void DamageTargetHelper_TryResolveTargetActiveCharacterInstanceId_WhenValidPlayer_ShouldResolveCharacter()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.playerSummaries.Add(new ProjectionPlayerSummaryViewModel
+        {
+            playerNumericId = 2,
+            activeCharacterInstanceNumericId = 200002,
+        });
+
+        var resolved = SocketDebugPanel.TryResolveTargetActiveCharacterInstanceId(
+            projection,
+            "2",
+            out var targetCharacterInstanceNumericId,
+            out var failureReason);
+
+        Assert.That(resolved, Is.True);
+        Assert.That(targetCharacterInstanceNumericId, Is.EqualTo(200002));
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void DamageTargetHelper_TryResolveTargetActiveCharacterInstanceId_WhenTargetHasNoActiveCharacter_ShouldReturnFalse()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.playerSummaries.Add(new ProjectionPlayerSummaryViewModel
+        {
+            playerNumericId = 2,
+            activeCharacterInstanceNumericId = null,
+        });
+
+        var resolved = SocketDebugPanel.TryResolveTargetActiveCharacterInstanceId(
+            projection,
+            "2",
+            out _,
+            out var failureReason);
+
+        Assert.That(resolved, Is.False);
+        Assert.That(failureReason, Does.Contain("娌℃湁鍙敤鍦ㄥ満瑙掕壊"));
+    }
+
+    [Test]
+    public void DamageDebugHelper_TryResolveDebugDamageArguments_WhenValidPhysical_ShouldResolve()
+    {
+        var resolved = SocketDebugPanel.TryResolveDebugDamageArguments(
+            "3",
+            "physical",
+            out var resolvedDamageValue,
+            out var resolvedDamageTypeKey,
+            out var failureReason);
+
+        Assert.That(resolved, Is.True);
+        Assert.That(resolvedDamageValue, Is.EqualTo(3));
+        Assert.That(resolvedDamageTypeKey, Is.EqualTo("physical"));
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void DamageDebugHelper_TryResolveDebugDamageArguments_WhenValidChineseType_ShouldNormalize()
+    {
+        var resolved = SocketDebugPanel.TryResolveDebugDamageArguments(
+            "5",
+            "咒术",
+            out var resolvedDamageValue,
+            out var resolvedDamageTypeKey,
+            out var failureReason);
+
+        Assert.That(resolved, Is.True);
+        Assert.That(resolvedDamageValue, Is.EqualTo(5));
+        Assert.That(resolvedDamageTypeKey, Is.EqualTo("spell"));
+        Assert.That(failureReason, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void DamageDebugHelper_TryResolveDebugDamageArguments_WhenInvalidDamageValue_ShouldFail()
+    {
+        var resolved = SocketDebugPanel.TryResolveDebugDamageArguments(
+            "0",
+            "direct",
+            out _,
+            out _,
+            out var failureReason);
+
+        Assert.That(resolved, Is.False);
+        Assert.That(failureReason, Does.Contain("伤害值必须是大于0的整数"));
+    }
+
+    [Test]
+    public void DamageDebugHelper_TryResolveDebugDamageArguments_WhenInvalidDamageType_ShouldFail()
+    {
+        var resolved = SocketDebugPanel.TryResolveDebugDamageArguments(
+            "2",
+            "fire",
+            out _,
+            out _,
+            out var failureReason);
+
+        Assert.That(resolved, Is.False);
+        Assert.That(failureReason, Does.Contain("伤害类型仅支持"));
+    }
+
+    [Test]
+    public void FlowTraceHelper_TryParsePositiveTraceCount_ShouldFallbackToDefaultWhenInvalid()
+    {
+        var fallbackForNegative = SocketDebugPanel.TryParsePositiveTraceCount("-1", 20);
+        var fallbackForText = SocketDebugPanel.TryParsePositiveTraceCount("abc", 20);
+        var parsedValid = SocketDebugPanel.TryParsePositiveTraceCount("15", 20);
+
+        Assert.That(fallbackForNegative, Is.EqualTo(20));
+        Assert.That(fallbackForText, Is.EqualTo(20));
+        Assert.That(parsedValid, Is.EqualTo(15));
+    }
+
+    [Test]
+    public void FlowTraceHelper_BuildFlowTraceExport_ShouldReturnLatestNLines()
+    {
+        var lines = new List<string> { "line-1", "line-2", "line-3", "line-4" };
+
+        var exported = SocketDebugPanel.BuildFlowTraceExport(lines, 2);
+
+        Assert.That(exported, Is.EqualTo("line-3\nline-4"));
+    }
+
+    [Test]
+    public void FlowTraceHelper_ResolveStepNumberFromResult_ShouldParseStepPrefix()
+    {
+        var parsed = SocketDebugPanel.ResolveStepNumberFromResult("step 7 passed: test", 99);
+        var fallback = SocketDebugPanel.ResolveStepNumberFromResult("unexpected", 99);
+
+        Assert.That(parsed, Is.EqualTo(7));
+        Assert.That(fallback, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void FlowTraceHelper_GetMacroActionTypeForStep_ShouldOnlyReturnWhitelistedActions()
+    {
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.mainFlowA, 2), Is.EqualTo("drawOneCard"));
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.mainFlowA, 3), Is.EqualTo("playTreasureCard"));
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.responseWindowB, 1), Is.EqualTo("debugOpenDamageResponseWindow"));
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.responseWindowB, 4), Is.EqualTo("submitResponse"));
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.inputContextC, 6), Is.EqualTo("submitInputChoice"));
+        Assert.That(SocketDebugPanel.GetMacroActionTypeForStep(DebugChecklistMode.inputContextC, 8), Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void FlowTraceHelper_IsMacroStepDispatchable_ShouldRespectActionableStepsOnly()
+    {
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.mainFlowA, 1), Is.True);
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.mainFlowA, 2), Is.True);
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.mainFlowA, 10), Is.False);
+
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.responseWindowB, 1), Is.True);
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.responseWindowB, 2), Is.False);
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.responseWindowB, 4), Is.True);
+
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.inputContextC, 6), Is.True);
+        Assert.That(SocketDebugPanel.IsMacroStepDispatchable(DebugChecklistMode.inputContextC, 8), Is.False);
+    }
+
+    [Test]
+    public void MessageSourceHelper_IsDirectResponseForPendingRequest_WhenIdsMatch_ShouldReturnTrue()
+    {
+        var isDirect = SocketDebugPanel.IsDirectResponseForPendingRequest(
+            requestInFlight: true,
+            pendingRequestId: 42,
+            responseRequestId: 42);
+
+        Assert.That(isDirect, Is.True);
+    }
+
+    [Test]
+    public void MessageSourceHelper_IsDirectResponseForPendingRequest_WhenIdsDoNotMatch_ShouldReturnFalse()
+    {
+        var mismatchId = SocketDebugPanel.IsDirectResponseForPendingRequest(
+            requestInFlight: true,
+            pendingRequestId: 42,
+            responseRequestId: 43);
+        var missingPending = SocketDebugPanel.IsDirectResponseForPendingRequest(
+            requestInFlight: true,
+            pendingRequestId: null,
+            responseRequestId: 43);
+        var missingResponse = SocketDebugPanel.IsDirectResponseForPendingRequest(
+            requestInFlight: true,
+            pendingRequestId: 42,
+            responseRequestId: null);
+        var notInFlight = SocketDebugPanel.IsDirectResponseForPendingRequest(
+            requestInFlight: false,
+            pendingRequestId: 42,
+            responseRequestId: 42);
+
+        Assert.That(mismatchId, Is.False);
+        Assert.That(missingPending, Is.False);
+        Assert.That(missingResponse, Is.False);
+        Assert.That(notInFlight, Is.False);
     }
 
     [Test]
@@ -816,7 +1468,7 @@ public class ServerBridgeEditModeTests
     public void DebugCardTextureResolver_Unknown_ShouldFallbackToCardBackPath()
     {
         DebugCardTextureResolver.ClearCacheForTests();
-        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("starter:magicCircuit");
+        var resolvedPath = DebugCardTextureResolver.ResolveAssetPathForDefinition("UNKNOWN_DEFINITION_ID");
         Assert.That(resolvedPath, Is.EqualTo(DebugCardTextureResolver.CardBackAssetPath));
     }
 
@@ -876,9 +1528,11 @@ public class ServerBridgeEditModeTests
 
         public bool isConnected { get; private set; }
         public string lastSentText { get; private set; } = string.Empty;
+        public string lastConnectUrl { get; private set; } = string.Empty;
 
         public void Connect(string url)
         {
+            lastConnectUrl = url;
             isConnected = true;
             OnConnected?.Invoke();
         }
