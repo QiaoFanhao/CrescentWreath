@@ -183,15 +183,14 @@ public class ServerBridgePlayModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 2,
+            viewerPlayerNumericId = 2,
         };
 
         bridge.Connect("ws://127.0.0.1:18080/ws");
         fakeSocketClient.EmitText(
             "{"
             + "\"isSucceeded\":true,"
-            + "\"viewerPlayerNumericId\":1,"
+            + "\"viewerPlayerNumericId\":2,"
             + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":901,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}}"
             + "}");
 
@@ -212,15 +211,14 @@ public class ServerBridgePlayModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 3,
+            viewerPlayerNumericId = 3,
         };
 
         bridge.Connect("ws://127.0.0.1:18080/ws");
         fakeSocketClient.EmitText(
             "{"
             + "\"isSucceeded\":true,"
-            + "\"viewerPlayerNumericId\":1,"
+            + "\"viewerPlayerNumericId\":3,"
             + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":501,\"requiredPlayerNumericId\":3,\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"]}}"
             + "}");
 
@@ -241,8 +239,7 @@ public class ServerBridgePlayModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 3,
+            viewerPlayerNumericId = 3,
         };
 
         bridge.Connect("ws://127.0.0.1:18080/ws");
@@ -303,11 +300,12 @@ public class ServerBridgePlayModeTests
             summonSelectionCleared: true);
 
         var openedProjection = latestProjection.deepClone();
-        bridge.SendSubmitResponseNoAsActor(2);
+        bridge.localPlayerNumericId = 2;
+        bridge.SendSubmitResponseNo();
         fakeSocketClient.EmitText(
             "{"
             + "\"isSucceeded\":true,"
-            + "\"viewerPlayerNumericId\":1,"
+            + "\"viewerPlayerNumericId\":2,"
             + "\"stateProjection\":{"
             + "\"turn\":{\"turnNumber\":1,\"currentPhase\":\"action\",\"currentPlayerNumericId\":1},"
             + "\"players\":[{\"playerNumericId\":1,\"handCardCount\":6,\"handZone\":{\"cardCount\":6,\"cards\":[]},\"fieldZone\":{\"cardCount\":0,\"cards\":[]},\"discardZone\":{\"cardCount\":0,\"cards\":[]}]},"
@@ -325,6 +323,7 @@ public class ServerBridgePlayModeTests
             summonSelectionCleared: true);
 
         Assert.That(responseWindowRuntime.isCompletedForMode(DebugChecklistMode.responseWindowB), Is.True);
+        bridge.localPlayerNumericId = 1;
 
         var inputRuntime = new DebugFlowChecklistRuntime();
         inputRuntime.setCurrentMode(DebugChecklistMode.inputContextC);

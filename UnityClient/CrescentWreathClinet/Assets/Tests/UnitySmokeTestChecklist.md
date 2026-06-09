@@ -4,14 +4,14 @@
 - Server WebSocket host is running (`ws://127.0.0.1:18080/ws`).
   - Recommended startup: `dotnet run --project Server/CrescentWreath.ServerPrototype.Host/CrescentWreath.ServerPrototype.Host.csproj -- 18080`
 - Unity scene has `SocketDebugPanel` active.
-- Default local IDs: `viewerPlayerNumericId == actorPlayerNumericId == 1`.
+- Default local player ID: `本机玩家ID = 1`.
 - Use `Flow Checklist` mode switch to choose `A / B / C`.
 - Before each full regression, run `调试：重开本局` once to freeze a clean single-session baseline.
 - 若重开后仍停在 `start` 阶段，先点击一次 `调试：进入行动`，再执行 Checklist A。
 
 ## Multi-Client (4) Startup Notes
-- The host now binds connection identity via query: `?viewerPlayerNumericId=1..4`.
-- Open up to four Unity clients and set each client `viewerPlayerNumericId`/`actorPlayerNumericId` to the same value (`1`, `2`, `3`, `4`).
+- The host binds connection identity via query: `?viewerPlayerNumericId=1..4`.
+- Open up to four Unity clients and set each client's `本机玩家ID` to `1`, `2`, `3`, or `4`.
 - Connect each client to the same URL base: `ws://127.0.0.1:18080/ws` (bridge appends viewer query automatically).
 - If one viewer ID is already occupied, the extra connection is rejected with `409`.
 - Successful actions from one client are broadcast to other connected viewers as push updates.
@@ -87,7 +87,7 @@ Default stable path: `EnterAction -> Draw -> EnterEnd` to trigger `endPhase:disc
   - Expect local error and **no outbound request**.
 - Click `Summon Selected` without selection:
   - Expect local error and **no outbound request**.
-- Click `Response: No` while actor mismatches responder:
+- Click `Response: No` from a client that is not the current responder:
   - Expect local red block banner and **no outbound request**.
 
 ---

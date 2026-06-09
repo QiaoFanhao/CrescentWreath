@@ -13,4 +13,6 @@ public sealed class CardInstance
     public bool isFaceUp { get; set; }
     public bool isSetAside { get; set; }
     public bool isDefensePlacedOnField { get; set; }
+    public CardInstanceId? overlayContainerCardInstanceId { get; set; }
+    public int? overlayOrderIndex { get; set; }
 }

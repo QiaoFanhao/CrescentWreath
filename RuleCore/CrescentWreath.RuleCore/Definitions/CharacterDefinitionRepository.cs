@@ -19,7 +19,10 @@ public static class CharacterDefinitionRepository
             definitionId = definitionId,
             characterName = string.Empty,
             baseMaxHp = 4,
+            factionKey = string.Empty,
             raceTags = new List<string>(),
+            allowedMarkerTypes = new List<string>(),
+            markerCaps = new Dictionary<string, int>(),
             skills = new Dictionary<string, CharacterSkillDefinition>(),
         };
     }

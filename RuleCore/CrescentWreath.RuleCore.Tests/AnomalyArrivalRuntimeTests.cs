@@ -740,8 +740,9 @@ public class AnomalyArrivalRuntimeTests
         Assert.Equal("anomaly:A005:arrivalDirectSummonFromSummonZone", gameState.currentInputContext!.contextKey);
         Assert.Equal("anomalyA005ArrivalDirectSummonFromSummonZone", gameState.currentInputContext.inputTypeKey);
         Assert.Equal(actorPlayerId, gameState.currentInputContext.requiredPlayerId);
-        Assert.Single(gameState.currentInputContext.choiceKeys);
-        Assert.Equal("summonCard:7121", gameState.currentInputContext.choiceKeys[0]);
+        Assert.Equal(2, gameState.currentInputContext.choiceKeys.Count);
+        Assert.Contains("summon:decline", gameState.currentInputContext.choiceKeys);
+        Assert.Contains("summonCard:7121", gameState.currentInputContext.choiceKeys);
         Assert.Equal(
             AnomalyProcessor.ContinuationKeyA005ArrivalDirectSummonFromSummonZone,
             actionChainState.pendingContinuationKey);
@@ -751,7 +752,7 @@ public class AnomalyArrivalRuntimeTests
     }
 
     [Fact]
-    public void ExecuteOnFlip_WhenArrivalStepDirectSummonFromSummonZoneWithInputAndSummonZoneEmpty_ShouldNoOpWithoutSuspending()
+    public void ExecuteOnFlip_WhenArrivalStepDirectSummonFromSummonZoneWithInputAndSummonZoneEmpty_ShouldOpenDeclineOnlyInput()
     {
         var actorPlayerId = new PlayerId(1);
         var summonZoneId = new ZoneId(721);
@@ -798,10 +799,13 @@ public class AnomalyArrivalRuntimeTests
             new ZoneMovementService(),
             anomalyDefinition);
 
-        Assert.False(isSuspendedByInput);
-        Assert.Null(gameState.currentInputContext);
-        Assert.Null(actionChainState.pendingContinuationKey);
-        Assert.Empty(actionChainState.producedEvents);
+        Assert.True(isSuspendedByInput);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(new[] { "summon:decline" }, gameState.currentInputContext!.choiceKeys);
+        Assert.Equal(
+            AnomalyProcessor.ContinuationKeyA005ArrivalDirectSummonFromSummonZone,
+            actionChainState.pendingContinuationKey);
+        Assert.Single(actionChainState.producedEvents);
     }
 
     [Fact]
@@ -1110,8 +1114,11 @@ public class AnomalyArrivalRuntimeTests
         Assert.NotNull(gameState.currentInputContext);
         Assert.Equal("anomaly:A006:arrivalHumanDefenseDiscardFlow", gameState.currentInputContext!.contextKey);
         Assert.Equal("anomalyA006ArrivalHumanDefenseDiscardOne", gameState.currentInputContext.inputTypeKey);
-        Assert.Equal(humanPlayerId, gameState.currentInputContext.requiredPlayerId);
-        Assert.Contains("fieldCard:9221", gameState.currentInputContext.choiceKeys);
+        Assert.Null(gameState.currentInputContext.requiredPlayerId);
+        Assert.Contains(humanPlayerId, gameState.currentInputContext.requiredPlayerIds);
+        Assert.Contains(
+            "fieldCard:9221",
+            gameState.currentInputContext.choiceKeysByRequiredPlayerNumericId[humanPlayerId.Value]);
         Assert.Equal(AnomalyProcessor.ContinuationKeyA006ArrivalHumanDefenseDiscardFlow, actionChainState.pendingContinuationKey);
         Assert.Single(actionChainState.producedEvents);
         Assert.IsType<InteractionWindowEvent>(actionChainState.producedEvents[0]);
@@ -1221,6 +1228,8 @@ public class AnomalyArrivalRuntimeTests
         AnomalyDefinition anomalyDefinition)
     {
         var arrivalInputRuntime = new AnomalyArrivalInputRuntime(zoneMovementService, () => 89000);
+        var a004Runtime = new AnomalyA004Runtime(zoneMovementService, () => 89001);
+        var a007A008Runtime = new AnomalyA007A008Runtime(zoneMovementService, () => 89002);
         return AnomalyArrivalRuntime.executeOnFlip(
             gameState,
             actionChainState,
@@ -1228,11 +1237,14 @@ public class AnomalyArrivalRuntimeTests
             zoneMovementService,
             anomalyDefinition,
             arrivalInputRuntime,
+            a004Runtime,
+            a007A008Runtime,
             AnomalyProcessor.ContinuationKeyA003ArrivalSelectOpponentShackle,
             AnomalyProcessor.ContinuationKeyA005ArrivalDirectSummonFromSummonZone,
             AnomalyProcessor.ContinuationKeyA007ArrivalOptionalBanishFlow,
             AnomalyProcessor.ContinuationKeyA001ArrivalHumanDiscardFlow,
-            AnomalyProcessor.ContinuationKeyA006ArrivalHumanDefenseDiscardFlow);
+            AnomalyProcessor.ContinuationKeyA006ArrivalHumanDefenseDiscardFlow,
+            AnomalyProcessor.ContinuationKeyA002ArrivalParallelDirectSummonChoice);
     }
 
     private static void addPlayerWithStandardZones(

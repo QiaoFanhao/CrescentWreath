@@ -10,4 +10,5 @@ public sealed class TurnState
     public TurnPhase currentPhase { get; set; } = TurnPhase.start;
     public int phaseStepIndex { get; set; }
     public bool hasResolvedAnomalyThisTurn { get; set; }
+    public ExtraTurnFlags extraTurnFlags { get; set; } = new();
 }

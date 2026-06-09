@@ -165,6 +165,18 @@ public sealed class ServerSocketActionRouter
                     dto.requestId = envelope.requestId;
                     return session.processUseSkill(dto);
                 }),
+            "tryResolveAnomaly" => routeByPayload<ServerTryResolveAnomalyRequestDto>(
+                envelope,
+                actionType,
+                resolvedViewerPlayerNumericId,
+                requiredActorPlayerNumericId,
+                dto => dto.actorPlayerNumericId > 0 &&
+                       (!dto.targetPlayerNumericId.HasValue || dto.targetPlayerNumericId.Value >= 0),
+                dto =>
+                {
+                    dto.requestId = envelope.requestId;
+                    return session.processTryResolveAnomaly(dto);
+                }),
             "submitDefense" => routeByPayload<ServerSubmitDefenseRequestDto>(
                 envelope,
                 actionType,
@@ -254,6 +266,19 @@ public sealed class ServerSocketActionRouter
                 {
                     dto.requestId = envelope.requestId;
                     return session.debugPutTreasureOnTopByDefinition(dto);
+                }),
+            // Debug-only route used by Unity debug panel to put one unopened anomaly by definitionId to the top of anomalyDeck.
+            "debugPutAnomalyOnTopByDefinition" => routeByPayload<ServerDebugPutAnomalyOnTopByDefinitionRequestDto>(
+                envelope,
+                actionType,
+                resolvedViewerPlayerNumericId,
+                requiredActorPlayerNumericId,
+                dto => dto.actorPlayerNumericId > 0 &&
+                       !string.IsNullOrWhiteSpace(dto.anomalyDefinitionId),
+                dto =>
+                {
+                    dto.requestId = envelope.requestId;
+                    return session.debugPutAnomalyOnTopByDefinition(dto);
                 }),
             _ => buildHostErrorOutcome(
                 actionType,
@@ -401,6 +426,9 @@ public sealed class ServerSocketActionRouter
             case ServerUseSkillRequestDto useSkillRequestDto:
                 actorPlayerNumericId = useSkillRequestDto.actorPlayerNumericId;
                 return true;
+            case ServerTryResolveAnomalyRequestDto tryResolveAnomalyRequestDto:
+                actorPlayerNumericId = tryResolveAnomalyRequestDto.actorPlayerNumericId;
+                return true;
             case ServerSubmitDefenseRequestDto submitDefenseRequestDto:
                 actorPlayerNumericId = submitDefenseRequestDto.actorPlayerNumericId;
                 return true;
@@ -421,6 +449,9 @@ public sealed class ServerSocketActionRouter
                 return true;
             case ServerDebugPutTreasureOnTopByDefinitionRequestDto debugPutTreasureOnTopByDefinitionRequestDto:
                 actorPlayerNumericId = debugPutTreasureOnTopByDefinitionRequestDto.actorPlayerNumericId;
+                return true;
+            case ServerDebugPutAnomalyOnTopByDefinitionRequestDto debugPutAnomalyOnTopByDefinitionRequestDto:
+                actorPlayerNumericId = debugPutAnomalyOnTopByDefinitionRequestDto.actorPlayerNumericId;
                 return true;
             default:
                 return false;

@@ -7,6 +7,9 @@ public sealed class ProjectionCardViewModel
     public long cardInstanceNumericId;
     public string definitionId = string.Empty;
     public string zoneKey = string.Empty;
+    public long? overlayContainerCardInstanceNumericId;
+    public int? overlayOrderIndex;
+    public int overlayCardCount;
 }
 
 public sealed class ProjectionInteractionViewModel
@@ -36,6 +39,14 @@ public sealed class ProjectionInteractionViewModel
     public long? pendingDamageDefenderPlayerNumericId;
 }
 
+public sealed class ProjectionMarkerViewModel
+{
+    public string markerTypeKey = string.Empty;
+    public int count;
+    public int maxCount;
+    public string displayNameKey = string.Empty;
+}
+
 public sealed class ProjectionPlayerSummaryViewModel
 {
     public long playerNumericId;
@@ -55,6 +66,10 @@ public sealed class ProjectionPlayerSummaryViewModel
     public int? activeCharacterMaxHp;
     public readonly List<string> playerStatusKeys = new();
     public readonly List<string> activeCharacterStatusKeys = new();
+    public readonly List<string> activeCharacterRaceTags = new();
+    public readonly List<ProjectionMarkerViewModel> activeCharacterMarkers = new();
+    public string activeCharacterFactionKey = string.Empty;
+    public bool activeCharacterIsActivated;
 }
 
 public sealed class ProjectionTeamSummaryViewModel
@@ -62,6 +77,20 @@ public sealed class ProjectionTeamSummaryViewModel
     public long teamNumericId;
     public int leyline;
     public int killScore;
+}
+
+public sealed class ProjectionAnomalyViewModel
+{
+    public bool hasCurrentAnomaly;
+    public string definitionId = string.Empty;
+    public string name = string.Empty;
+    public string arrivalText = string.Empty;
+    public string resolveText = string.Empty;
+    public string oncePerTurnHint = string.Empty;
+    public string resolveConditionKey = string.Empty;
+    public string resolveRewardKey = string.Empty;
+    public int remainingDeckCount;
+    public bool hasResolvedThisTurn;
 }
 
 public sealed class ProjectionViewModel
@@ -86,6 +115,10 @@ public sealed class ProjectionViewModel
     public int? activeCharacterCurrentHp;
     public int? activeCharacterMaxHp;
     public readonly List<string> activeCharacterStatusKeys = new();
+    public readonly List<string> activeCharacterRaceTags = new();
+    public readonly List<ProjectionMarkerViewModel> activeCharacterMarkers = new();
+    public string activeCharacterFactionKey = string.Empty;
+    public bool activeCharacterIsActivated;
 
     public readonly List<ProjectionCardViewModel> handCards = new();
     public readonly List<ProjectionCardViewModel> discardCards = new();
@@ -100,6 +133,7 @@ public sealed class ProjectionViewModel
     public string recentEventTypeKey = string.Empty;
 
     public readonly ProjectionInteractionViewModel interaction = new();
+    public readonly ProjectionAnomalyViewModel currentAnomaly = new();
 
     public static ProjectionViewModel createDefault(long viewerPlayerNumericId)
     {
@@ -131,12 +165,28 @@ public sealed class ProjectionViewModel
             discardCount = discardCount,
             activeCharacterCurrentHp = activeCharacterCurrentHp,
             activeCharacterMaxHp = activeCharacterMaxHp,
+            activeCharacterFactionKey = activeCharacterFactionKey,
+            activeCharacterIsActivated = activeCharacterIsActivated,
             recentEventTypeKey = recentEventTypeKey,
         };
 
         foreach (var statusKey in activeCharacterStatusKeys)
         {
             cloned.activeCharacterStatusKeys.Add(statusKey);
+        }
+        foreach (var raceTag in activeCharacterRaceTags)
+        {
+            cloned.activeCharacterRaceTags.Add(raceTag);
+        }
+        foreach (var marker in activeCharacterMarkers)
+        {
+            cloned.activeCharacterMarkers.Add(new ProjectionMarkerViewModel
+            {
+                markerTypeKey = marker.markerTypeKey,
+                count = marker.count,
+                maxCount = marker.maxCount,
+                displayNameKey = marker.displayNameKey,
+            });
         }
 
         foreach (var card in handCards)
@@ -146,6 +196,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -156,6 +209,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -166,6 +222,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -176,6 +235,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -186,6 +248,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -196,6 +261,9 @@ public sealed class ProjectionViewModel
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
                 zoneKey = card.zoneKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
             });
         }
 
@@ -228,6 +296,8 @@ public sealed class ProjectionViewModel
                 activeCharacterInstanceNumericId = playerSummary.activeCharacterInstanceNumericId,
                 activeCharacterCurrentHp = playerSummary.activeCharacterCurrentHp,
                 activeCharacterMaxHp = playerSummary.activeCharacterMaxHp,
+                activeCharacterFactionKey = playerSummary.activeCharacterFactionKey,
+                activeCharacterIsActivated = playerSummary.activeCharacterIsActivated,
             };
             foreach (var statusKey in playerSummary.playerStatusKeys)
             {
@@ -237,6 +307,20 @@ public sealed class ProjectionViewModel
             {
                 clonedPlayerSummary.activeCharacterStatusKeys.Add(statusKey);
             }
+            foreach (var raceTag in playerSummary.activeCharacterRaceTags)
+            {
+                clonedPlayerSummary.activeCharacterRaceTags.Add(raceTag);
+            }
+            foreach (var marker in playerSummary.activeCharacterMarkers)
+            {
+                clonedPlayerSummary.activeCharacterMarkers.Add(new ProjectionMarkerViewModel
+                {
+                    markerTypeKey = marker.markerTypeKey,
+                    count = marker.count,
+                    maxCount = marker.maxCount,
+                    displayNameKey = marker.displayNameKey,
+                });
+            }
 
             cloned.playerSummaries.Add(clonedPlayerSummary);
         }
@@ -245,6 +329,17 @@ public sealed class ProjectionViewModel
         {
             cloned.eventLog.Add(eventLine);
         }
+
+        cloned.currentAnomaly.hasCurrentAnomaly = currentAnomaly.hasCurrentAnomaly;
+        cloned.currentAnomaly.definitionId = currentAnomaly.definitionId;
+        cloned.currentAnomaly.name = currentAnomaly.name;
+        cloned.currentAnomaly.arrivalText = currentAnomaly.arrivalText;
+        cloned.currentAnomaly.resolveText = currentAnomaly.resolveText;
+        cloned.currentAnomaly.oncePerTurnHint = currentAnomaly.oncePerTurnHint;
+        cloned.currentAnomaly.resolveConditionKey = currentAnomaly.resolveConditionKey;
+        cloned.currentAnomaly.resolveRewardKey = currentAnomaly.resolveRewardKey;
+        cloned.currentAnomaly.remainingDeckCount = currentAnomaly.remainingDeckCount;
+        cloned.currentAnomaly.hasResolvedThisTurn = currentAnomaly.hasResolvedThisTurn;
 
         cloned.interaction.hasInputContext = interaction.hasInputContext;
         cloned.interaction.inputContextNumericId = interaction.inputContextNumericId;

@@ -19,11 +19,25 @@ public sealed class ZoneMovementService
         var toZoneState = gameState.zones[targetZoneId];
 
         ZoneMovementRuleGuard.ensureCoreMoveReasonRouteOrThrow(fromZoneState.zoneType, toZoneState.zoneType, moveReason);
+        TreasureStaticMovementRuleGuard.ensureTreasureStaticMovementRestrictionsOrThrow(
+            cardInstance,
+            fromZoneState.zoneType,
+            toZoneState.zoneType,
+            moveReason);
 
         fromZoneState.cardInstanceIds.Remove(cardInstance.cardInstanceId);
         toZoneState.cardInstanceIds.Add(cardInstance.cardInstanceId);
         cardInstance.zoneId = targetZoneId;
         cardInstance.zoneKey = toZoneState.zoneType;
+        if (toZoneState.zoneType != ZoneKey.overlayContainer)
+        {
+            cardInstance.overlayContainerCardInstanceId = null;
+            cardInstance.overlayOrderIndex = null;
+        }
+        if (toZoneState.zoneType != ZoneKey.characterSetAside)
+        {
+            cardInstance.isSetAside = false;
+        }
 
         return new CardMovedEvent
         {

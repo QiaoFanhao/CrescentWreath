@@ -194,6 +194,56 @@ public class ServerSocketActionRouterTests
     }
 
     [Fact]
+    public void RouteMessage_WhenTryResolveAnomalyPayloadIsValid_ShouldReachRuleCoreAndReturnProjection()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var router = new ServerSocketActionRouter(session);
+        var actorPlayerNumericId = session.gameState.turnState!.currentPlayerId.Value;
+        var requestJson = serializeEnvelope(new
+        {
+            requestId = 910104L,
+            viewerPlayerNumericId = actorPlayerNumericId,
+            actionType = "tryResolveAnomaly",
+            payload = new
+            {
+                actorPlayerNumericId,
+            },
+        });
+
+        var response = router.routeMessage(requestJson);
+
+        Assert.NotNull(response.stateProjection);
+        Assert.NotNull(response.stateProjection!.currentAnomaly);
+        Assert.False(string.IsNullOrWhiteSpace(response.stateProjection.currentAnomaly!.definitionId));
+        Assert.NotEqual(ServerSocketActionRouter.ErrorCodeUnsupportedActionType, response.error?.code);
+        Assert.NotEqual(ServerSocketActionRouter.ErrorCodeInvalidPayload, response.error?.code);
+    }
+
+    [Fact]
+    public void RouteMessage_WhenTryResolveAnomalyPayloadIsMissingActor_ShouldReturnInvalidPayload()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var router = new ServerSocketActionRouter(session);
+        var actorPlayerNumericId = session.gameState.turnState!.currentPlayerId.Value;
+        var requestJson = serializeEnvelope(new
+        {
+            requestId = 910105L,
+            viewerPlayerNumericId = actorPlayerNumericId,
+            actionType = "tryResolveAnomaly",
+            payload = new
+            {
+                targetPlayerNumericId = 2L,
+            },
+        });
+
+        var response = router.routeMessage(requestJson);
+
+        Assert.False(response.isSucceeded);
+        Assert.NotNull(response.error);
+        Assert.Equal(ServerSocketActionRouter.ErrorCodeInvalidPayload, response.error!.code);
+    }
+
+    [Fact]
     public void RouteMessage_WhenDebugWindowOpenedThenSubmitResponseNo_ShouldSucceedAndCloseWindow()
     {
         var session = ServerGameSession.createStandard2v2();

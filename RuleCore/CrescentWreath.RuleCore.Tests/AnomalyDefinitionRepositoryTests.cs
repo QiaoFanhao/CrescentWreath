@@ -30,6 +30,20 @@ public class AnomalyDefinitionRepositoryTests
     }
 
     [Fact]
+    public void ResolveByDefinitionId_WhenKnownAnomalies_ShouldExposeDisplayTexts()
+    {
+        for (var i = 1; i <= 10; i++)
+        {
+            var definition = AnomalyDefinitionRepository.resolveByDefinitionId($"A{i:000}");
+
+            Assert.False(string.IsNullOrWhiteSpace(definition.name));
+            Assert.False(string.IsNullOrWhiteSpace(definition.arrivalText));
+            Assert.False(string.IsNullOrWhiteSpace(definition.resolveText));
+            Assert.False(string.IsNullOrWhiteSpace(definition.sourceHeaderRaw));
+        }
+    }
+
+    [Fact]
     public void ResolveByDefinitionId_WhenUnknown_ShouldReturnDefaultShape()
     {
         var definition = AnomalyDefinitionRepository.resolveByDefinitionId("A999");
@@ -59,7 +73,7 @@ public class AnomalyDefinitionRepositoryTests
         Assert.Equal("none", definition.resolveRewardKey);
         Assert.Equal(8, definition.resolveManaCost);
         Assert.Single(definition.arrivalSteps);
-        Assert.Equal("legacyNoop", definition.arrivalSteps[0].arrivalStepKey);
+        Assert.Equal("a002ArrivalParallelDirectSummonChoice", definition.arrivalSteps[0].arrivalStepKey);
         Assert.Single(definition.conditionSteps);
         Assert.Equal("actorManaAtLeast", definition.conditionSteps[0].conditionStepKey);
         Assert.Single(definition.rewardSteps);

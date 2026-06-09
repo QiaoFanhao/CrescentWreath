@@ -14,7 +14,8 @@ public static class AnomalyResolveFinalizeHelper
         AnomalyDefinition currentAnomalyDefinition,
         Func<bool> flipNextAnomalyAction,
         string turnStateMissingErrorMessage,
-        bool appendAttemptedSuccessEvent = true)
+        bool appendAttemptedSuccessEvent = true,
+        bool appendRewardPlaceholderEvent = false)
     {
         if (appendAttemptedSuccessEvent)
         {
@@ -36,6 +37,23 @@ public static class AnomalyResolveFinalizeHelper
             sourceActionChainId = actionChainState.actionChainId,
             anomalyDefinitionId = currentAnomalyDefinition.definitionId,
         });
+        gameState.resolvedAnomalyDefinitionIds.Add(currentAnomalyDefinition.definitionId);
+
+        if (appendRewardPlaceholderEvent)
+        {
+            var anomalyName = !string.IsNullOrWhiteSpace(currentAnomalyDefinition.name)
+                ? currentAnomalyDefinition.name
+                : currentAnomalyDefinition.definitionId;
+            actionChainState.producedEvents.Add(new AnomalyRewardPlaceholderEvent
+            {
+                eventId = requestId,
+                eventTypeKey = "anomalyRewardPlaceholder",
+                sourceActionChainId = actionChainState.actionChainId,
+                anomalyDefinitionId = currentAnomalyDefinition.definitionId,
+                anomalyName = anomalyName,
+                message = $"{anomalyName}已解决，结算奖励",
+            });
+        }
 
         if (gameState.turnState is null)
         {

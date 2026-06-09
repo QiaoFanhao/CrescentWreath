@@ -21,6 +21,8 @@ public static class AnomalyValidationFailureKeys
 
     public const string RewardStatusKeyMissing = "rewardStatusKeyMissing";
     public const string InsufficientFriendlyHandCards = "insufficientFriendlyHandCards";
+    public const string ActorCannotPaySkillPointCard = "actorCannotPaySkillPointCard";
+    public const string FriendlyCannotPaySkillPointCard = "friendlyCannotPaySkillPointCard";
     public const string AnomalyConditionInputRequired = "anomalyConditionInputRequired";
     public const string RewardSourceZoneUnsupported = "rewardSourceZoneUnsupported";
     public const string RewardTargetZoneUnsupported = "rewardTargetZoneUnsupported";

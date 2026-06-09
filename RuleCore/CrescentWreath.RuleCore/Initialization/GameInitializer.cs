@@ -18,11 +18,21 @@ public sealed class GameInitializer
     private static readonly object SharedRandomLock = new();
     private const string MagicCircuitDefinitionId = "starter:magicCircuit";
     private const string KourindouCouponDefinitionId = "starter:kourindouCoupon";
-    private const string ActiveCharacterDefinitionId = "starter:activeCharacter";
+    private const string ReimuDefinitionId = "C001";
+    private const string AyaDefinitionId = "C016";
+    private const string YoumuDefinitionId = "C005";
+    private const string AkihaDefinitionId = "C010";
     private const string SakuraCakeDefinitionId = "S001";
+    private const string FateStayNightAnomalyDefinitionId = "A010";
     private const int SakuraCakeInitialCount = 15;
+    private const int MaxInitialAnomalyShuffleAttempts = 32;
+    private const string RaceTagHuman = "human";
+    private const string RaceTagNonHuman = "nonHuman";
 
-    public GameState.GameState createStandard2v2MatchState(int? publicDeckShuffleSeed = null)
+    public GameState.GameState createStandard2v2MatchState(
+        int? publicDeckShuffleSeed = null,
+        int? starterDeckShuffleSeed = null,
+        int? anomalyDeckShuffleSeed = null)
     {
         var gameState = new GameState.GameState();
 
@@ -37,7 +47,7 @@ public sealed class GameInitializer
         initializeMatchMeta(gameState, teamAId, teamBId, playerA1Id, playerB1Id, playerA2Id, playerB2Id);
         initializeTeams(gameState, teamAId, teamBId, playerA1Id, playerA2Id, playerB1Id, playerB2Id);
         initializeTurnState(gameState);
-        initializeAnomalyState(gameState);
+        initializeAnomalyState(gameState, anomalyDeckShuffleSeed);
 
         var playerA1State = createPlayerWithZones(gameState, playerA1Id, teamAId, 1000);
         var playerB1State = createPlayerWithZones(gameState, playerB1Id, teamBId, 2000);
@@ -48,10 +58,11 @@ public sealed class GameInitializer
         createInitialActiveCharacters(gameState, playerA1State, playerB1State, playerA2State, playerB2State);
 
         var nextCardInstanceId = 100000L;
-        createStarterDeckAndDraw(gameState, playerA1State, ref nextCardInstanceId);
-        createStarterDeckAndDraw(gameState, playerB1State, ref nextCardInstanceId);
-        createStarterDeckAndDraw(gameState, playerA2State, ref nextCardInstanceId);
-        createStarterDeckAndDraw(gameState, playerB2State, ref nextCardInstanceId);
+        var effectiveStarterDeckShuffleSeed = starterDeckShuffleSeed ?? publicDeckShuffleSeed;
+        createStarterDeckAndDraw(gameState, playerA1State, ref nextCardInstanceId, effectiveStarterDeckShuffleSeed);
+        createStarterDeckAndDraw(gameState, playerB1State, ref nextCardInstanceId, effectiveStarterDeckShuffleSeed);
+        createStarterDeckAndDraw(gameState, playerA2State, ref nextCardInstanceId, effectiveStarterDeckShuffleSeed);
+        createStarterDeckAndDraw(gameState, playerB2State, ref nextCardInstanceId, effectiveStarterDeckShuffleSeed);
         initializePublicTreasureDeckAndSummonZone(gameState, ref nextCardInstanceId, publicDeckShuffleSeed);
         initializeSakuraCakeDeck(gameState, ref nextCardInstanceId);
 
@@ -107,9 +118,9 @@ public sealed class GameInitializer
         };
     }
 
-    private static void initializeAnomalyState(GameState.GameState gameState)
+    private static void initializeAnomalyState(GameState.GameState gameState, int? anomalyDeckShuffleSeed)
     {
-        var anomalyDeckDefinitionIds = new List<string>(AnomalyDefinitionRepository.getInitialDeckDefinitionIds());
+        var anomalyDeckDefinitionIds = createShuffledInitialAnomalyDeckDefinitionIds(anomalyDeckShuffleSeed);
         var currentAnomalyDefinitionId = anomalyDeckDefinitionIds.Count > 0
             ? anomalyDeckDefinitionIds[0]
             : null;
@@ -125,7 +136,40 @@ public sealed class GameInitializer
         };
         currentAnomalyState.anomalyDeckDefinitionIds.AddRange(anomalyDeckDefinitionIds);
 
+        // The setup flip only reveals the starting anomaly; arrival effects are only executed
+        // by normal anomaly flips after the game has begun.
         gameState.currentAnomalyState = currentAnomalyState;
+    }
+
+    private static List<string> createShuffledInitialAnomalyDeckDefinitionIds(int? anomalyDeckShuffleSeed)
+    {
+        var initialDefinitionIds = AnomalyDefinitionRepository.getInitialDeckDefinitionIds();
+        var anomalyDeckDefinitionIds = new List<string>(initialDefinitionIds);
+
+        for (var attemptIndex = 0; attemptIndex < MaxInitialAnomalyShuffleAttempts; attemptIndex++)
+        {
+            anomalyDeckDefinitionIds = new List<string>(initialDefinitionIds);
+            int? attemptSeed = anomalyDeckShuffleSeed.HasValue
+                ? unchecked(anomalyDeckShuffleSeed.Value + attemptIndex)
+                : null;
+            shuffleDefinitionIdsInPlace(anomalyDeckDefinitionIds, attemptSeed);
+
+            if (anomalyDeckDefinitionIds.Count == 0 ||
+                !string.Equals(anomalyDeckDefinitionIds[0], FateStayNightAnomalyDefinitionId, StringComparison.Ordinal))
+            {
+                return anomalyDeckDefinitionIds;
+            }
+        }
+
+        var replacementIndex = anomalyDeckDefinitionIds.FindIndex(
+            definitionId => !string.Equals(definitionId, FateStayNightAnomalyDefinitionId, StringComparison.Ordinal));
+        if (replacementIndex > 0)
+        {
+            (anomalyDeckDefinitionIds[0], anomalyDeckDefinitionIds[replacementIndex]) =
+                (anomalyDeckDefinitionIds[replacementIndex], anomalyDeckDefinitionIds[0]);
+        }
+
+        return anomalyDeckDefinitionIds;
     }
 
     private static void initializeTeams(
@@ -233,16 +277,43 @@ public sealed class GameInitializer
         var characterInstance = new CharacterInstance
         {
             characterInstanceId = characterInstanceId,
-            definitionId = ActiveCharacterDefinitionId,
+            definitionId = resolveTemporaryStarterCharacterDefinitionId(playerState.playerId),
             ownerPlayerId = playerState.playerId,
             currentHp = 4,
             maxHp = 4,
             isAlive = true,
             isInPlay = true,
         };
+        characterInstance.raceTags.AddRange(resolveTemporaryStarterCharacterRaceTags(playerState.playerId));
 
         gameState.characterInstances.Add(characterInstanceId, characterInstance);
         playerState.activeCharacterInstanceId = characterInstanceId;
+    }
+
+    private static IReadOnlyList<string> resolveTemporaryStarterCharacterRaceTags(PlayerId playerId)
+    {
+        // Temporary bridge default until the formal character selection module owns initial character definitions.
+        return playerId.Value switch
+        {
+            1 => new[] { RaceTagHuman },
+            2 => new[] { RaceTagNonHuman },
+            3 => new[] { RaceTagHuman, RaceTagNonHuman },
+            4 => new[] { RaceTagHuman, RaceTagNonHuman },
+            _ => Array.Empty<string>(),
+        };
+    }
+
+    private static string resolveTemporaryStarterCharacterDefinitionId(PlayerId playerId)
+    {
+        // Temporary bridge default until the formal character selection module owns initial character selection.
+        return playerId.Value switch
+        {
+            1 => ReimuDefinitionId,
+            2 => AyaDefinitionId,
+            3 => YoumuDefinitionId,
+            4 => AkihaDefinitionId,
+            _ => ReimuDefinitionId,
+        };
     }
 
     private static void createZone(
@@ -266,10 +337,14 @@ public sealed class GameInitializer
     private static void createStarterDeckAndDraw(
         GameState.GameState gameState,
         PlayerState playerState,
-        ref long nextCardInstanceId)
+        ref long nextCardInstanceId,
+        int? starterDeckShuffleSeed)
     {
         createStarterCards(gameState, playerState, MagicCircuitDefinitionId, 3, ref nextCardInstanceId);
         createStarterCards(gameState, playerState, KourindouCouponDefinitionId, 7, ref nextCardInstanceId);
+        shuffleCardInstanceIdsInPlace(
+            gameState.zones[playerState.deckZoneId].cardInstanceIds,
+            createPlayerStarterDeckShuffleSeed(starterDeckShuffleSeed, playerState.playerId));
         drawCards(gameState, playerState, StartingHandCount);
     }
 
@@ -401,6 +476,25 @@ public sealed class GameInitializer
                 : nextSharedRandom(index + 1);
             (definitionIds[index], definitionIds[randomIndex]) = (definitionIds[randomIndex], definitionIds[index]);
         }
+    }
+
+    private static void shuffleCardInstanceIdsInPlace(List<CardInstanceId> cardInstanceIds, int? seed)
+    {
+        var random = seed.HasValue ? new Random(seed.Value) : null;
+        for (var index = cardInstanceIds.Count - 1; index > 0; index--)
+        {
+            var randomIndex = random is not null
+                ? random.Next(index + 1)
+                : nextSharedRandom(index + 1);
+            (cardInstanceIds[index], cardInstanceIds[randomIndex]) = (cardInstanceIds[randomIndex], cardInstanceIds[index]);
+        }
+    }
+
+    private static int? createPlayerStarterDeckShuffleSeed(int? starterDeckShuffleSeed, PlayerId playerId)
+    {
+        return starterDeckShuffleSeed.HasValue
+            ? unchecked(starterDeckShuffleSeed.Value + (int)(playerId.Value * 7919))
+            : null;
     }
 
     private static int nextSharedRandom(int maxExclusive)

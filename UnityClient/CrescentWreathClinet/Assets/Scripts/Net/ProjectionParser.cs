@@ -47,6 +47,7 @@ public static class ProjectionParser
 
             fillTeamSummaries(projection, response.stateProjection?.teams);
             fillPlayerSummaries(projection, response.stateProjection?.players, response.stateProjection?.characters);
+            fillCurrentAnomaly(projection, response.stateProjection?.currentAnomaly);
 
             var viewerPlayer = response.stateProjection?.players?
                 .FirstOrDefault(player => player is not null && player.playerNumericId == resolvedViewerPlayerNumericId);
@@ -76,11 +77,21 @@ public static class ProjectionParser
                     {
                         projection.activeCharacterCurrentHp = activeCharacter.currentHp;
                         projection.activeCharacterMaxHp = activeCharacter.maxHp;
+                        projection.activeCharacterFactionKey = activeCharacter.factionKey ?? string.Empty;
+                        projection.activeCharacterIsActivated = activeCharacter.isActivated;
+                        if (activeCharacter.raceTags is not null)
+                        {
+                            projection.activeCharacterRaceTags.AddRange(
+                                activeCharacter.raceTags.Where(raceTag => !string.IsNullOrWhiteSpace(raceTag)));
+                        }
+
                         if (activeCharacter.statusKeys is not null)
                         {
                             projection.activeCharacterStatusKeys.AddRange(
                                 activeCharacter.statusKeys.Where(statusKey => !string.IsNullOrWhiteSpace(statusKey)));
                         }
+
+                        fillMarkers(projection.activeCharacterMarkers, activeCharacter.markers);
                     }
                 }
             }
@@ -122,6 +133,11 @@ public static class ProjectionParser
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId ?? string.Empty,
                 zoneKey = card.zoneKey ?? string.Empty,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId > 0
+                    ? card.overlayContainerCardInstanceNumericId
+                    : null,
+                overlayOrderIndex = card.overlayContainerCardInstanceNumericId > 0 ? card.overlayOrderIndex : null,
+                overlayCardCount = card.overlayCardCount,
             });
         }
     }
@@ -212,6 +228,21 @@ public static class ProjectionParser
                 {
                     summary.activeCharacterCurrentHp = activeCharacter.currentHp;
                     summary.activeCharacterMaxHp = activeCharacter.maxHp;
+                    summary.activeCharacterFactionKey = activeCharacter.factionKey ?? string.Empty;
+                    summary.activeCharacterIsActivated = activeCharacter.isActivated;
+                    if (activeCharacter.raceTags is not null)
+                    {
+                        foreach (var raceTag in activeCharacter.raceTags)
+                        {
+                            if (string.IsNullOrWhiteSpace(raceTag))
+                            {
+                                continue;
+                            }
+
+                            summary.activeCharacterRaceTags.Add(raceTag);
+                        }
+                    }
+
                     if (activeCharacter.statusKeys is not null)
                     {
                         foreach (var statusKey in activeCharacter.statusKeys)
@@ -224,11 +255,60 @@ public static class ProjectionParser
                             summary.activeCharacterStatusKeys.Add(statusKey);
                         }
                     }
+
+                    fillMarkers(summary.activeCharacterMarkers, activeCharacter.markers);
                 }
             }
 
             projection.playerSummaries.Add(summary);
         }
+    }
+
+    private static void fillMarkers(
+        System.Collections.Generic.List<ProjectionMarkerViewModel> targetMarkers,
+        MarkerProjectionDto[]? markers)
+    {
+        if (markers is null)
+        {
+            return;
+        }
+
+        foreach (var marker in markers)
+        {
+            if (marker is null ||
+                string.IsNullOrWhiteSpace(marker.markerTypeKey) ||
+                marker.count <= 0)
+            {
+                continue;
+            }
+
+            targetMarkers.Add(new ProjectionMarkerViewModel
+            {
+                markerTypeKey = marker.markerTypeKey ?? string.Empty,
+                count = marker.count,
+                maxCount = marker.maxCount,
+                displayNameKey = marker.displayNameKey ?? marker.markerTypeKey ?? string.Empty,
+            });
+        }
+    }
+
+    private static void fillCurrentAnomaly(ProjectionViewModel projection, AnomalyProjectionDto? currentAnomaly)
+    {
+        if (currentAnomaly is null || string.IsNullOrWhiteSpace(currentAnomaly.definitionId))
+        {
+            return;
+        }
+
+        projection.currentAnomaly.hasCurrentAnomaly = true;
+        projection.currentAnomaly.definitionId = currentAnomaly.definitionId ?? string.Empty;
+        projection.currentAnomaly.name = currentAnomaly.name ?? string.Empty;
+        projection.currentAnomaly.arrivalText = currentAnomaly.arrivalText ?? string.Empty;
+        projection.currentAnomaly.resolveText = currentAnomaly.resolveText ?? string.Empty;
+        projection.currentAnomaly.oncePerTurnHint = currentAnomaly.oncePerTurnHint ?? string.Empty;
+        projection.currentAnomaly.resolveConditionKey = currentAnomaly.resolveConditionKey ?? string.Empty;
+        projection.currentAnomaly.resolveRewardKey = currentAnomaly.resolveRewardKey ?? string.Empty;
+        projection.currentAnomaly.remainingDeckCount = currentAnomaly.remainingDeckCount;
+        projection.currentAnomaly.hasResolvedThisTurn = currentAnomaly.hasResolvedThisTurn;
     }
 
     private static void fillInteraction(ProjectionViewModel projection, InteractionDto? interaction)
@@ -373,6 +453,16 @@ public static class ProjectionParser
             eventLine += $" card={eventEntry.cardInstanceNumericId}";
         }
 
+        if (!string.IsNullOrWhiteSpace(eventEntry.definitionId))
+        {
+            eventLine += $" definition={eventEntry.definitionId}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(eventEntry.revealReasonKey))
+        {
+            eventLine += $" reveal={eventEntry.revealReasonKey}";
+        }
+
         if (!string.IsNullOrWhiteSpace(eventEntry.moveReason))
         {
             eventLine += $" move={eventEntry.moveReason}";
@@ -381,6 +471,11 @@ public static class ProjectionParser
         if (eventEntry.finalDamageValue.HasValue)
         {
             eventLine += $" dmg={eventEntry.finalDamageValue.Value}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(eventEntry.message))
+        {
+            eventLine += $" message={eventEntry.message}";
         }
 
         return eventLine;
@@ -411,7 +506,22 @@ public static class ProjectionParser
         public TeamProjectionDto[]? teams;
         public PlayerProjectionDto[]? players;
         public PublicZonesProjectionDto? publicZones;
+        public AnomalyProjectionDto? currentAnomaly;
         public CharacterProjectionDto[]? characters;
+    }
+
+    [Serializable]
+    private sealed class AnomalyProjectionDto
+    {
+        public string? definitionId;
+        public string? name;
+        public string? arrivalText;
+        public string? resolveText;
+        public string? oncePerTurnHint;
+        public string? resolveConditionKey;
+        public string? resolveRewardKey;
+        public int remainingDeckCount;
+        public bool hasResolvedThisTurn;
     }
 
     [Serializable]
@@ -460,9 +570,22 @@ public static class ProjectionParser
     private sealed class CharacterProjectionDto
     {
         public long characterInstanceNumericId;
+        public string? factionKey;
         public int currentHp;
         public int maxHp;
+        public bool isActivated;
+        public string[]? raceTags;
         public string[]? statusKeys;
+        public MarkerProjectionDto[]? markers;
+    }
+
+    [Serializable]
+    private sealed class MarkerProjectionDto
+    {
+        public string? markerTypeKey;
+        public int count;
+        public int maxCount;
+        public string? displayNameKey;
     }
 
     [Serializable]
@@ -478,6 +601,9 @@ public static class ProjectionParser
         public long cardInstanceNumericId;
         public string? definitionId;
         public string? zoneKey;
+        public long overlayContainerCardInstanceNumericId;
+        public int overlayOrderIndex;
+        public int overlayCardCount;
     }
 
     [Serializable]
@@ -524,8 +650,11 @@ public static class ProjectionParser
         public string eventTypeKey = string.Empty;
         public string? eventType;
         public long cardInstanceNumericId;
+        public string? definitionId;
+        public string? revealReasonKey;
         public string? moveReason;
         public int? finalDamageValue;
+        public string? message;
     }
 }
 }

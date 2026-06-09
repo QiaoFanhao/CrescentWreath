@@ -12,6 +12,8 @@ public sealed class CharacterInstance
     public int maxHp { get; set; } = 4;
     public bool isAlive { get; set; }
     public bool isInPlay { get; set; }
+    public bool isActivated { get; set; }
     public bool hasPendingOnKilledReplacement { get; set; }
     public List<string> raceTags { get; set; } = new();
+    public MarkerState markerState { get; set; } = new();
 }

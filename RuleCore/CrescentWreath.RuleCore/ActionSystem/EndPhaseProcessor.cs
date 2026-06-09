@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
@@ -319,6 +319,40 @@ public sealed class EndPhaseProcessor
                 eventId);
             actionChainState.producedEvents.Add(discardEvent);
             fieldCardInstance.isDefensePlacedOnField = false;
+
+            appendOverlayCardsToDiscardWithContainerAtEnd(
+                gameState,
+                actionChainState,
+                fieldCardInstance,
+                actorPlayerState,
+                eventId);
+        }
+    }
+
+    private void appendOverlayCardsToDiscardWithContainerAtEnd(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        CardInstance containerCardInstance,
+        PlayerState actorPlayerState,
+        long eventId)
+    {
+        var overlayCardInstanceIds = new List<CardInstanceId>(
+            OverlayRuntime.getOverlayCardInstanceIds(gameState, containerCardInstance.cardInstanceId));
+        foreach (var overlayCardInstanceId in overlayCardInstanceIds)
+        {
+            if (!gameState.cardInstances.TryGetValue(overlayCardInstanceId, out var overlayCardInstance))
+            {
+                throw new InvalidOperationException("End phase overlay cleanup requires all overlay card instances to exist.");
+            }
+
+            var overlayDiscardEvent = zoneMovementService.moveCard(
+                gameState,
+                overlayCardInstance,
+                actorPlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                eventId);
+            actionChainState.producedEvents.Add(overlayDiscardEvent);
         }
     }
 
@@ -393,7 +427,7 @@ public sealed class EndPhaseProcessor
         {
             if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
             {
-                var discardCardIdsInCurrentOrder = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+                var discardCardIdsInCurrentOrder = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
                 foreach (var cardInstanceId in discardCardIdsInCurrentOrder)
                 {
                     var discardedCardInstance = gameState.cardInstances[cardInstanceId];

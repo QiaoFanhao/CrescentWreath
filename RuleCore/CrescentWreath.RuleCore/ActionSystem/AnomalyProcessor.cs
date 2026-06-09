@@ -7,6 +7,7 @@ using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
 using CrescentWreath.RuleCore.ResponseSystem;
+using CrescentWreath.RuleCore.StatusSystem;
 using CrescentWreath.RuleCore.Zones;
 
 namespace CrescentWreath.RuleCore.ActionSystem;
@@ -14,7 +15,7 @@ namespace CrescentWreath.RuleCore.ActionSystem;
 public sealed class AnomalyProcessor
 {
     public const string ContinuationKeyA002ConditionFriendlyDiscardFromHand = "continuation:anomalyA002ConditionFriendlyDiscardFromHand";
-    public const string ContinuationKeyA005ConditionDefenseLikePlace = "continuation:anomalyA005ConditionDefenseLikePlace";
+    public const string ContinuationKeyA005ConditionDefenseLikePlace = AnomalyA005Runtime.ConditionContinuationKey;
     public const string ContinuationKeyA005SelectSummonCardToHand = "continuation:anomalyA005SelectSummonCardToHand";
     public const string ContinuationKeyA005ArrivalDirectSummonFromSummonZone = "continuation:anomalyA005ArrivalDirectSummonFromSummonZone";
     public const string ContinuationKeyA003ArrivalSelectOpponentShackle = "continuation:anomalyA003ArrivalSelectOpponentShackle";
@@ -29,20 +30,46 @@ public sealed class AnomalyProcessor
     public const string ContinuationKeyA002RewardSelectFirstBanishCard = "continuation:anomalyA002RewardSelectFirstBanishCard";
     public const string ContinuationKeyA002RewardSelectSecondBanishCard = "continuation:anomalyA002RewardSelectSecondBanishCard";
     public const string ContinuationKeyA002RewardOptionalSakuraReplacement = "continuation:anomalyA002RewardOptionalSakuraReplacement";
+    public const string ContinuationKeyA001RewardOptionalShackleOpponents = "continuation:anomalyA001RewardOptionalShackleOpponents";
+    public const string ContinuationKeyA002ArrivalParallelDirectSummonChoice = "continuation:anomalyA002ArrivalParallelDirectSummonChoice";
+    public const string ContinuationKeyA004ArrivalReturnDefenseCards = AnomalyA004Runtime.ArrivalContinuationKey;
+    public const string ContinuationKeyA004ConditionDiscardSkillPointCards = AnomalyA004Runtime.ConditionContinuationKey;
+    public const string ContinuationKeyA006ConditionOpponentActivation = AnomalyA006Runtime.ConditionActivationContinuationKey;
+    public const string ContinuationKeyA006RewardOpponentHumanDiscard = AnomalyA006Runtime.RewardHumanDiscardContinuationKey;
+    public const string ContinuationKeyA007ArrivalHandBanish = AnomalyA007A008Runtime.A007ArrivalHandBanishContinuationKey;
+    public const string ContinuationKeyA007ArrivalRinDiscardBanish = AnomalyA007A008Runtime.A007ArrivalRinDiscardBanishContinuationKey;
+    public const string ContinuationKeyA007ConditionOpponentOptionalDraw = AnomalyA007A008Runtime.A007ConditionOpponentOptionalDrawContinuationKey;
+    public const string ContinuationKeyA007RewardTargetCharm = AnomalyA007A008Runtime.A007RewardTargetCharmContinuationKey;
+    public const string ContinuationKeyA008ConditionOpponentOptionalDiscardReturnParallel = AnomalyA007A008Runtime.A008ConditionOpponentOptionalDiscardReturnContinuationKey;
+    public const string ContinuationKeyA008RewardTargetShackle = AnomalyA007A008Runtime.A008RewardTargetShackleContinuationKey;
+    public const string ContinuationKeyA010ArrivalSetAside = AnomalyA010Runtime.ContinuationKeyArrivalSetAside;
+    public const string ContinuationKeyA010KillBanishSetAside = AnomalyA010Runtime.ContinuationKeyKillBanishSetAside;
+    public const string ContinuationKeyA010RewardChooseTwo = AnomalyA010Runtime.ContinuationKeyRewardChooseTwo;
+    public const string ContinuationKeyA010RewardSelectSummonToHand = AnomalyA010Runtime.ContinuationKeyRewardSelectSummonToHand;
 
     private const string A001DefinitionId = "A001";
     private const string A002DefinitionId = "A002";
     private const string A003DefinitionId = "A003";
+    private const string A004DefinitionId = "A004";
     private const string A005DefinitionId = "A005";
     private const string A006DefinitionId = "A006";
     private const string A007DefinitionId = "A007";
     private const string A008DefinitionId = "A008";
     private const string A009DefinitionId = "A009";
+    private const string A010DefinitionId = "A010";
+    private const string KazamiYuukaDefinitionId = "C023";
+    private const string StatusKeyShackle = "Shackle";
+    private const int LeylineMaxValue = 5;
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly AnomalyArrivalInputRuntime anomalyArrivalInputRuntime;
     private readonly AnomalyConditionInputRuntime anomalyConditionInputRuntime;
     private readonly AnomalyRewardInputRuntime anomalyRewardInputRuntime;
+    private readonly AnomalyA004Runtime anomalyA004Runtime;
+    private readonly AnomalyA005Runtime anomalyA005Runtime;
+    private readonly AnomalyA006Runtime anomalyA006Runtime;
+    private readonly AnomalyA007A008Runtime anomalyA007A008Runtime;
+    private readonly AnomalyA010Runtime anomalyA010Runtime;
 
     public AnomalyProcessor(ZoneMovementService zoneMovementService, Func<long> nextInputContextIdSupplier)
     {
@@ -50,6 +77,11 @@ public sealed class AnomalyProcessor
         anomalyArrivalInputRuntime = new AnomalyArrivalInputRuntime(zoneMovementService, nextInputContextIdSupplier);
         anomalyConditionInputRuntime = new AnomalyConditionInputRuntime(zoneMovementService, nextInputContextIdSupplier);
         anomalyRewardInputRuntime = new AnomalyRewardInputRuntime(zoneMovementService, nextInputContextIdSupplier);
+        anomalyA004Runtime = new AnomalyA004Runtime(zoneMovementService, nextInputContextIdSupplier);
+        anomalyA005Runtime = new AnomalyA005Runtime(zoneMovementService, nextInputContextIdSupplier);
+        anomalyA006Runtime = new AnomalyA006Runtime(zoneMovementService, nextInputContextIdSupplier);
+        anomalyA007A008Runtime = new AnomalyA007A008Runtime(zoneMovementService, nextInputContextIdSupplier);
+        anomalyA010Runtime = new AnomalyA010Runtime(zoneMovementService, nextInputContextIdSupplier);
     }
 
     public List<GameEvent> processTryResolveAnomalyActionRequest(
@@ -97,6 +129,11 @@ public sealed class AnomalyProcessor
         }
 
         var currentAnomalyDefinitionId = gameState.currentAnomalyState.currentAnomalyDefinitionId!;
+        if (string.Equals(currentAnomalyDefinitionId, A010DefinitionId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A010 Fate Stay Night can only be resolved by banishing all team CharacterSetAside cards through its kill continuation.");
+        }
+
         var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(currentAnomalyDefinitionId);
 
         var conditionValidationResult = AnomalyResolveConditionRuntime.evaluateCondition(
@@ -108,11 +145,15 @@ public sealed class AnomalyProcessor
         var rewardContextValidationResult = AnomalyValidationResult.passed();
         if (conditionValidationResult.isPassed)
         {
-            rewardContextValidationResult = AnomalyResolveRewardRuntime.evaluateRewardContext(
-                gameState,
-                tryResolveAnomalyActionRequest.actorPlayerId,
-                tryResolveAnomalyActionRequest.targetPlayerId,
-                currentAnomalyDefinition);
+            rewardContextValidationResult =
+                string.Equals(currentAnomalyDefinition.definitionId, A007DefinitionId, StringComparison.Ordinal) ||
+                string.Equals(currentAnomalyDefinition.definitionId, A008DefinitionId, StringComparison.Ordinal)
+                    ? AnomalyValidationResult.passed()
+                    : AnomalyResolveRewardRuntime.evaluateRewardContext(
+                        gameState,
+                        tryResolveAnomalyActionRequest.actorPlayerId,
+                        tryResolveAnomalyActionRequest.targetPlayerId,
+                        currentAnomalyDefinition);
         }
 
         var isResolveSucceeded = conditionValidationResult.isPassed && rewardContextValidationResult.isPassed;
@@ -120,9 +161,13 @@ public sealed class AnomalyProcessor
             ? rewardContextValidationResult.failedReasonKey
             : conditionValidationResult.failedReasonKey;
         List<PlayerId>? a002ConditionFriendlyPlayerIds = null;
+        List<PlayerId>? a004ConditionFriendlyPlayerIds = null;
         List<PlayerId>? a005ConditionFriendlyPlayerIds = null;
+        List<PlayerId>? a006ConditionActivationPlayerIds = null;
         List<PlayerId>? a008ConditionOpponentPlayerIds = null;
         List<PlayerId>? a009ConditionOpponentPlayerIds = null;
+        var shouldOpenA007ConditionOpponentOptionalDraw = false;
+        var shouldOpenA008ConditionOpponentOptionalDiscardReturn = false;
 
         if (isResolveSucceeded &&
             string.Equals(currentAnomalyDefinition.definitionId, A002DefinitionId, StringComparison.Ordinal))
@@ -144,20 +189,51 @@ public sealed class AnomalyProcessor
             }
         }
 
-        if (isResolveSucceeded &&
-            string.Equals(currentAnomalyDefinition.definitionId, A005DefinitionId, StringComparison.Ordinal))
+        if (string.Equals(currentAnomalyDefinition.definitionId, A004DefinitionId, StringComparison.Ordinal))
+        {
+            if (!anomalyA004Runtime.tryPrepareConditionPlayers(
+                    gameState,
+                    tryResolveAnomalyActionRequest.actorPlayerId,
+                    out var preparedFriendlyPlayerIds,
+                    out var a004FailedReasonKey))
+            {
+                isResolveSucceeded = false;
+                failedReasonKey = a004FailedReasonKey;
+            }
+            else if (isResolveSucceeded)
+            {
+                a004ConditionFriendlyPlayerIds = preparedFriendlyPlayerIds;
+                isResolveSucceeded = false;
+                failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
+            }
+        }
+
+        if (string.Equals(currentAnomalyDefinition.definitionId, A005DefinitionId, StringComparison.Ordinal))
         {
             if (!anomalyConditionInputRuntime.tryPrepareA005FriendlyTeamPlayerIdsForConditionInput(
                     gameState,
                     tryResolveAnomalyActionRequest.actorPlayerId,
-                    out a005ConditionFriendlyPlayerIds,
+                    out var preparedFriendlyPlayerIds,
                     out var a005FailedReasonKey))
             {
                 isResolveSucceeded = false;
                 failedReasonKey = a005FailedReasonKey;
-                a005ConditionFriendlyPlayerIds = null;
             }
-            else
+            else if (isResolveSucceeded)
+            {
+                a005ConditionFriendlyPlayerIds = preparedFriendlyPlayerIds;
+                isResolveSucceeded = false;
+                failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
+            }
+        }
+
+        if (isResolveSucceeded &&
+            string.Equals(currentAnomalyDefinition.definitionId, A006DefinitionId, StringComparison.Ordinal))
+        {
+            a006ConditionActivationPlayerIds = anomalyA006Runtime.collectOpponentTmActivationPlayers(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId);
+            if (a006ConditionActivationPlayerIds.Count > 0)
             {
                 isResolveSucceeded = false;
                 failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
@@ -165,23 +241,19 @@ public sealed class AnomalyProcessor
         }
 
         if (isResolveSucceeded &&
+            string.Equals(currentAnomalyDefinition.definitionId, A007DefinitionId, StringComparison.Ordinal))
+        {
+            shouldOpenA007ConditionOpponentOptionalDraw = true;
+            isResolveSucceeded = false;
+            failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
+        }
+
+        if (isResolveSucceeded &&
             string.Equals(currentAnomalyDefinition.definitionId, A008DefinitionId, StringComparison.Ordinal))
         {
-            if (!anomalyConditionInputRuntime.tryPrepareA008OpponentPlayerIdsForConditionInput(
-                    gameState,
-                    tryResolveAnomalyActionRequest.actorPlayerId,
-                    out a008ConditionOpponentPlayerIds,
-                    out var a008FailedReasonKey))
-            {
-                isResolveSucceeded = false;
-                failedReasonKey = a008FailedReasonKey;
-                a008ConditionOpponentPlayerIds = null;
-            }
-            else if (a008ConditionOpponentPlayerIds.Count > 0)
-            {
-                isResolveSucceeded = false;
-                failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
-            }
+            shouldOpenA008ConditionOpponentOptionalDiscardReturn = true;
+            isResolveSucceeded = false;
+            failedReasonKey = AnomalyValidationFailureKeys.AnomalyConditionInputRequired;
         }
 
         if (isResolveSucceeded &&
@@ -232,14 +304,79 @@ public sealed class AnomalyProcessor
             return actionChainState.producedEvents;
         }
 
-        if (a005ConditionFriendlyPlayerIds is not null)
+        if (a004ConditionFriendlyPlayerIds is not null)
         {
-            anomalyConditionInputRuntime.openA005ConditionInputContext(
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            anomalyA004Runtime.openConditionInput(
                 gameState,
                 actionChainState,
-                a005ConditionFriendlyPlayerIds[0],
+                a004ConditionFriendlyPlayerIds,
                 tryResolveAnomalyActionRequest.requestId);
             return actionChainState.producedEvents;
+        }
+
+        if (a005ConditionFriendlyPlayerIds is not null)
+        {
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            anomalyA005Runtime.openConditionInput(
+                gameState,
+                actionChainState,
+                a005ConditionFriendlyPlayerIds,
+                tryResolveAnomalyActionRequest.requestId);
+            return actionChainState.producedEvents;
+        }
+
+        if (a006ConditionActivationPlayerIds is not null &&
+            a006ConditionActivationPlayerIds.Count > 0)
+        {
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            anomalyA006Runtime.openConditionActivationInput(
+                gameState,
+                actionChainState,
+                a006ConditionActivationPlayerIds,
+                tryResolveAnomalyActionRequest.requestId);
+            return actionChainState.producedEvents;
+        }
+
+        if (shouldOpenA007ConditionOpponentOptionalDraw)
+        {
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            if (anomalyA007A008Runtime.tryOpenA007ConditionOpponentOptionalDrawInput(
+                    gameState,
+                    actionChainState,
+                    tryResolveAnomalyActionRequest.actorPlayerId,
+                    tryResolveAnomalyActionRequest.requestId))
+            {
+                return actionChainState.producedEvents;
+            }
+        }
+
+        if (shouldOpenA008ConditionOpponentOptionalDiscardReturn)
+        {
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            if (anomalyA007A008Runtime.tryOpenA008ConditionOpponentDiscardReturnInput(
+                    gameState,
+                    actionChainState,
+                    tryResolveAnomalyActionRequest.actorPlayerId,
+                    tryResolveAnomalyActionRequest.requestId))
+            {
+                return actionChainState.producedEvents;
+            }
         }
 
         if (a008ConditionOpponentPlayerIds is not null &&
@@ -256,10 +393,10 @@ public sealed class AnomalyProcessor
         if (a009ConditionOpponentPlayerIds is not null &&
             a009ConditionOpponentPlayerIds.Count > 0)
         {
-            anomalyConditionInputRuntime.openA009ConditionInputContext(
+            anomalyConditionInputRuntime.openA009ConditionParallelInputContext(
                 gameState,
                 actionChainState,
-                a009ConditionOpponentPlayerIds[0],
+                a009ConditionOpponentPlayerIds,
                 tryResolveAnomalyActionRequest.requestId);
             return actionChainState.producedEvents;
         }
@@ -312,6 +449,52 @@ public sealed class AnomalyProcessor
             }
         }
 
+        if (string.Equals(currentAnomalyDefinition.definitionId, A001DefinitionId, StringComparison.Ordinal))
+        {
+            applyResolveCostsAndRewardsOrThrow(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                targetPlayerId: null,
+                currentAnomalyDefinition);
+            hasAppliedResolveCostsAndRewards = true;
+
+            var isSuspendedByRewardInput = tryOpenA001RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                tryResolveAnomalyActionRequest.requestId);
+            if (isSuspendedByRewardInput)
+            {
+                return actionChainState.producedEvents;
+            }
+        }
+
+        if (string.Equals(currentAnomalyDefinition.definitionId, A003DefinitionId, StringComparison.Ordinal))
+        {
+            applyA003ResolveCostsAndRewardsOrThrow(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            hasAppliedResolveCostsAndRewards = true;
+        }
+
+        if (string.Equals(currentAnomalyDefinition.definitionId, A006DefinitionId, StringComparison.Ordinal))
+        {
+            deductResolveCostsIfNeeded(
+                gameState,
+                tryResolveAnomalyActionRequest.actorPlayerId,
+                currentAnomalyDefinition);
+            hasAppliedResolveCostsAndRewards = true;
+            if (applyA006RewardAndMaybeOpenInput(
+                    gameState,
+                    actionChainState,
+                    tryResolveAnomalyActionRequest.actorPlayerId,
+                    tryResolveAnomalyActionRequest.requestId))
+            {
+                return actionChainState.producedEvents;
+            }
+        }
+
         if (!hasAppliedResolveCostsAndRewards)
         {
             deductResolveCostsIfNeeded(
@@ -355,6 +538,51 @@ public sealed class AnomalyProcessor
     {
         return AnomalyContinuationDispatcher.tryResolve(pendingContinuationKey, out var continuationKind) &&
                continuationKind == AnomalyContinuationKind.a005ConditionDefenseLikePlace;
+    }
+
+    public void forceResolveCurrentAnomalyFromExternalEffect(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        long requestId)
+    {
+        if (gameState.currentAnomalyState is null ||
+            string.IsNullOrWhiteSpace(gameState.currentAnomalyState.currentAnomalyDefinitionId))
+        {
+            return;
+        }
+        if (string.Equals(
+                gameState.currentAnomalyState.currentAnomalyDefinitionId,
+                A010DefinitionId,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(
+            gameState.currentAnomalyState.currentAnomalyDefinitionId);
+
+        var hasImplementedReward = tryApplyExternalResolveReward(
+            gameState,
+            actionChainState,
+            actorPlayerId,
+            requestId,
+            currentAnomalyDefinition,
+            out var isSuspendedByRewardInput);
+        if (isSuspendedByRewardInput)
+        {
+            return;
+        }
+
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, requestId),
+            "External anomaly resolve effect requires turnState to be initialized.",
+            appendAttemptedSuccessEvent: false,
+            appendRewardPlaceholderEvent: !hasImplementedReward);
     }
 
     public static void ensureValidAnomalyContinuationChoiceRequestShape(
@@ -449,6 +677,13 @@ public sealed class AnomalyProcessor
                 }
 
                 return;
+            case AnomalyContinuationKind.a001RewardOptionalShackleOpponents:
+                if (!isValidA001RewardOptionalShackleChoiceRequest(inputContextState, submitInputChoiceActionRequest))
+                {
+                    throw new InvalidOperationException("SubmitInputChoiceActionRequest requires zero to two opponentPlayer choices from currentInputContext.choiceKeys for continuation:anomalyA001RewardOptionalShackleOpponents.");
+                }
+
+                return;
             case AnomalyContinuationKind.a008ConditionOpponentOptionalDiscardReturn:
                 if (!isValidA008ConditionOpponentOptionalDiscardReturnChoiceRequest(inputContextState, submitInputChoiceActionRequest))
                 {
@@ -476,6 +711,29 @@ public sealed class AnomalyProcessor
                     throw new InvalidOperationException("SubmitInputChoiceActionRequest requires choiceKey to be one of currentInputContext.choiceKeys for continuation:anomalyA008RewardRyougiOptionalDrawOne.");
                 }
 
+                return;
+            case AnomalyContinuationKind.a007ArrivalRinDiscardBanish:
+            case AnomalyContinuationKind.a007RewardTargetCharm:
+            case AnomalyContinuationKind.a008RewardTargetShackle:
+                if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+                {
+                    throw new InvalidOperationException("SubmitInputChoiceActionRequest choiceKey is not allowed by currentInputContext.choiceKeys.");
+                }
+
+                return;
+            case AnomalyContinuationKind.a010ArrivalSetAside:
+            case AnomalyContinuationKind.a010KillBanishSetAside:
+            case AnomalyContinuationKind.a010RewardSelectSummonToHand:
+                if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+                {
+                    throw new InvalidOperationException("SubmitInputChoiceActionRequest choiceKey is not allowed by currentInputContext.choiceKeys.");
+                }
+
+                return;
+            case AnomalyContinuationKind.a010RewardChooseTwo:
+                AnomalyA010Runtime.ensureValidRewardChooseTwoChoice(
+                    inputContextState,
+                    submitInputChoiceActionRequest);
                 return;
             default:
                 throw new InvalidOperationException("SubmitInputChoiceActionRequest pendingContinuationKey is not a supported anomaly continuation.");
@@ -581,6 +839,12 @@ public sealed class AnomalyProcessor
                     inputContextState,
                     submitInputChoiceActionRequest);
                 return;
+            case AnomalyContinuationKind.a001RewardOptionalShackleOpponents:
+                ensureValidA001RewardOptionalShackleChoiceForContinuation(
+                    gameState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
             case AnomalyContinuationKind.a008ConditionOpponentOptionalDiscardReturn:
                 ensureValidA008ConditionOpponentOptionalDiscardReturnChoiceForContinuation(
                     gameState,
@@ -601,6 +865,30 @@ public sealed class AnomalyProcessor
                 return;
             case AnomalyContinuationKind.a008RewardRyougiOptionalDrawOne:
                 ensureValidA008RewardRyougiOptionalDrawChoiceForContinuation(
+                    gameState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a007ArrivalRinDiscardBanish:
+            case AnomalyContinuationKind.a007RewardTargetCharm:
+            case AnomalyContinuationKind.a008RewardTargetShackle:
+                return;
+            case AnomalyContinuationKind.a010ArrivalSetAside:
+                anomalyA010Runtime.ensureValidArrivalSetAsideChoice(
+                    gameState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a010KillBanishSetAside:
+                anomalyA010Runtime.ensureValidKillBanishSetAsideChoice(
+                    gameState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a010RewardChooseTwo:
+                return;
+            case AnomalyContinuationKind.a010RewardSelectSummonToHand:
+                anomalyA010Runtime.ensureValidRewardSelectSummonToHandChoice(
                     gameState,
                     inputContextState,
                     submitInputChoiceActionRequest);
@@ -704,6 +992,13 @@ public sealed class AnomalyProcessor
                     inputContextState,
                     submitInputChoiceActionRequest);
                 return;
+            case AnomalyContinuationKind.a001RewardOptionalShackleOpponents:
+                continueA001RewardOptionalShackleOpponentsContinuation(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
             case AnomalyContinuationKind.a008ConditionOpponentOptionalDiscardReturn:
                 continueA008ConditionOpponentOptionalDiscardReturnContinuation(
                     gameState,
@@ -732,9 +1027,424 @@ public sealed class AnomalyProcessor
                     inputContextState,
                     submitInputChoiceActionRequest);
                 return;
+            case AnomalyContinuationKind.a007ArrivalRinDiscardBanish:
+                continueA007ArrivalRinDiscardBanishContinuation(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a007RewardTargetCharm:
+                continueA007RewardTargetCharmContinuation(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a008RewardTargetShackle:
+                continueA008RewardTargetShackleContinuation(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a010ArrivalSetAside:
+                anomalyA010Runtime.continueArrivalSetAside(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a010KillBanishSetAside:
+                anomalyA010Runtime.continueKillBanishSetAside(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest);
+                return;
+            case AnomalyContinuationKind.a010RewardChooseTwo:
+                anomalyA010Runtime.continueRewardChooseTwo(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest,
+                    () => flipNextAnomaly(
+                        gameState,
+                        actionChainState,
+                        submitInputChoiceActionRequest.requestId,
+                        ignoreA010DeckLock: true));
+                return;
+            case AnomalyContinuationKind.a010RewardSelectSummonToHand:
+                anomalyA010Runtime.continueRewardSelectSummonToHand(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest,
+                    () => flipNextAnomaly(
+                        gameState,
+                        actionChainState,
+                        submitInputChoiceActionRequest.requestId,
+                        ignoreA010DeckLock: true));
+                return;
             default:
                 throw new InvalidOperationException("SubmitInputChoiceActionRequest pendingContinuationKey is not a supported anomaly continuation.");
         }
+    }
+
+    public bool isParallelAnomalyInputContext(InputContextState? inputContextState)
+    {
+        return anomalyArrivalInputRuntime.isA002ArrivalParallelInputContext(inputContextState) ||
+               anomalyArrivalInputRuntime.isA006ArrivalParallelInputContext(inputContextState) ||
+               anomalyA004Runtime.isA004ParallelInputContext(inputContextState) ||
+               anomalyA005Runtime.isParallelConditionInputContext(inputContextState) ||
+               anomalyA006Runtime.isParallelInputContext(inputContextState) ||
+               anomalyA007A008Runtime.isParallelInputContext(inputContextState) ||
+               anomalyConditionInputRuntime.isA009ParallelInputContext(inputContextState);
+    }
+
+    public bool tryOpenA010KillBanishSetAsideInputFromProducedEvents(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        int producedEventsStartIndex)
+    {
+        return anomalyA010Runtime.tryOpenKillBanishSetAsideInputFromProducedEvents(
+            gameState,
+            actionChainState,
+            eventId,
+            producedEventsStartIndex);
+    }
+
+    public bool tryContinueParallelAnomalyInputChoice(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest,
+        string? pendingContinuationKey)
+    {
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA002ArrivalParallelDirectSummonChoice,
+                StringComparison.Ordinal))
+        {
+            anomalyArrivalInputRuntime.continueA002ArrivalParallelDirectSummonChoice(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                ContinuationKeyA002ArrivalParallelDirectSummonChoice);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA004ArrivalReturnDefenseCards,
+                StringComparison.Ordinal))
+        {
+            anomalyA004Runtime.continueParallelChoice(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA006ArrivalHumanDefenseDiscardFlow,
+                StringComparison.Ordinal))
+        {
+            continueA006ArrivalHumanDefenseDiscardFlowContinuation(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA006ConditionOpponentActivation,
+                StringComparison.Ordinal))
+        {
+            if (!anomalyA006Runtime.continueConditionActivationChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                return true;
+            }
+
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A006 condition continuation requires actionChain.actorPlayerId.");
+            if (applyA006RewardAndMaybeOpenInput(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId))
+            {
+                return true;
+            }
+
+            finalizeA006Resolve(gameState, actionChainState, submitInputChoiceActionRequest.requestId);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA006RewardOpponentHumanDiscard,
+                StringComparison.Ordinal))
+        {
+            if (!anomalyA006Runtime.continueRewardHumanDiscardChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                return true;
+            }
+
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A006 reward continuation requires actionChain.actorPlayerId.");
+            anomalyA006Runtime.healFriendlyNonHumanActiveCharactersToMax(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                submitInputChoiceActionRequest.requestId);
+            finalizeA006Resolve(gameState, actionChainState, submitInputChoiceActionRequest.requestId);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA007ArrivalHandBanish,
+                StringComparison.Ordinal))
+        {
+            if (!anomalyA007A008Runtime.continueA007ArrivalHandBanishChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                return true;
+            }
+
+            actionChainState.pendingContinuationKey = null;
+            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+            actionChainState.isCompleted = true;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA007ConditionOpponentOptionalDraw,
+                StringComparison.Ordinal))
+        {
+            if (!anomalyA007A008Runtime.continueA007ConditionOpponentOptionalDrawChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                return true;
+            }
+
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A007 condition continuation requires actionChain.actorPlayerId.");
+            anomalyA007A008Runtime.applyOpponentTeamKillScoreMinusOne(gameState, actorPlayerId);
+            if (anomalyA007A008Runtime.tryOpenA007RewardTargetCharmInput(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId))
+            {
+                return true;
+            }
+
+            var a007Definition = AnomalyDefinitionRepository.resolveByDefinitionId(A007DefinitionId);
+            AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                a007Definition,
+                () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+                "A007 anomaly continuation requires gameState.turnState.",
+                appendAttemptedSuccessEvent: true);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA008ConditionOpponentOptionalDiscardReturnParallel,
+                StringComparison.Ordinal))
+        {
+            if (!anomalyA007A008Runtime.continueA008ConditionOpponentDiscardReturnChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                return true;
+            }
+
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A008 condition continuation requires actionChain.actorPlayerId.");
+            anomalyA007A008Runtime.applyOpponentTeamKillScoreMinusOne(gameState, actorPlayerId);
+            if (anomalyA007A008Runtime.tryOpenA008RewardTargetShackleInput(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId))
+            {
+                return true;
+            }
+
+            var a008Definition = AnomalyDefinitionRepository.resolveByDefinitionId(A008DefinitionId);
+            if (tryOpenA008RewardInputAfterCostsAndReward(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId))
+            {
+                return true;
+            }
+
+            AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                a008Definition,
+                () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+                "A008 anomaly continuation requires gameState.turnState.",
+                appendAttemptedSuccessEvent: true);
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA009ConditionOpponentOptionalBenefit,
+                StringComparison.Ordinal))
+        {
+            var conditionInputProgressResult = anomalyConditionInputRuntime.continueA009ConditionOpponentOptionalBenefitContinuation(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            if (!conditionInputProgressResult.isCompleted)
+            {
+                return true;
+            }
+
+            if (gameState.currentAnomalyState is null ||
+                string.IsNullOrWhiteSpace(gameState.currentAnomalyState.currentAnomalyDefinitionId))
+            {
+                throw new InvalidOperationException("A009 anomaly condition continuation requires gameState.currentAnomalyState.currentAnomalyDefinitionId.");
+            }
+
+            var currentAnomalyDefinitionId = gameState.currentAnomalyState.currentAnomalyDefinitionId!;
+            var a009CurrentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(currentAnomalyDefinitionId);
+            if (!string.Equals(a009CurrentAnomalyDefinition.definitionId, A009DefinitionId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("A009 anomaly condition continuation requires current anomaly to remain A009.");
+            }
+
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A009 anomaly condition continuation requires actionChain.actorPlayerId.");
+            AnomalyResolveOrchestrator.executePostConditionFlow(
+                () => applyResolveCostsAndRewardsOrThrow(
+                    gameState,
+                    actorPlayerId,
+                    targetPlayerId: null,
+                    a009CurrentAnomalyDefinition),
+                () => tryOpenA009RewardInputAfterCostsAndReward(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId),
+                () => AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest.requestId,
+                    a009CurrentAnomalyDefinition,
+                    () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+                    "A009 anomaly continuation requires gameState.turnState."));
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA005ConditionDefenseLikePlace,
+                StringComparison.Ordinal))
+        {
+            var isA005ConditionCompleted = anomalyA005Runtime.continueParallelChoice(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            if (!isA005ConditionCompleted)
+            {
+                return true;
+            }
+
+            var a005Definition = AnomalyDefinitionRepository.resolveByDefinitionId(A005DefinitionId);
+            var actorPlayerId = actionChainState.actorPlayerId ??
+                                throw new InvalidOperationException("A005 anomaly condition continuation requires actionChain.actorPlayerId.");
+            AnomalyResolveRewardRuntime.applyRewardOrThrow(
+                gameState,
+                actorPlayerId,
+                targetPlayerId: null,
+                a005Definition);
+            if (tryOpenA005RewardInputAfterCostsAndReward(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    submitInputChoiceActionRequest.requestId))
+            {
+                return true;
+            }
+
+            AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                a005Definition,
+                () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+                "A005 anomaly condition continuation requires gameState.turnState.");
+            return true;
+        }
+
+        if (!string.Equals(
+                pendingContinuationKey,
+                ContinuationKeyA004ConditionDiscardSkillPointCards,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var isConditionCompleted = anomalyA004Runtime.continueParallelChoice(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+        if (!isConditionCompleted)
+        {
+            return true;
+        }
+
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(A004DefinitionId);
+        applyA004RewardOnlyOrThrow(
+            gameState,
+            actionChainState.actorPlayerId ??
+            throw new InvalidOperationException("A004 anomaly condition continuation requires actionChain.actorPlayerId."));
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+            "A004 anomaly condition continuation requires gameState.turnState.");
+        return true;
     }
 
     public static bool isValidA005ConditionDefenseLikePlaceChoiceRequest(
@@ -796,6 +1506,15 @@ public sealed class AnomalyProcessor
         SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
     {
         return AnomalyRewardInputRuntime.isValidA008RewardRyougiOptionalDrawChoiceRequest(
+            inputContextState,
+            submitInputChoiceActionRequest);
+    }
+
+    public static bool isValidA001RewardOptionalShackleChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        return AnomalyRewardInputRuntime.isValidA001RewardOptionalShackleChoiceRequest(
             inputContextState,
             submitInputChoiceActionRequest);
     }
@@ -1043,7 +1762,7 @@ public sealed class AnomalyProcessor
         var actorPlayerId = inputContextState.requiredPlayerId.Value;
         if (AnomalyRewardInputRuntime.isA002RewardOptionalBanishDecisionDeclineChoice(submitInputChoiceActionRequest.choiceKey))
         {
-            var appendAttemptedSuccessEvent = !hasSuccessfulAttemptedEvent(
+            var appendAttemptedSuccessEvent = shouldAppendResolveAttemptedSuccessEvent(
                 actionChainState,
                 currentAnomalyDefinition.definitionId);
             AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
@@ -1206,7 +1925,7 @@ public sealed class AnomalyProcessor
             submitInputChoiceActionRequest,
             replacementSourceCount);
 
-        var appendAttemptedSuccessEvent = !hasSuccessfulAttemptedEvent(
+        var appendAttemptedSuccessEvent = shouldAppendResolveAttemptedSuccessEvent(
             actionChainState,
             currentAnomalyDefinition.definitionId);
         AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
@@ -1376,6 +2095,17 @@ public sealed class AnomalyProcessor
             submitInputChoiceActionRequest);
     }
 
+    public void ensureValidA001RewardOptionalShackleChoiceForContinuation(
+        RuleCore.GameState.GameState gameState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        anomalyRewardInputRuntime.ensureValidA001RewardOptionalShackleChoiceForContinuation(
+            gameState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+    }
+
     public void ensureValidA006ArrivalHumanDefenseDiscardChoiceForContinuation(
         RuleCore.GameState.GameState gameState,
         InputContextState inputContextState,
@@ -1463,6 +2193,29 @@ public sealed class AnomalyProcessor
         actionChainState.isCompleted = true;
     }
 
+    public void continueA007ArrivalRinDiscardBanishContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        anomalyA007A008Runtime.continueA007RinDiscardBanish(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        if (gameState.currentAnomalyState is null ||
+            !string.Equals(gameState.currentAnomalyState.currentAnomalyDefinitionId, A007DefinitionId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A007 anomaly arrival continuation requires current anomaly to remain A007.");
+        }
+
+        actionChainState.pendingContinuationKey = null;
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = true;
+    }
+
     public void continueA001ArrivalHumanDiscardFlowContinuation(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
@@ -1497,6 +2250,53 @@ public sealed class AnomalyProcessor
         actionChainState.pendingContinuationKey = null;
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
+    }
+
+    public void continueA001RewardOptionalShackleOpponentsContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        ensureValidA001RewardOptionalShackleChoiceForContinuation(
+            gameState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        if (!inputContextState.requiredPlayerId.HasValue)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires currentInputContext.requiredPlayerId.");
+        }
+
+        if (gameState.currentAnomalyState is null ||
+            string.IsNullOrWhiteSpace(gameState.currentAnomalyState.currentAnomalyDefinitionId))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires gameState.currentAnomalyState.currentAnomalyDefinitionId.");
+        }
+
+        var currentAnomalyDefinitionId = gameState.currentAnomalyState.currentAnomalyDefinitionId!;
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(currentAnomalyDefinitionId);
+        if (!string.Equals(currentAnomalyDefinition.definitionId, A001DefinitionId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires current anomaly to remain A001.");
+        }
+
+        anomalyRewardInputRuntime.executeA001RewardOptionalShackleChoices(
+            gameState,
+            inputContextState.requiredPlayerId.Value,
+            submitInputChoiceActionRequest);
+
+        var appendAttemptedSuccessEvent = shouldAppendResolveAttemptedSuccessEvent(
+            actionChainState,
+            currentAnomalyDefinition.definitionId);
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+            "A001 anomaly reward continuation requires gameState.turnState.",
+            appendAttemptedSuccessEvent);
     }
 
     public void continueA006ArrivalHumanDefenseDiscardFlowContinuation(
@@ -1705,7 +2505,7 @@ public sealed class AnomalyProcessor
             inputContextState.requiredPlayerId.Value,
             submitInputChoiceActionRequest);
 
-        var appendAttemptedSuccessEvent = !hasSuccessfulAttemptedEvent(
+        var appendAttemptedSuccessEvent = shouldAppendResolveAttemptedSuccessEvent(
             actionChainState,
             currentAnomalyDefinition.definitionId);
         AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
@@ -1716,6 +2516,63 @@ public sealed class AnomalyProcessor
             () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
             "A008 anomaly continuation requires gameState.turnState.",
             appendAttemptedSuccessEvent);
+    }
+
+    public void continueA007RewardTargetCharmContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        anomalyA007A008Runtime.continueA007RewardTargetCharm(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(A007DefinitionId);
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+            "A007 anomaly reward continuation requires gameState.turnState.",
+            appendAttemptedSuccessEvent: true);
+    }
+
+    public void continueA008RewardTargetShackleContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        anomalyA007A008Runtime.continueA008RewardTargetShackle(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        var actorPlayerId = actionChainState.actorPlayerId ??
+                            throw new InvalidOperationException("A008 reward continuation requires actionChain.actorPlayerId.");
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(A008DefinitionId);
+        if (tryOpenA008RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                submitInputChoiceActionRequest.requestId))
+        {
+            return;
+        }
+
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
+            "A008 anomaly reward continuation requires gameState.turnState.",
+            appendAttemptedSuccessEvent: true);
     }
 
     private static PlayerId? tryResolveTargetPlayerIdFromTryResolveAnomalyRootActionRequest(ActionChainState actionChainState)
@@ -1740,6 +2597,254 @@ public sealed class AnomalyProcessor
             actorPlayerId,
             targetPlayerId,
             anomalyDefinition);
+    }
+
+    private bool tryApplyExternalResolveReward(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        long requestId,
+        AnomalyDefinition anomalyDefinition,
+        out bool isSuspendedByRewardInput)
+    {
+        isSuspendedByRewardInput = false;
+
+        if (string.Equals(anomalyDefinition.definitionId, A003DefinitionId, StringComparison.Ordinal))
+        {
+            applyA003RewardOnlyOrThrow(gameState, actorPlayerId);
+            return true;
+        }
+
+        if (string.Equals(anomalyDefinition.definitionId, A004DefinitionId, StringComparison.Ordinal))
+        {
+            applyA004RewardOnlyOrThrow(gameState, actorPlayerId);
+            return true;
+        }
+
+        if (string.Equals(anomalyDefinition.definitionId, A006DefinitionId, StringComparison.Ordinal))
+        {
+            isSuspendedByRewardInput = applyA006RewardAndMaybeOpenInput(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                requestId);
+            return true;
+        }
+
+        var hasImplementedReward = string.Equals(anomalyDefinition.definitionId, A001DefinitionId, StringComparison.Ordinal) ||
+                                   string.Equals(anomalyDefinition.definitionId, A002DefinitionId, StringComparison.Ordinal) ||
+                                   string.Equals(anomalyDefinition.definitionId, A005DefinitionId, StringComparison.Ordinal) ||
+                                   string.Equals(anomalyDefinition.definitionId, A009DefinitionId, StringComparison.Ordinal);
+        if (!hasImplementedReward)
+        {
+            return false;
+        }
+
+        AnomalyResolveRewardRuntime.applyRewardOrThrow(
+            gameState,
+            actorPlayerId,
+            targetPlayerId: null,
+            anomalyDefinition);
+
+        if (string.Equals(anomalyDefinition.definitionId, A001DefinitionId, StringComparison.Ordinal))
+        {
+            isSuspendedByRewardInput = tryOpenA001RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                requestId);
+        }
+        else if (string.Equals(anomalyDefinition.definitionId, A002DefinitionId, StringComparison.Ordinal))
+        {
+            isSuspendedByRewardInput = tryOpenA002RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                requestId);
+        }
+        else if (string.Equals(anomalyDefinition.definitionId, A005DefinitionId, StringComparison.Ordinal))
+        {
+            isSuspendedByRewardInput = tryOpenA005RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                requestId);
+        }
+        else if (string.Equals(anomalyDefinition.definitionId, A009DefinitionId, StringComparison.Ordinal))
+        {
+            isSuspendedByRewardInput = tryOpenA009RewardInputAfterCostsAndReward(
+                gameState,
+                actionChainState,
+                actorPlayerId,
+                requestId);
+        }
+
+        return true;
+    }
+
+    private bool applyA006RewardAndMaybeOpenInput(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        long requestId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A006 anomaly reward requires actor player state.");
+        }
+
+        var opponentTeamId = resolveSingleOpponentTeamId(gameState, actorPlayerState.teamId);
+        if (!gameState.teams.TryGetValue(opponentTeamId, out var opponentTeamState))
+        {
+            throw new InvalidOperationException("A006 anomaly reward requires opponent team state.");
+        }
+
+        opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+
+        var requiredDiscardPlayerIds = anomalyA006Runtime.collectOpponentHumanPlayersWithHandCards(
+            gameState,
+            actorPlayerId);
+        if (requiredDiscardPlayerIds.Count > 0)
+        {
+            anomalyA006Runtime.openRewardHumanDiscardInput(
+                gameState,
+                actionChainState,
+                requiredDiscardPlayerIds,
+                requestId);
+            return true;
+        }
+
+        anomalyA006Runtime.healFriendlyNonHumanActiveCharactersToMax(
+            gameState,
+            actionChainState,
+            actorPlayerId,
+            requestId);
+        return false;
+    }
+
+    private void finalizeA006Resolve(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId)
+    {
+        var anomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(A006DefinitionId);
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            requestId,
+            anomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, requestId),
+            "A006 anomaly continuation requires gameState.turnState.",
+            shouldAppendResolveAttemptedSuccessEvent(actionChainState, A006DefinitionId));
+    }
+
+    private static void applyA003ResolveCostsAndRewardsOrThrow(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId,
+        AnomalyDefinition anomalyDefinition)
+    {
+        deductResolveCostsIfNeeded(gameState, actorPlayerId, anomalyDefinition);
+
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A003 anomaly resolve requires actor player state.");
+        }
+
+        if (!actorPlayerState.activeCharacterInstanceId.HasValue)
+        {
+            throw new InvalidOperationException("A003 anomaly resolve requires actor active character.");
+        }
+
+        var actorActiveCharacterInstanceId = actorPlayerState.activeCharacterInstanceId.Value;
+        if (!gameState.characterInstances.TryGetValue(actorActiveCharacterInstanceId, out var actorActiveCharacterInstance))
+        {
+            throw new InvalidOperationException("A003 anomaly resolve requires actor active character instance.");
+        }
+
+        if (!string.Equals(actorActiveCharacterInstance.definitionId, KazamiYuukaDefinitionId, StringComparison.Ordinal) &&
+            !StatusRuntime.hasStatusOnCharacter(gameState, actorActiveCharacterInstanceId, StatusKeyShackle))
+        {
+            StatusRuntime.applyStatus(gameState, new StatusInstance
+            {
+                statusKey = StatusKeyShackle,
+                targetCharacterInstanceId = actorActiveCharacterInstanceId,
+                applierPlayerId = actorPlayerId,
+                stackCount = 1,
+            });
+        }
+
+        applyA003RewardOnlyOrThrow(gameState, actorPlayerId);
+    }
+
+    private static void applyA003RewardOnlyOrThrow(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A003 anomaly reward requires actor player state.");
+        }
+
+        if (!gameState.teams.TryGetValue(actorPlayerState.teamId, out var actorTeamState))
+        {
+            throw new InvalidOperationException("A003 anomaly reward requires actor team state.");
+        }
+
+        var opponentTeamId = resolveSingleOpponentTeamId(gameState, actorPlayerState.teamId);
+        if (!gameState.teams.TryGetValue(opponentTeamId, out var opponentTeamState))
+        {
+            throw new InvalidOperationException("A003 anomaly reward requires opponent team state.");
+        }
+
+        opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        actorTeamState.leyline = Math.Min(LeylineMaxValue, actorTeamState.leyline + 2);
+    }
+
+    private static void applyA004RewardOnlyOrThrow(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A004 anomaly reward requires actor player state.");
+        }
+
+        var opponentTeamId = resolveSingleOpponentTeamId(gameState, actorPlayerState.teamId);
+        if (!gameState.teams.TryGetValue(opponentTeamId, out var opponentTeamState))
+        {
+            throw new InvalidOperationException("A004 anomaly reward requires opponent team state.");
+        }
+
+        opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        ExtraTurnRuntime.grantExtraTurn(gameState, actorPlayerId);
+    }
+
+    private static TeamId resolveSingleOpponentTeamId(
+        RuleCore.GameState.GameState gameState,
+        TeamId actorTeamId)
+    {
+        TeamId? opponentTeamId = null;
+        foreach (var teamId in gameState.teams.Keys)
+        {
+            if (teamId == actorTeamId)
+            {
+                continue;
+            }
+
+            if (opponentTeamId.HasValue)
+            {
+                throw new InvalidOperationException("A003 anomaly resolve requires exactly one opponent team.");
+            }
+
+            opponentTeamId = teamId;
+        }
+
+        if (!opponentTeamId.HasValue)
+        {
+            throw new InvalidOperationException("A003 anomaly resolve requires an opponent team.");
+        }
+
+        return opponentTeamId.Value;
     }
 
     private bool tryOpenA005RewardInputAfterCostsAndReward(
@@ -1800,6 +2905,30 @@ public sealed class AnomalyProcessor
             actorPlayerId,
             ContinuationKeyA008RewardRyougiOptionalDrawOne,
             requestId);
+    }
+
+    private bool tryOpenA001RewardInputAfterCostsAndReward(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        long requestId)
+    {
+        var rewardChoiceKeys = anomalyRewardInputRuntime.createA001RewardOptionalShackleChoiceKeys(
+            gameState,
+            actorPlayerId);
+        if (rewardChoiceKeys.Count == 0)
+        {
+            return false;
+        }
+
+        anomalyRewardInputRuntime.openA001RewardOptionalShackleInputContext(
+            gameState,
+            actionChainState,
+            actorPlayerId,
+            ContinuationKeyA001RewardOptionalShackleOpponents,
+            requestId,
+            rewardChoiceKeys);
+        return true;
     }
 
     private bool tryOpenA009RewardInputAfterCostsAndReward(
@@ -1911,6 +3040,14 @@ public sealed class AnomalyProcessor
         return friendlyTeamPlayerIds;
     }
 
+    private static bool shouldAppendResolveAttemptedSuccessEvent(
+        ActionChainState actionChainState,
+        string anomalyDefinitionId)
+    {
+        return actionChainState.rootActionRequest is TryResolveAnomalyActionRequest &&
+               !hasSuccessfulAttemptedEvent(actionChainState, anomalyDefinitionId);
+    }
+
     private static bool hasSuccessfulAttemptedEvent(
         ActionChainState actionChainState,
         string anomalyDefinitionId)
@@ -1939,8 +3076,14 @@ public sealed class AnomalyProcessor
     private bool flipNextAnomaly(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
-        long requestId)
+        long requestId,
+        bool ignoreA010DeckLock = false)
     {
+        if (!ignoreA010DeckLock && AnomalyA010Runtime.shouldBlockAnomalyDeckMutation(gameState))
+        {
+            return false;
+        }
+
         var currentAnomalyState = gameState.currentAnomalyState!;
         if (currentAnomalyState.anomalyDeckDefinitionIds.Count == 0)
         {
@@ -1970,11 +3113,15 @@ public sealed class AnomalyProcessor
             zoneMovementService,
             nextAnomalyDefinition,
             anomalyArrivalInputRuntime,
+            anomalyA004Runtime,
+            anomalyA007A008Runtime,
             ContinuationKeyA003ArrivalSelectOpponentShackle,
             ContinuationKeyA005ArrivalDirectSummonFromSummonZone,
             ContinuationKeyA007ArrivalOptionalBanishFlow,
             ContinuationKeyA001ArrivalHumanDiscardFlow,
-            ContinuationKeyA006ArrivalHumanDefenseDiscardFlow);
+            ContinuationKeyA006ArrivalHumanDefenseDiscardFlow,
+            ContinuationKeyA002ArrivalParallelDirectSummonChoice,
+            anomalyA010Runtime);
     }
 
     private static ActionChainState createAnomalyActionChain(

@@ -45,6 +45,32 @@ public class CharacterDefinitionRepositoryTests
         Assert.Equal(4, definition.baseMaxHp);
         Assert.Empty(definition.raceTags);
         Assert.Empty(definition.skills);
+        Assert.Empty(definition.allowedMarkerTypes);
+        Assert.Empty(definition.markerCaps);
+    }
+
+    [Theory]
+    [InlineData("C005", "swordAura", 3)]
+    [InlineData("C007", "dream", 3)]
+    [InlineData("C014", "destruction", 3)]
+    [InlineData("C017", "metal", 1)]
+    [InlineData("C017", "wood", 1)]
+    [InlineData("C017", "water", 1)]
+    [InlineData("C017", "fire", 1)]
+    [InlineData("C017", "earth", 1)]
+    [InlineData("C022", "doll", 3)]
+    [InlineData("C025", "divinity", 3)]
+    [InlineData("C028", "jewel", 3)]
+    public void ResolveByDefinitionId_WhenCharacterCanOwnMarkers_ShouldExposeMarkerCaps(
+        string definitionId,
+        string markerTypeKey,
+        int expectedCap)
+    {
+        var definition = CharacterDefinitionRepository.resolveByDefinitionId(definitionId);
+
+        Assert.Contains(markerTypeKey, definition.allowedMarkerTypes);
+        Assert.True(definition.markerCaps.ContainsKey(markerTypeKey));
+        Assert.Equal(expectedCap, definition.markerCaps[markerTypeKey]);
     }
 
     [Fact]

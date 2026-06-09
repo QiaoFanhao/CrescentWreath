@@ -782,6 +782,79 @@ public class UnitTest1
     }
 
     [Fact]
+    public void ResolveDamage_WhenSourceDamagesSelf_ShouldNotGrantLeyline()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var sourceTeamId = new TeamId(1);
+        var sourceCharacterInstanceId = new CharacterInstanceId(2013);
+
+        var gameState = new RuleCore.GameState.GameState();
+        var sourcePlayerState = createPlayerState(sourcePlayerId, sourceTeamId, 8875);
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.teams.Add(sourceTeamId, new TeamState
+        {
+            teamId = sourceTeamId,
+            killScore = 10,
+            leyline = 0,
+        });
+
+        var sourceCharacter = createTargetCharacter(gameState, sourceCharacterInstanceId, sourcePlayerId, 10);
+        var damageContext = new DamageContext
+        {
+            damageContextId = new DamageContextId(5006),
+            sourcePlayerId = sourcePlayerId,
+            targetCharacterInstanceId = sourceCharacterInstanceId,
+            baseDamageValue = 1,
+            damageType = "direct",
+        };
+
+        var damageProcessor = new DamageProcessor();
+        damageProcessor.resolveDamage(gameState, damageContext);
+
+        Assert.True(damageContext.didDealDamage);
+        Assert.Equal(9, sourceCharacter.currentHp);
+        Assert.Equal(0, gameState.teams[sourceTeamId].leyline);
+    }
+
+    [Fact]
+    public void ResolveDamage_WhenSourceDamagesTeammate_ShouldNotGrantLeyline()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(3);
+        var sourceTeamId = new TeamId(1);
+        var allyCharacterInstanceId = new CharacterInstanceId(2014);
+
+        var gameState = new RuleCore.GameState.GameState();
+        var sourcePlayerState = createPlayerState(sourcePlayerId, sourceTeamId, 8885);
+        var allyPlayerState = createPlayerState(allyPlayerId, sourceTeamId, 8895);
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(allyPlayerId, allyPlayerState);
+        gameState.teams.Add(sourceTeamId, new TeamState
+        {
+            teamId = sourceTeamId,
+            killScore = 10,
+            leyline = 0,
+        });
+
+        var allyCharacter = createTargetCharacter(gameState, allyCharacterInstanceId, allyPlayerId, 10);
+        var damageContext = new DamageContext
+        {
+            damageContextId = new DamageContextId(5007),
+            sourcePlayerId = sourcePlayerId,
+            targetCharacterInstanceId = allyCharacterInstanceId,
+            baseDamageValue = 1,
+            damageType = "direct",
+        };
+
+        var damageProcessor = new DamageProcessor();
+        damageProcessor.resolveDamage(gameState, damageContext);
+
+        Assert.True(damageContext.didDealDamage);
+        Assert.Equal(9, allyCharacter.currentHp);
+        Assert.Equal(0, gameState.teams[sourceTeamId].leyline);
+    }
+
+    [Fact]
     public void ResolveDamage_WhenSourcePlayerIdIsNull_ShouldNotGrantLeyline()
     {
         var sourcePlayerId = new PlayerId(1);

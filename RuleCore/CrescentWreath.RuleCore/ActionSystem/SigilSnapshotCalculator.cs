@@ -22,6 +22,7 @@ public static class SigilSnapshotCalculator
             }
 
             recomputedSigilPreview += TreasureResourceValueResolver.resolveSigilPreviewGainOnEnterField(cardInstance.definitionId);
+            recomputedSigilPreview += MechanicalJadeRuntime.resolveOverlayResourceBonus(gameState, cardInstance);
         }
 
         return recomputedSigilPreview;

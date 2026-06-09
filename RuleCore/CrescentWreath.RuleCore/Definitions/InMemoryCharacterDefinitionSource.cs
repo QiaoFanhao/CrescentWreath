@@ -4,6 +4,19 @@ namespace CrescentWreath.RuleCore.Definitions;
 
 public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSource
 {
+    private static readonly HashSet<string> TmCharacterDefinitionIds = new()
+    {
+        "C007", "C008", "C009", "C010", "C011", "C012", "C013",
+        "C021", "C027", "C028", "C029", "C030", "C031",
+    };
+
+    private static readonly HashSet<string> ThCharacterDefinitionIds = new()
+    {
+        "C001", "C002", "C003", "C004", "C005", "C006", "C014",
+        "C015", "C016", "C017", "C018", "C019", "C020", "C022",
+        "C023", "C024", "C025", "C026",
+    };
+
     private static readonly IReadOnlyList<CharacterDefinition> CharacterDefinitions = new List<CharacterDefinition>
     {
         new()
@@ -244,6 +257,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                 "human",
                 "nonHuman",
             },
+            allowedMarkerTypes = new List<string>
+            {
+                "swordAura",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["swordAura"] = 3,
+            },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
                 ["C005:1"] = new CharacterSkillDefinition
@@ -357,6 +378,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             raceTags = new List<string>
             {
                 "nonHuman",
+            },
+            allowedMarkerTypes = new List<string>
+            {
+                "dream",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["dream"] = 3,
             },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
@@ -758,6 +787,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             {
                 "nonHuman",
             },
+            allowedMarkerTypes = new List<string>
+            {
+                "destruction",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["destruction"] = 3,
+            },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
                 ["C014:1"] = new CharacterSkillDefinition
@@ -928,6 +965,22 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             raceTags = new List<string>
             {
                 "nonHuman",
+            },
+            allowedMarkerTypes = new List<string>
+            {
+                "metal",
+                "wood",
+                "water",
+                "fire",
+                "earth",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["metal"] = 1,
+                ["wood"] = 1,
+                ["water"] = 1,
+                ["fire"] = 1,
+                ["earth"] = 1,
             },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
@@ -1215,6 +1268,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             {
                 "nonHuman",
             },
+            allowedMarkerTypes = new List<string>
+            {
+                "doll",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["doll"] = 3,
+            },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
                 ["C022:1"] = new CharacterSkillDefinition
@@ -1386,6 +1447,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             {
                 "nonHuman",
             },
+            allowedMarkerTypes = new List<string>
+            {
+                "divinity",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["divinity"] = 3,
+            },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
                 ["C025:1"] = new CharacterSkillDefinition
@@ -1556,6 +1625,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             raceTags = new List<string>
             {
                 "human",
+            },
+            allowedMarkerTypes = new List<string>
+            {
+                "jewel",
+            },
+            markerCaps = new Dictionary<string, int>
+            {
+                ["jewel"] = 3,
             },
             skills = new Dictionary<string, CharacterSkillDefinition>
             {
@@ -1800,9 +1877,32 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
         },
     };
 
+    static InMemoryCharacterDefinitionSource()
+    {
+        foreach (var characterDefinition in CharacterDefinitions)
+        {
+            characterDefinition.factionKey = resolveFactionKey(characterDefinition.definitionId);
+        }
+    }
+
     public IReadOnlyList<CharacterDefinition> getCharacterDefinitions()
     {
         return CharacterDefinitions;
+    }
+
+    private static string resolveFactionKey(string definitionId)
+    {
+        if (TmCharacterDefinitionIds.Contains(definitionId))
+        {
+            return "TM";
+        }
+
+        if (ThCharacterDefinitionIds.Contains(definitionId))
+        {
+            return "TH";
+        }
+
+        return string.Empty;
     }
 }
 

@@ -27,4 +27,5 @@ public sealed class GameState
     public InputContextState? currentInputContext { get; set; }
 
     public CurrentAnomalyState? currentAnomalyState { get; set; }
+    public HashSet<string> resolvedAnomalyDefinitionIds { get; } = new();
 }

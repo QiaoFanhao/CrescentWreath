@@ -2,35 +2,66 @@ T008（单目标直接伤害） 通过
 T002（单目标治疗）通过
 T009（单目标状态施加）通过
 T027（抓2弃2，验证 inputContext 弃牌）通过
-T022（可选放逐 + 自身状态）放逐的卡牌能够选择banish：decline 现在无法观测到不知道到底放逐了什么。以及选择放逐的卡时应该标注该牌所在的位置以及卡牌名称。
+T022（可选放逐 + 自身状态） 通过
 T001通过
-T003 打出后直接造成伤害了，没有防御弹窗
-T004打出选择目标后没有反应：[ServerWsHost][INFO] Routed message: requestId=18, actionType=playTreasureCard, isSucceeded=True, errorCode=(none), viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=18, isSucceeded=True, viewerPlayerNumericId=1, bytes=26387.
-[ServerWsHost][INFO] Broadcasted actionType=playTreasureCard, requestId=18 to 1 peer connection(s).
-[ServerWsHost][INFO] Received message: remote=127.0.0.1:49532, viewerPlayerNumericId=1, requestId=19, actionType=submitInputChoice, payload={"requestId":19,"viewerPlayerNumericId":1,"actionType":"submitInputChoice","payload":{"actorPlayerNumericId":1,"inputContextNumericId":6,"choiceKey":"player:2","choiceKeys":[]}}
-[ServerWsHost][INFO] Routed message: requestId=19, actionType=submitInputChoice, isSucceeded=True, errorCode=(none), viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=19, isSucceeded=True, viewerPlayerNumericId=1, bytes=29177.
-[ServerWsHost][INFO] Broadcasted actionType=submitInputChoice, requestId=19 to 1 peer connection(s).
-在对面的HP为3时，结算后看到对方的击杀分减少了1。楼观剑造成的是3点体术伤害，应该触发选择防御弹窗，原本自身有的禁锢被自动解除了，我不确定是这张牌的效果做到的，这张牌是两段效果：解除目标玩家【禁锢】或【封印】效果；给予目标对手3体术伤害。先选择第一个目标解除其【禁锢】或【封印】，如果场上没有目标则跳过该步骤；那之后再选择对象打3点体术伤害。
-T006
-T011
-T012
+T003  通过-伤害类型需要重新测试
+T004  通过-伤害类型需要重新测试
+T006 放逐召唤区的卡后，没有从宝具卡组补上那张被放逐卡的位置，召唤区的卡离开召唤区后应该立即从宝具卡组顶部抽一张卡补下来。
+T011 使用T002防御后没有挡住伤害，造成3点咒术伤害，使用4咒术防御后依然收到了3点伤害。
+T012 放逐召唤区的卡后，没有从宝具卡组补上那张被放逐卡的位置，召唤区的卡离开召唤区后应该立即从宝具卡组顶部抽一张卡补下来。
+
+T005 通过
 
 
 
-放逐区要求可见，是公开区域需要和召唤区相同的方式展示
-角色死亡后封印仍然存在。角色死亡后应该清除该角色的所有特殊状态。
-处理禁锢弃牌时，无法选择不弃牌跳过行动阶段和召唤阶段，弃牌选择后也无法正常进行。服务器log：[ServerWsHost][INFO] Sent response: requestId=41, isSucceeded=False, viewerPlayerNumericId=1, bytes=25595.
-[ServerWsHost][INFO] Received message: remote=127.0.0.1:49532, viewerPlayerNumericId=1, requestId=42, actionType=submitInputChoice, payload={"requestId":42,"viewerPlayerNumericId":1,"actionType":"submitInputChoice","payload":{"actorPlayerNumericId":1,"inputContextNumericId":9,"choiceKey":"discardCard:100003","choiceKeys":[]}}
-[ServerWsHost][INFO] Routed message: requestId=42, actionType=submitInputChoice, isSucceeded=False, errorCode=request_rejected, viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=42, isSucceeded=False, viewerPlayerNumericId=1, bytes=25595.
-[ServerWsHost][INFO] Received message: remote=127.0.0.1:49532, viewerPlayerNumericId=1, requestId=43, actionType=submitInputChoice, payload={"requestId":43,"viewerPlayerNumericId":1,"actionType":"submitInputChoice","payload":{"actorPlayerNumericId":1,"inputContextNumericId":9,"choiceKey":"discardCard:100003","choiceKeys":[]}}
-[ServerWsHost][INFO] Routed message: requestId=43, actionType=submitInputChoice, isSucceeded=False, errorCode=request_rejected, viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=43, isSucceeded=False, viewerPlayerNumericId=1, bytes=25595.
-[ServerWsHost][INFO] Received message: remote=127.0.0.1:49532, viewerPlayerNumericId=1, requestId=44, actionType=submitInputChoice, payload={"requestId":44,"viewerPlayerNumericId":1,"actionType":"submitInputChoice","payload":{"actorPlayerNumericId":1,"inputContextNumericId":9,"choiceKey":"discardCard:100003","choiceKeys":[]}}
-[ServerWsHost][INFO] Routed message: requestId=44, actionType=submitInputChoice, isSucceeded=False, errorCode=request_rejected, viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=44, isSucceeded=False, viewerPlayerNumericId=1, bytes=25595.
-[ServerWsHost][INFO] Received message: remote=127.0.0.1:49532, viewerPlayerNumericId=1, requestId=45, actionType=submitInputChoice, payload={"requestId":45,"viewerPlayerNumericId":1,"actionType":"submitInputChoice","payload":{"actorPlayerNumericId":1,"inputContextNumericId":9,"choiceKey":"discardCard:100006","choiceKeys":[]}}
-[ServerWsHost][INFO] Routed message: requestId=45, actionType=submitInputChoice, isSucceeded=False, errorCode=request_rejected, viewerPlayerNumericId=1.
-[ServerWsHost][INFO] Sent response: requestId=45, isSucceeded=False, viewerPlayerNumericId=1, bytes=25595.
+放逐区要求可见，是公开区域需要和召唤区相同的方式展示-通过
+角色死亡后封印仍然存在。角色死亡后应该清除该角色的所有特殊状态。-封印解除测试通过
+处理禁锢弃牌时，无法选择不弃牌跳过行动阶段和召唤阶段，弃牌选择后也无法正常进行。-通过
+
+
+
+T010 伊吹瓢 -通过 
+T018 九字兼定 -通过
+T019 空气魔法卷轴-通过
+
+T014遥远的理想乡 -通过
+T015黑键 -通过
+T007梦魔的铃铛 -通过
+T013圣骸布 -通过
+T016 机械翡翠 -通过
+T024	EX变身红丝带 -通过
+T025	正式外典Gamaliel  -通过
+T028	圣德道士之笏 -通过
+
+T017	天之杯的幻想	无法从召唤区被放逐；直接将召唤区一张牌置于目标友方玩家的牌库顶	【降临】此牌进入召唤区时，每个队伍获得1灵脉；强制将异变牌洗牌并将【命运长夜】翻开置于牌库顶
+T020	非想天则 	直接解决翻开的异变牌，并将此牌放逐【此牌用于防御时，将其置入弃牌堆】。此卡无法离开间隙区		【降临】所有玩家当前生命值强行降为1
+T023	阴阳玉	通过
+T026	火焰的车轮	目标玩家获得任意1个其角色可以拥有的技能指示物	【降临】当前回合玩家可以从弃牌堆和召唤区各放逐1张牌
+T029	世纪末风神传说	通过
+
+
+角色：
+C008	阿尔托莉亚
+C011	爱尔奎特
+C005	魂魄妖梦
+C004	魔理沙
+C001	博丽灵梦
+C029	卡莲
+C014	芙兰朵露
+C020	蓬莱山辉夜
+C023	风见幽香
+C018	幽幽子
+C007	莲
+C027	美杜莎
+C031	弓冢五月
+C003	蕾米莉亚
+C024	伊吹萃香
+C012	巫净琥珀
+C013	巫净翡翠
+
+
+
+
+
+ 
+

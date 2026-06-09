@@ -20,6 +20,17 @@ internal enum AnomalyContinuationKind
     a007ArrivalOptionalBanishFlow = 13,
     a001ArrivalHumanDiscardFlow = 14,
     a006ArrivalHumanDefenseDiscardFlow = 15,
+    a001RewardOptionalShackleOpponents = 16,
+    a002ArrivalParallelDirectSummonChoice = 17,
+    a004ArrivalReturnDefenseCards = 18,
+    a004ConditionDiscardSkillPointCards = 19,
+    a007ArrivalRinDiscardBanish = 20,
+    a007RewardTargetCharm = 21,
+    a008RewardTargetShackle = 22,
+    a010ArrivalSetAside = 23,
+    a010KillBanishSetAside = 24,
+    a010RewardChooseTwo = 25,
+    a010RewardSelectSummonToHand = 26,
 }
 
 internal static class AnomalyContinuationDispatcher
@@ -175,6 +186,93 @@ internal static class AnomalyContinuationDispatcher
                 StringComparison.Ordinal))
         {
             continuationKind = AnomalyContinuationKind.a006ArrivalHumanDefenseDiscardFlow;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA001RewardOptionalShackleOpponents,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a001RewardOptionalShackleOpponents;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA002ArrivalParallelDirectSummonChoice,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a002ArrivalParallelDirectSummonChoice;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA004ArrivalReturnDefenseCards,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a004ArrivalReturnDefenseCards;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA004ConditionDiscardSkillPointCards,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a004ConditionDiscardSkillPointCards;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA007ArrivalRinDiscardBanish,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a007ArrivalRinDiscardBanish;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA007RewardTargetCharm,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a007RewardTargetCharm;
+            return true;
+        }
+
+        if (string.Equals(
+                pendingContinuationKey,
+                AnomalyProcessor.ContinuationKeyA008RewardTargetShackle,
+                StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a008RewardTargetShackle;
+            return true;
+        }
+
+        if (string.Equals(pendingContinuationKey, AnomalyProcessor.ContinuationKeyA010ArrivalSetAside, StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a010ArrivalSetAside;
+            return true;
+        }
+
+        if (string.Equals(pendingContinuationKey, AnomalyProcessor.ContinuationKeyA010KillBanishSetAside, StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a010KillBanishSetAside;
+            return true;
+        }
+
+        if (string.Equals(pendingContinuationKey, AnomalyProcessor.ContinuationKeyA010RewardChooseTwo, StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a010RewardChooseTwo;
+            return true;
+        }
+
+        if (string.Equals(pendingContinuationKey, AnomalyProcessor.ContinuationKeyA010RewardSelectSummonToHand, StringComparison.Ordinal))
+        {
+            continuationKind = AnomalyContinuationKind.a010RewardSelectSummonToHand;
             return true;
         }
 

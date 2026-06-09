@@ -34,7 +34,18 @@ public sealed class ServerBridge : IDisposable
     private bool disposed;
 
     public long viewerPlayerNumericId { get; set; } = 1;
-    public long actorPlayerNumericId { get; set; } = 1;
+
+    public long localPlayerNumericId
+    {
+        get => viewerPlayerNumericId;
+        set => viewerPlayerNumericId = value;
+    }
+
+    public long actorPlayerNumericId
+    {
+        get => viewerPlayerNumericId;
+        set => viewerPlayerNumericId = value;
+    }
 
     public event Action<string>? OnRawRequest;
     public event Action<string>? OnRawResponse;
@@ -128,6 +139,19 @@ public sealed class ServerBridge : IDisposable
             () => buildActorOnlyPayload());
     }
 
+    public void SendTryResolveAnomaly(long? targetPlayerNumericId)
+    {
+        if (targetPlayerNumericId.HasValue && targetPlayerNumericId.Value <= 0)
+        {
+            OnError?.Invoke("TryResolveAnomaly targetPlayerNumericId must be positive when provided.");
+            return;
+        }
+
+        sendEnvelope(
+            "tryResolveAnomaly",
+            () => buildTryResolveAnomalyPayload(targetPlayerNumericId));
+    }
+
     public void SendSubmitDefenseFixedReduce1()
     {
         sendEnvelope(
@@ -153,21 +177,13 @@ public sealed class ServerBridge : IDisposable
 
         sendEnvelope(
             "submitResponse",
-            () => buildSubmitResponseNoPayload(actorPlayerNumericId, responseWindowNumericId.Value));
+            () => buildSubmitResponseNoPayload(responseWindowNumericId.Value));
     }
 
     public void SendSubmitResponseNoAsActor(long overrideActorPlayerNumericId)
     {
-        var responseWindowNumericId = tryResolveResponseWindowNumericIdForSubmitResponseNo();
-        if (!responseWindowNumericId.HasValue)
-        {
-            OnError?.Invoke("SubmitResponseNo requires an active responseWindow with responseWindowNumericId.");
-            return;
-        }
-
-        sendEnvelope(
-            "submitResponse",
-            () => buildSubmitResponseNoPayload(overrideActorPlayerNumericId, responseWindowNumericId.Value));
+        _ = overrideActorPlayerNumericId;
+        SendSubmitResponseNo();
     }
 
     public void SendSubmitInputChoice(string choiceKey)
@@ -187,7 +203,7 @@ public sealed class ServerBridge : IDisposable
 
         sendEnvelope(
             "submitInputChoice",
-            () => buildSubmitInputChoicePayload(actorPlayerNumericId, inputContextNumericId.Value, choiceKey));
+            () => buildSubmitInputChoicePayload(inputContextNumericId.Value, choiceKey));
     }
 
     public void SendSubmitInputChoices(List<string> choiceKeys)
@@ -199,15 +215,15 @@ public sealed class ServerBridge : IDisposable
             return;
         }
 
-        if (choiceKeys is null || choiceKeys.Count == 0)
+        if (choiceKeys is null)
         {
-            OnError?.Invoke("SubmitInputChoice requires at least one choiceKey in choiceKeys.");
+            OnError?.Invoke("SubmitInputChoice requires choiceKeys to be non-null.");
             return;
         }
 
         sendEnvelope(
             "submitInputChoice",
-            () => buildSubmitInputChoicesPayload(actorPlayerNumericId, inputContextNumericId.Value, choiceKeys));
+            () => buildSubmitInputChoicesPayload(inputContextNumericId.Value, choiceKeys));
     }
 
     public void SendDebugOpenDamageResponseWindow()
@@ -257,6 +273,19 @@ public sealed class ServerBridge : IDisposable
         sendEnvelope(
             "debugPutTreasureOnTopByDefinition",
             () => buildDebugTreasureByDefinitionPayload(treasureDefinitionId));
+    }
+
+    public void SendDebugPutAnomalyOnTopByDefinition(string anomalyDefinitionId)
+    {
+        if (string.IsNullOrWhiteSpace(anomalyDefinitionId))
+        {
+            OnError?.Invoke("DebugPutAnomalyOnTopByDefinition requires a non-empty anomalyDefinitionId.");
+            return;
+        }
+
+        sendEnvelope(
+            "debugPutAnomalyOnTopByDefinition",
+            () => buildDebugAnomalyByDefinitionPayload(anomalyDefinitionId));
     }
 
     public void SendDebugResetMatch()
@@ -376,14 +405,14 @@ public sealed class ServerBridge : IDisposable
 
     private string buildActorOnlyPayload()
     {
-        return "{\"actorPlayerNumericId\":" + actorPlayerNumericId + "}";
+        return "{\"actorPlayerNumericId\":" + localPlayerNumericId + "}";
     }
 
     private string buildPlayTreasureCardPayload(long cardInstanceId)
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"cardInstanceNumericId\":" + cardInstanceId
             + ",\"playMode\":\"normal\""
             + "}";
@@ -393,8 +422,30 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"cardInstanceNumericId\":" + cardInstanceId
+            + "}";
+    }
+
+    private string buildTryResolveAnomalyPayload(long? targetPlayerNumericId)
+    {
+        var payload =
+            "{"
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId;
+        if (targetPlayerNumericId.HasValue)
+        {
+            payload += ",\"targetPlayerNumericId\":" + targetPlayerNumericId.Value;
+        }
+
+        return payload + "}";
+    }
+
+    private string buildDebugAnomalyByDefinitionPayload(string anomalyDefinitionId)
+    {
+        return
+            "{"
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
+            + ",\"anomalyDefinitionId\":\"" + escapeJsonString(anomalyDefinitionId.Trim()) + "\""
             + "}";
     }
 
@@ -402,7 +453,7 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"defenseTypeKey\":\"fixedReduce1\""
             + ",\"defenseCardInstanceNumericId\":0"
             + "}";
@@ -412,17 +463,17 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"defenseTypeKey\":\"" + escapeJsonString(defenseTypeKey) + "\""
             + ",\"defenseCardInstanceNumericId\":" + defenseCardInstanceId
             + "}";
     }
 
-    private string buildSubmitResponseNoPayload(long payloadActorPlayerNumericId, long responseWindowNumericId)
+    private string buildSubmitResponseNoPayload(long responseWindowNumericId)
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + payloadActorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"responseWindowNumericId\":" + responseWindowNumericId
             + ",\"shouldRespond\":false"
             + ",\"responseKey\":null"
@@ -433,7 +484,7 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"targetCharacterInstanceNumericId\":" + targetCharacterInstanceNumericId
             + ",\"baseDamageValue\":" + baseDamageValue
             + ",\"damageTypeKey\":\"" + escapeJsonString(damageTypeKey) + "\""
@@ -444,7 +495,7 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + "}";
     }
 
@@ -452,23 +503,23 @@ public sealed class ServerBridge : IDisposable
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + actorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"treasureDefinitionId\":\"" + escapeJsonString(treasureDefinitionId.Trim()) + "\""
             + "}";
     }
 
-    private string buildSubmitInputChoicePayload(long payloadActorPlayerNumericId, long inputContextNumericId, string choiceKey)
+    private string buildSubmitInputChoicePayload(long inputContextNumericId, string choiceKey)
     {
         return
             "{"
-            + "\"actorPlayerNumericId\":" + payloadActorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"inputContextNumericId\":" + inputContextNumericId
             + ",\"choiceKey\":\"" + escapeJsonString(choiceKey) + "\""
             + ",\"choiceKeys\":[]"
             + "}";
     }
 
-    private string buildSubmitInputChoicesPayload(long payloadActorPlayerNumericId, long inputContextNumericId, List<string> choiceKeys)
+    private string buildSubmitInputChoicesPayload(long inputContextNumericId, List<string> choiceKeys)
     {
         var choiceKeysJsonBuilder = new StringBuilder();
         choiceKeysJsonBuilder.Append("[");
@@ -494,7 +545,7 @@ public sealed class ServerBridge : IDisposable
 
         return
             "{"
-            + "\"actorPlayerNumericId\":" + payloadActorPlayerNumericId
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
             + ",\"inputContextNumericId\":" + inputContextNumericId
             + ",\"choiceKey\":\"\""
             + ",\"choiceKeys\":" + choiceKeysJsonBuilder

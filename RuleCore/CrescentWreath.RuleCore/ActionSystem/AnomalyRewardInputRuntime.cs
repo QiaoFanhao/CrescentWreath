@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.EffectSystem;
@@ -7,6 +7,7 @@ using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
 using CrescentWreath.RuleCore.ResponseSystem;
+using CrescentWreath.RuleCore.StatusSystem;
 using CrescentWreath.RuleCore.Zones;
 
 namespace CrescentWreath.RuleCore.ActionSystem;
@@ -35,10 +36,21 @@ public sealed class AnomalyRewardInputRuntime
     private const string A005RewardSelectSummonCardInputTypeKey = "anomalyA005SelectSummonCardToHand";
     private const string A005RewardSelectSummonCardContextKey = "anomaly:A005:selectSummonCardToHand";
     private const string A005RewardSelectSummonCardChoiceKeyPrefix = "summonCard:";
+    private const string A005RewardSelectSummonCardChoiceKeyDecline = "summon:decline";
     private const int A009RewardGapSummonSigilCostMax = 7;
     private const string A009RewardSelectGapTreasureInputTypeKey = "anomalyA009SelectGapTreasureToHand";
     private const string A009RewardSelectGapTreasureContextKey = "anomaly:A009:selectGapTreasureToHand";
     private const string A009RewardSelectGapTreasureChoiceKeyPrefix = "gapCard:";
+    private const string T020DefinitionId = "T020";
+    private const string T029DefinitionId = "T029";
+    private const string StarterMagicCircuitDefinitionId = "starter:magicCircuit";
+    private const string StarterKourindouCouponDefinitionId = "starter:kourindouCoupon";
+    private const string A001RewardOptionalShackleInputTypeKey = "anomalyA001RewardOptionalShackleOpponents";
+    private const string A001RewardOptionalShackleContextKey = "anomaly:A001:rewardOptionalShackleOpponents";
+    private const string A001RewardOptionalShackleChoiceKeyPrefix = "opponentPlayer:";
+    private const string RaceTagNonHuman = "nonHuman";
+    private const string StatusKeyShackle = "Shackle";
+    private const int A001RewardMaxShackleTargets = 2;
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly Func<long> nextInputContextIdSupplier;
@@ -73,6 +85,172 @@ public sealed class AnomalyRewardInputRuntime
             ryougiOwnerPlayerId.Value,
             pendingContinuationKey,
             eventId);
+        return true;
+    }
+
+    public List<string> createA001RewardOptionalShackleChoiceKeys(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A001 anomaly reward input requires actorPlayerId to exist in gameState.players.");
+        }
+
+        var choiceKeys = new List<string>();
+        foreach (var candidatePlayerEntry in gameState.players)
+        {
+            var candidatePlayerId = candidatePlayerEntry.Key;
+            var candidatePlayerState = candidatePlayerEntry.Value;
+            if (candidatePlayerState.teamId == actorPlayerState.teamId ||
+                !candidatePlayerState.activeCharacterInstanceId.HasValue)
+            {
+                continue;
+            }
+
+            if (!gameState.characterInstances.TryGetValue(
+                    candidatePlayerState.activeCharacterInstanceId.Value,
+                    out var activeCharacter) ||
+                !activeCharacter.isAlive ||
+                !activeCharacter.isInPlay ||
+                !activeCharacter.raceTags.Contains(RaceTagNonHuman))
+            {
+                continue;
+            }
+
+            choiceKeys.Add(createA001RewardOptionalShackleChoiceKey(candidatePlayerId));
+        }
+
+        return choiceKeys;
+    }
+
+    public void openA001RewardOptionalShackleInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        string pendingContinuationKey,
+        long eventId,
+        List<string> choiceKeys)
+    {
+        if (gameState.currentInputContext is not null)
+        {
+            throw new InvalidOperationException("A001 anomaly reward input requires gameState.currentInputContext to be null before opening.");
+        }
+
+        var inputContextId = new InputContextId(nextInputContextIdSupplier());
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = actorPlayerId,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = A001RewardOptionalShackleInputTypeKey,
+            contextKey = A001RewardOptionalShackleContextKey,
+        };
+        inputContextState.choiceKeys.AddRange(choiceKeys);
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = pendingContinuationKey;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = false;
+    }
+
+    public void ensureValidA001RewardOptionalShackleChoiceForContinuation(
+        RuleCore.GameState.GameState gameState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (inputContextState.contextKey != A001RewardOptionalShackleContextKey)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires currentInputContext.contextKey to be anomaly:A001:rewardOptionalShackleOpponents.");
+        }
+
+        if (!inputContextState.requiredPlayerId.HasValue)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires currentInputContext.requiredPlayerId.");
+        }
+
+        if (submitInputChoiceActionRequest.actorPlayerId != inputContextState.requiredPlayerId.Value)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires submitInputChoiceActionRequest.actorPlayerId to equal currentInputContext.requiredPlayerId.");
+        }
+
+        var selectedChoiceKeys = getA001RewardOptionalShackleSelectedChoiceKeys(submitInputChoiceActionRequest);
+        if (selectedChoiceKeys.Count > A001RewardMaxShackleTargets)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation allows at most two selected opponents.");
+        }
+
+        var seenChoiceKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var choiceKey in selectedChoiceKeys)
+        {
+            if (!seenChoiceKeys.Add(choiceKey))
+            {
+                throw new InvalidOperationException("A001 anomaly reward continuation requires unique choiceKeys.");
+            }
+
+            if (!inputContextState.choiceKeys.Contains(choiceKey))
+            {
+                throw new InvalidOperationException("A001 anomaly reward continuation requires every choiceKey to be one of currentInputContext.choiceKeys.");
+            }
+
+            var selectedOpponentPlayerId = parseA001RewardOptionalShackleChoiceKey(choiceKey);
+            ensureA001RewardShackleTargetStillLegal(
+                gameState,
+                inputContextState.requiredPlayerId.Value,
+                selectedOpponentPlayerId);
+        }
+    }
+
+    public void executeA001RewardOptionalShackleChoices(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        foreach (var choiceKey in getA001RewardOptionalShackleSelectedChoiceKeys(submitInputChoiceActionRequest))
+        {
+            var selectedOpponentPlayerId = parseA001RewardOptionalShackleChoiceKey(choiceKey);
+            var selectedOpponentPlayerState = gameState.players[selectedOpponentPlayerId];
+            var selectedOpponentCharacterInstanceId = selectedOpponentPlayerState.activeCharacterInstanceId!.Value;
+
+            StatusRuntime.applyStatus(gameState, new StatusInstance
+            {
+                statusKey = StatusKeyShackle,
+                applierPlayerId = actorPlayerId,
+                targetCharacterInstanceId = selectedOpponentCharacterInstanceId,
+                stackCount = 1,
+            });
+        }
+    }
+
+    public static bool isValidA001RewardOptionalShackleChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        var selectedChoiceKeys = getA001RewardOptionalShackleSelectedChoiceKeys(submitInputChoiceActionRequest);
+        if (selectedChoiceKeys.Count > A001RewardMaxShackleTargets)
+        {
+            return false;
+        }
+
+        var seenChoiceKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var choiceKey in selectedChoiceKeys)
+        {
+            if (!seenChoiceKeys.Add(choiceKey) ||
+                !inputContextState.choiceKeys.Contains(choiceKey))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -167,7 +345,7 @@ public sealed class AnomalyRewardInputRuntime
 
         if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
         {
-            var discardCardIdsInCurrentOrder = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            var discardCardIdsInCurrentOrder = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
             foreach (var cardInstanceId in discardCardIdsInCurrentOrder)
             {
                 if (!gameState.cardInstances.TryGetValue(cardInstanceId, out var discardedCardInstance))
@@ -219,7 +397,10 @@ public sealed class AnomalyRewardInputRuntime
             throw new InvalidOperationException("A005 anomaly reward selection requires gameState.publicState.summonZoneId to exist in gameState.zones.");
         }
 
-        var choiceKeys = new List<string>();
+        var choiceKeys = new List<string>
+        {
+            A005RewardSelectSummonCardChoiceKeyDecline,
+        };
         foreach (var summonCardInstanceId in summonZoneState.cardInstanceIds)
         {
             if (!gameState.cardInstances.TryGetValue(summonCardInstanceId, out var summonCardInstance))
@@ -303,6 +484,14 @@ public sealed class AnomalyRewardInputRuntime
             throw new InvalidOperationException("A005 anomaly reward continuation requires gameState.publicState.summonZoneId to exist in gameState.zones.");
         }
 
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                A005RewardSelectSummonCardChoiceKeyDecline,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
         var selectedCardInstanceId = parseA005RewardSelectSummonCardChoiceKey(submitInputChoiceActionRequest.choiceKey);
         if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance))
         {
@@ -336,6 +525,19 @@ public sealed class AnomalyRewardInputRuntime
             throw new InvalidOperationException("A005 anomaly reward continuation requires actor player's handZoneId to exist in gameState.zones.");
         }
 
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                A005RewardSelectSummonCardChoiceKeyDecline,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A005 anomaly reward continuation requires gameState.publicState.");
+        }
+
         var selectedCardInstanceId = parseA005RewardSelectSummonCardChoiceKey(submitInputChoiceActionRequest.choiceKey);
         var selectedCardInstance = gameState.cardInstances[selectedCardInstanceId];
 
@@ -347,6 +549,33 @@ public sealed class AnomalyRewardInputRuntime
             actionChainState.actionChainId,
             submitInputChoiceActionRequest.requestId);
         actionChainState.producedEvents.Add(moveEvent);
+
+        if (!gameState.zones.TryGetValue(
+                gameState.publicState.publicTreasureDeckZoneId,
+                out var publicTreasureDeckZoneState))
+        {
+            return;
+        }
+
+        if (publicTreasureDeckZoneState.cardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
+        if (!gameState.cardInstances.TryGetValue(topPublicTreasureCardInstanceId, out var topPublicTreasureCardInstance))
+        {
+            throw new InvalidOperationException("A005 anomaly reward continuation requires public treasure deck cards to exist.");
+        }
+
+        var refillEvent = zoneMovementService.moveCard(
+            gameState,
+            topPublicTreasureCardInstance,
+            gameState.publicState.summonZoneId,
+            CardMoveReason.reveal,
+            actionChainState.actionChainId,
+            submitInputChoiceActionRequest.requestId);
+        actionChainState.producedEvents.Add(refillEvent);
     }
 
     public List<string> createA009RewardSelectGapTreasureChoiceKeys(RuleCore.GameState.GameState gameState)
@@ -1113,11 +1342,20 @@ public sealed class AnomalyRewardInputRuntime
     {
         var treasureDefinition = TreasureDefinitionRepository.resolveByDefinitionId(cardInstance.definitionId);
         return treasureDefinition.summonSigilCost.HasValue &&
+               treasureDefinition.summonSigilCost.Value >= 0 &&
                treasureDefinition.summonSigilCost.Value <= A005RewardSummonSigilCostMax;
     }
 
     private static bool isA009RewardGapTreasureEligible(CardInstance cardInstance)
     {
+        if (string.Equals(cardInstance.definitionId, T020DefinitionId, StringComparison.Ordinal) ||
+            string.Equals(cardInstance.definitionId, T029DefinitionId, StringComparison.Ordinal) ||
+            string.Equals(cardInstance.definitionId, StarterMagicCircuitDefinitionId, StringComparison.Ordinal) ||
+            string.Equals(cardInstance.definitionId, StarterKourindouCouponDefinitionId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         var treasureDefinition = TreasureDefinitionRepository.resolveByDefinitionId(cardInstance.definitionId);
         return treasureDefinition.summonSigilCost.HasValue &&
                treasureDefinition.summonSigilCost.Value <= A009RewardGapSummonSigilCostMax;
@@ -1163,5 +1401,78 @@ public sealed class AnomalyRewardInputRuntime
         }
 
         return new CardInstanceId(cardNumericId);
+    }
+
+    private static string createA001RewardOptionalShackleChoiceKey(PlayerId playerId)
+    {
+        return A001RewardOptionalShackleChoiceKeyPrefix + playerId.Value;
+    }
+
+    private static List<string> getA001RewardOptionalShackleSelectedChoiceKeys(
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (submitInputChoiceActionRequest.choiceKeys.Count > 0)
+        {
+            return new List<string>(submitInputChoiceActionRequest.choiceKeys);
+        }
+
+        if (!string.IsNullOrWhiteSpace(submitInputChoiceActionRequest.choiceKey))
+        {
+            return new List<string> { submitInputChoiceActionRequest.choiceKey };
+        }
+
+        return new List<string>();
+    }
+
+    private static PlayerId parseA001RewardOptionalShackleChoiceKey(string choiceKey)
+    {
+        if (!choiceKey.StartsWith(A001RewardOptionalShackleChoiceKeyPrefix, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation choiceKey must start with opponentPlayer: prefix.");
+        }
+
+        var playerIdSegment = choiceKey.Substring(A001RewardOptionalShackleChoiceKeyPrefix.Length);
+        if (!long.TryParse(playerIdSegment, out var playerNumericId) || playerNumericId <= 0)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation choiceKey must encode a valid PlayerId numeric value.");
+        }
+
+        return new PlayerId(playerNumericId);
+    }
+
+    private static void ensureA001RewardShackleTargetStillLegal(
+        RuleCore.GameState.GameState gameState,
+        PlayerId actorPlayerId,
+        PlayerId selectedOpponentPlayerId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires actorPlayerId to exist in gameState.players.");
+        }
+
+        if (!gameState.players.TryGetValue(selectedOpponentPlayerId, out var selectedOpponentPlayerState))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires selected opponent playerId to exist in gameState.players.");
+        }
+
+        if (selectedOpponentPlayerState.teamId == actorPlayerState.teamId)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires selected opponent to be on a different team.");
+        }
+
+        if (!selectedOpponentPlayerState.activeCharacterInstanceId.HasValue)
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires selected opponent activeCharacterInstanceId.");
+        }
+
+        if (!gameState.characterInstances.TryGetValue(
+                selectedOpponentPlayerState.activeCharacterInstanceId.Value,
+                out var activeCharacter) ||
+            !activeCharacter.isAlive ||
+            !activeCharacter.isInPlay ||
+            !activeCharacter.raceTags.Contains(RaceTagNonHuman))
+        {
+            throw new InvalidOperationException("A001 anomaly reward continuation requires selected opponent active character to be an alive in-play nonHuman character.");
+        }
     }
 }

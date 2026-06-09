@@ -137,9 +137,104 @@ public class ZoneMovementRuleGuardTests
         Assert.Equal(targetCountBefore, gameState.zones[targetZoneId].cardInstanceIds.Count);
     }
 
+    [Fact]
+    public void MoveCard_WhenT017InSummonZoneIsBanishedToGapZone_ShouldThrowAndKeepStateUnchanged()
+    {
+        var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(
+            ZoneKey.summonZone,
+            ZoneKey.gapZone,
+            definitionId: "T017");
+        var service = new ZoneMovementService();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => service.moveCard(
+            gameState,
+            cardInstance,
+            targetZoneId,
+            CardMoveReason.banish,
+            new ActionChainId(1),
+            1));
+
+        Assert.Equal("T017 static movement restriction prevents moving from summonZone to gapZone by banish.", exception.Message);
+        assertMoveRejectedStateUnchanged(gameState, cardInstance, sourceZoneId, targetZoneId);
+    }
+
+    [Fact]
+    public void MoveCard_WhenT017InSummonZoneIsSummoned_ShouldSucceed()
+    {
+        var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(
+            ZoneKey.summonZone,
+            ZoneKey.discard,
+            definitionId: "T017");
+        var service = new ZoneMovementService();
+
+        var movedEvent = service.moveCard(
+            gameState,
+            cardInstance,
+            targetZoneId,
+            CardMoveReason.summon,
+            new ActionChainId(1),
+            1);
+
+        Assert.Equal(ZoneKey.summonZone, movedEvent.fromZoneKey);
+        Assert.Equal(ZoneKey.discard, movedEvent.toZoneKey);
+        Assert.Equal(CardMoveReason.summon, movedEvent.moveReason);
+        Assert.DoesNotContain(cardInstance.cardInstanceId, gameState.zones[sourceZoneId].cardInstanceIds);
+        Assert.Contains(cardInstance.cardInstanceId, gameState.zones[targetZoneId].cardInstanceIds);
+    }
+
+    [Theory]
+    [InlineData("T020")]
+    [InlineData("T029")]
+    public void MoveCard_WhenGapLockedTreasureInGapZoneMovesToHand_ShouldThrowAndKeepStateUnchanged(string definitionId)
+    {
+        var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(
+            ZoneKey.gapZone,
+            ZoneKey.hand,
+            definitionId);
+        var service = new ZoneMovementService();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => service.moveCard(
+            gameState,
+            cardInstance,
+            targetZoneId,
+            CardMoveReason.returnToSource,
+            new ActionChainId(1),
+            1));
+
+        Assert.Equal($"{definitionId} static movement restriction prevents leaving gapZone.", exception.Message);
+        assertMoveRejectedStateUnchanged(gameState, cardInstance, sourceZoneId, targetZoneId);
+    }
+
+    [Theory]
+    [InlineData("T020")]
+    [InlineData("T029")]
+    public void MoveCard_WhenGapLockedTreasureEntersGapZoneFromNonGapZone_ShouldSucceed(string definitionId)
+    {
+        var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(
+            ZoneKey.discard,
+            ZoneKey.gapZone,
+            definitionId);
+        var service = new ZoneMovementService();
+
+        var movedEvent = service.moveCard(
+            gameState,
+            cardInstance,
+            targetZoneId,
+            CardMoveReason.banish,
+            new ActionChainId(1),
+            1);
+
+        Assert.Equal(ZoneKey.discard, movedEvent.fromZoneKey);
+        Assert.Equal(ZoneKey.gapZone, movedEvent.toZoneKey);
+        Assert.Equal(CardMoveReason.banish, movedEvent.moveReason);
+        Assert.DoesNotContain(cardInstance.cardInstanceId, gameState.zones[sourceZoneId].cardInstanceIds);
+        Assert.Contains(cardInstance.cardInstanceId, gameState.zones[targetZoneId].cardInstanceIds);
+    }
+
     private static (RuleCore.GameState.GameState gameState, CardInstance cardInstance, ZoneId sourceZoneId, ZoneId targetZoneId) createState(
         ZoneKey sourceZoneKey,
-        ZoneKey targetZoneKey)
+        ZoneKey targetZoneKey,
+        string definitionId = "test")
     {
         var gameState = new RuleCore.GameState.GameState();
         var sourceZoneId = new ZoneId(100);
@@ -166,7 +261,7 @@ public class ZoneMovementRuleGuardTests
         var cardInstance = new CardInstance
         {
             cardInstanceId = cardInstanceId,
-            definitionId = "test",
+            definitionId = definitionId,
             ownerPlayerId = ownerPlayerId,
             zoneId = sourceZoneId,
             zoneKey = sourceZoneKey,
@@ -176,5 +271,17 @@ public class ZoneMovementRuleGuardTests
         gameState.zones[sourceZoneId].cardInstanceIds.Add(cardInstanceId);
 
         return (gameState, cardInstance, sourceZoneId, targetZoneId);
+    }
+
+    private static void assertMoveRejectedStateUnchanged(
+        RuleCore.GameState.GameState gameState,
+        CardInstance cardInstance,
+        ZoneId sourceZoneId,
+        ZoneId targetZoneId)
+    {
+        Assert.Equal(sourceZoneId, cardInstance.zoneId);
+        Assert.Equal(gameState.zones[sourceZoneId].zoneType, cardInstance.zoneKey);
+        Assert.Contains(cardInstance.cardInstanceId, gameState.zones[sourceZoneId].cardInstanceIds);
+        Assert.DoesNotContain(cardInstance.cardInstanceId, gameState.zones[targetZoneId].cardInstanceIds);
     }
 }

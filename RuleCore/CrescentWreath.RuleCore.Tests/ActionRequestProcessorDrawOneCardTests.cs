@@ -80,8 +80,11 @@ public class ActionRequestProcessorDrawOneCardTests
         Assert.Empty(gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
         Assert.Single(gameState.zones[actorPlayerState.handZoneId].cardInstanceIds);
         Assert.Single(gameState.zones[actorPlayerState.deckZoneId].cardInstanceIds);
-        Assert.Equal(firstDiscardCardId, gameState.zones[actorPlayerState.handZoneId].cardInstanceIds[0]);
-        Assert.Equal(secondDiscardCardId, gameState.zones[actorPlayerState.deckZoneId].cardInstanceIds[0]);
+        var drawnCardInstanceId = gameState.zones[actorPlayerState.handZoneId].cardInstanceIds[0];
+        var remainingDeckCardInstanceId = gameState.zones[actorPlayerState.deckZoneId].cardInstanceIds[0];
+        Assert.Contains(drawnCardInstanceId, new[] { firstDiscardCardId, secondDiscardCardId });
+        Assert.Contains(remainingDeckCardInstanceId, new[] { firstDiscardCardId, secondDiscardCardId });
+        Assert.NotEqual(drawnCardInstanceId, remainingDeckCardInstanceId);
 
         Assert.Equal(3, producedEvents.Count);
         var rebuildEvent1 = Assert.IsType<CardMovedEvent>(producedEvents[0]);
@@ -90,6 +93,9 @@ public class ActionRequestProcessorDrawOneCardTests
 
         Assert.Equal(CardMoveReason.returnToSource, rebuildEvent1.moveReason);
         Assert.Equal(CardMoveReason.returnToSource, rebuildEvent2.moveReason);
+        Assert.Contains(rebuildEvent1.cardInstanceId, new[] { firstDiscardCardId, secondDiscardCardId });
+        Assert.Contains(rebuildEvent2.cardInstanceId, new[] { firstDiscardCardId, secondDiscardCardId });
+        Assert.NotEqual(rebuildEvent1.cardInstanceId, rebuildEvent2.cardInstanceId);
         Assert.Equal(ZoneKey.discard, rebuildEvent1.fromZoneKey);
         Assert.Equal(ZoneKey.deck, rebuildEvent1.toZoneKey);
         Assert.Equal(ZoneKey.discard, rebuildEvent2.fromZoneKey);

@@ -1,4 +1,5 @@
 ﻿using CrescentWreath.RuleCore.ActionSystem;
+using CrescentWreath.RuleCore.DamageSystem;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -727,6 +728,287 @@ public class ActionRequestProcessorResponseWindowDamageTests
     }
 
     [Fact]
+    public void SubmitResponse_NoDefense_WhenDefenderHasT029_ShouldOpenImmunityInputAndBanishToPreventDamage()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72470);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73470);
+        var targetCharacterInstanceId = new CharacterInstanceId(72471);
+        var t029CardInstanceId = new CardInstanceId(72472);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        addGapZone(gameState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, t029CardInstanceId, "T029");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72473,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 3,
+            damageTypeKey = "physical",
+        });
+        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
+
+        var noDefenseEvents = processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 72474,
+            actorPlayerId = targetPlayerId,
+            responseWindowId = responseWindowId,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(DamageProcessor.ContextKeyT029DamageImmunity, gameState.currentInputContext!.contextKey);
+        Assert.Contains(DamageProcessor.ChoiceKeyT029Decline, gameState.currentInputContext.choiceKeys);
+        Assert.Contains(DamageProcessor.ChoiceKeyT029BanishPrefix + t029CardInstanceId.Value, gameState.currentInputContext.choiceKeys);
+        Assert.Equal(DamageProcessor.ContinuationKeyT029DamageImmunity, gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Equal(10, targetCharacter.currentHp);
+        Assert.Contains(noDefenseEvents, gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                                                       interactionWindowEvent.eventTypeKey == "inputContextOpened");
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72475,
+            actorPlayerId = targetPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = DamageProcessor.ChoiceKeyT029BanishPrefix + t029CardInstanceId.Value,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
+        Assert.Equal(10, targetCharacter.currentHp);
+        Assert.Equal(gameState.publicState!.gapZoneId, gameState.cardInstances[t029CardInstanceId].zoneId);
+        Assert.Equal(ZoneKey.gapZone, gameState.cardInstances[t029CardInstanceId].zoneKey);
+        Assert.Contains(finalEvents, gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                                                  damageResolvedEvent.finalDamageValue == 0 &&
+                                                  !damageResolvedEvent.didDealDamage);
+        Assert.Contains(finalEvents, gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                                                  hpChangedEvent.hpBefore == 10 &&
+                                                  hpChangedEvent.hpAfter == 10);
+    }
+
+    [Fact]
+    public void SubmitResponse_NoDefense_WhenDefenderDeclinesT029_ShouldResolveOriginalDamage()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72480);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73480);
+        var targetCharacterInstanceId = new CharacterInstanceId(72481);
+        var t029CardInstanceId = new CardInstanceId(72482);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        addGapZone(gameState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, t029CardInstanceId, "T029");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72483,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 3,
+            damageTypeKey = "physical",
+        });
+        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
+        processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 72484,
+            actorPlayerId = targetPlayerId,
+            responseWindowId = responseWindowId,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72485,
+            actorPlayerId = targetPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = DamageProcessor.ChoiceKeyT029Decline,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Equal(7, targetCharacter.currentHp);
+        Assert.Equal(targetPlayerState.handZoneId, gameState.cardInstances[t029CardInstanceId].zoneId);
+        Assert.Contains(finalEvents, gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                                                  damageResolvedEvent.finalDamageValue == 3 &&
+                                                  damageResolvedEvent.didDealDamage);
+    }
+
+    [Fact]
+    public void SubmitResponse_NoDefense_WhenBarrierPresent_ShouldConsumeBarrierWithoutOpeningT029Input()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72490);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73490);
+        var targetCharacterInstanceId = new CharacterInstanceId(72491);
+        var t029CardInstanceId = new CardInstanceId(72492);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        addGapZone(gameState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, t029CardInstanceId, "T029");
+        applyCharacterBarrierStatus(gameState, targetCharacterInstanceId);
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72493,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 3,
+            damageTypeKey = "physical",
+        });
+        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 72494,
+            actorPlayerId = targetPlayerId,
+            responseWindowId = responseWindowId,
+            shouldRespond = false,
+            responseKey = null,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.Equal(10, targetCharacter.currentHp);
+        Assert.Equal(targetPlayerState.handZoneId, gameState.cardInstances[t029CardInstanceId].zoneId);
+        Assert.Contains(finalEvents, gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
+                                                  statusChangedEvent.statusKey == "Barrier" &&
+                                                  !statusChangedEvent.isApplied);
+    }
+
+    [Fact]
+    public void ResolveDamage_DirectDamage_WhenDefenderHasT029_ShouldOpenImmunityInputBeforeHpLoss()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72500);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73500);
+        var targetCharacterInstanceId = new CharacterInstanceId(72501);
+        var t029CardInstanceId = new CardInstanceId(72502);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        addGapZone(gameState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+        var actionChainState = new ActionChainState
+        {
+            actionChainId = new ActionChainId(72503),
+            actorPlayerId = sourcePlayerId,
+            isCompleted = false,
+        };
+        gameState.currentActionChain = actionChainState;
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, t029CardInstanceId, "T029");
+
+        var damageProcessor = new DamageProcessor();
+        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, new DamageContext
+        {
+            damageContextId = new DamageContextId(72504),
+            sourcePlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 1,
+            damageType = "direct",
+        }));
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(DamageProcessor.ContextKeyT029DamageImmunity, gameState.currentInputContext!.contextKey);
+        Assert.Equal(10, targetCharacter.currentHp);
+
+        var finalEvents = new ActionRequestProcessor().processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72505,
+            actorPlayerId = targetPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = DamageProcessor.ChoiceKeyT029BanishPrefix + t029CardInstanceId.Value,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Equal(10, targetCharacter.currentHp);
+        Assert.Contains(finalEvents, gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                                                  damageResolvedEvent.finalDamageValue == 0);
+    }
+
+    [Fact]
+    public void ResolveDamage_DirectDamage_WhenT029IsNotInHand_ShouldNotOpenImmunityInput()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72510);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73510);
+        var targetCharacterInstanceId = new CharacterInstanceId(72511);
+        var t029CardInstanceId = new CardInstanceId(72512);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        addGapZone(gameState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+        var actionChainState = new ActionChainState
+        {
+            actionChainId = new ActionChainId(72513),
+            actorPlayerId = sourcePlayerId,
+            isCompleted = false,
+        };
+        gameState.currentActionChain = actionChainState;
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerField(gameState, targetPlayerState, t029CardInstanceId, "T029");
+
+        var damageProcessor = new DamageProcessor();
+        var producedEvents = damageProcessor.resolveDamage(gameState, new DamageContext
+        {
+            damageContextId = new DamageContextId(72514),
+            sourcePlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 1,
+            damageType = "direct",
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Equal(9, targetCharacter.currentHp);
+        Assert.Contains(producedEvents, gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                                                     damageResolvedEvent.finalDamageValue == 1 &&
+                                                     damageResolvedEvent.didDealDamage);
+    }
+
+    [Fact]
     public void SubmitDefense_WithFormalDefense_WhenCardAlreadyDefensePlacedOnField_ShouldNotMoveAgainAndShouldResolveDamage()
     {
         var sourcePlayerId = new PlayerId(1);
@@ -777,6 +1059,149 @@ public class ActionRequestProcessorResponseWindowDamageTests
         var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
         Assert.Equal(1, damageResolvedEvent.finalDamageValue);
         Assert.Equal(9, targetCharacter.currentHp);
+    }
+
+    [Fact]
+    public void SubmitDefense_WithT025_ShouldOpenExtraDiscardInputAndIncreaseDefenseByDiscardCount()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72480);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73480);
+        var targetCharacterInstanceId = new CharacterInstanceId(72481);
+        var defenseCardInstanceId = new CardInstanceId(72482);
+        var extraDiscardCardAInstanceId = new CardInstanceId(72483);
+        var extraDiscardCardBInstanceId = new CardInstanceId(72484);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "T025");
+        createCardInPlayerHand(gameState, targetPlayerState, extraDiscardCardAInstanceId, "T001");
+        createCardInPlayerHand(gameState, targetPlayerState, extraDiscardCardBInstanceId, "T002");
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72485,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 7,
+            damageTypeKey = "spell",
+        });
+
+        var defenseEvents = processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72486,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "spell",
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.NotNull(gameState.currentResponseWindow);
+        Assert.Equal(
+            TreasureDefenseEffectRuntime.ContinuationKeyT025ExtraDiscard,
+            gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Contains(TreasureOnPlayEffectRuntime.ChoiceKeyDeclineDiscard, gameState.currentInputContext!.choiceKeys);
+        Assert.Contains(
+            $"{TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix}{extraDiscardCardAInstanceId.Value}",
+            gameState.currentInputContext.choiceKeys);
+        Assert.Contains(
+            $"{TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix}{extraDiscardCardBInstanceId.Value}",
+            gameState.currentInputContext.choiceKeys);
+        Assert.Contains(
+            defenseEvents,
+            gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
+                         interactionWindowEvent.eventTypeKey == "inputContextOpened");
+
+        var inputContextId = gameState.currentInputContext.inputContextId;
+        var submitEvents = processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72487,
+            actorPlayerId = targetPlayerId,
+            inputContextId = inputContextId,
+            choiceKey = "discard:selected",
+            choiceKeys =
+            {
+                $"{TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix}{extraDiscardCardAInstanceId.Value}",
+                $"{TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix}{extraDiscardCardBInstanceId.Value}",
+            },
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
+        Assert.True(gameState.currentActionChain.isCompleted);
+        Assert.Equal(9, targetCharacter.currentHp);
+        Assert.Contains(extraDiscardCardAInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Contains(extraDiscardCardBInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Contains(
+            submitEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1);
+    }
+
+    [Fact]
+    public void SubmitInputChoice_WithT025SingleDiscardChoiceKey_ShouldTreatAsOneExtraDiscard()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72490);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73490);
+        var targetCharacterInstanceId = new CharacterInstanceId(72491);
+        var defenseCardInstanceId = new CardInstanceId(72492);
+        var extraDiscardCardInstanceId = new CardInstanceId(72493);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "T025");
+        createCardInPlayerHand(gameState, targetPlayerState, extraDiscardCardInstanceId, "T001");
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72494,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 6,
+            damageTypeKey = "spell",
+        });
+        processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72495,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "spell",
+        });
+
+        var submitEvents = processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72496,
+            actorPlayerId = targetPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = $"{TreasureOnPlayEffectRuntime.ChoiceKeyDiscardCardPrefix}{extraDiscardCardInstanceId.Value}",
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.Equal(9, targetCharacter.currentHp);
+        Assert.Contains(extraDiscardCardInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Contains(
+            submitEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1);
     }
 
     [Fact]
@@ -852,6 +1277,175 @@ public class ActionRequestProcessorResponseWindowDamageTests
             gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
                          hpChangedEvent.targetPlayerId == targetPlayerId &&
                          hpChangedEvent.delta == 4);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                         cardMovedEvent.cardInstanceId == defenseCardInstanceId &&
+                         cardMovedEvent.moveReason == CardMoveReason.discard &&
+                         cardMovedEvent.fromZoneKey == ZoneKey.field &&
+                         cardMovedEvent.toZoneKey == ZoneKey.discard);
+    }
+
+    [Fact]
+    public void SubmitDefense_WithT015_WhenDefenderSurvives_ShouldDealOneDirectDamageToSourceAndMoveCardToDiscard()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72480);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73480);
+        var sourceCharacterInstanceId = new CharacterInstanceId(72481);
+        var targetCharacterInstanceId = new CharacterInstanceId(72482);
+        var defenseCardInstanceId = new CardInstanceId(72483);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        gameState.teams.Add(sourcePlayerState.teamId, new TeamState
+        {
+            teamId = sourcePlayerState.teamId,
+            killScore = 10,
+            leyline = 0,
+        });
+        gameState.teams.Add(targetPlayerState.teamId, new TeamState
+        {
+            teamId = targetPlayerState.teamId,
+            killScore = 10,
+            leyline = 0,
+        });
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var sourceCharacter = createTargetCharacter(gameState, sourceCharacterInstanceId, sourcePlayerId, 5);
+        sourceCharacter.maxHp = 5;
+        sourcePlayerState.activeCharacterInstanceId = sourceCharacterInstanceId;
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 5);
+        targetCharacter.maxHp = 5;
+        targetPlayerState.activeCharacterInstanceId = targetCharacterInstanceId;
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "T015");
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72484,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 2,
+            damageTypeKey = "physical",
+        });
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72485,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "physical",
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
+        Assert.Equal(5, targetCharacter.currentHp);
+        Assert.Equal(4, sourceCharacter.currentHp);
+
+        var defenseCard = gameState.cardInstances[defenseCardInstanceId];
+        Assert.Equal(targetPlayerState.discardZoneId, defenseCard.zoneId);
+        Assert.Equal(ZoneKey.discard, defenseCard.zoneKey);
+        Assert.False(defenseCard.isDefensePlacedOnField);
+        Assert.DoesNotContain(defenseCardInstanceId, gameState.zones[targetPlayerState.fieldZoneId].cardInstanceIds);
+        Assert.Contains(defenseCardInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 0);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 1 &&
+                         damageResolvedEvent.didDealDamage);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                         hpChangedEvent.targetPlayerId == sourcePlayerId &&
+                         hpChangedEvent.delta == -1);
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
+                         cardMovedEvent.cardInstanceId == defenseCardInstanceId &&
+                         cardMovedEvent.moveReason == CardMoveReason.discard &&
+                         cardMovedEvent.fromZoneKey == ZoneKey.field &&
+                         cardMovedEvent.toZoneKey == ZoneKey.discard);
+    }
+
+    [Fact]
+    public void SubmitDefense_WithT020_ShouldMoveCardToDiscardAfterDamageResolution()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72500);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73500);
+        var targetCharacterInstanceId = new CharacterInstanceId(72501);
+        var defenseCardInstanceId = new CardInstanceId(72502);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        gameState.teams.Add(sourcePlayerState.teamId, new TeamState
+        {
+            teamId = sourcePlayerState.teamId,
+            killScore = 10,
+            leyline = 0,
+        });
+        gameState.teams.Add(targetPlayerState.teamId, new TeamState
+        {
+            teamId = targetPlayerState.teamId,
+            killScore = 10,
+            leyline = 0,
+        });
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 5);
+        targetCharacter.maxHp = 5;
+        targetPlayerState.activeCharacterInstanceId = targetCharacterInstanceId;
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "T020");
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72503,
+            actorPlayerId = sourcePlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 3,
+            damageTypeKey = "physical",
+        });
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72504,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "physical",
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+        Assert.Null(gameState.currentActionChain.pendingContinuationKey);
+        Assert.Equal(5, targetCharacter.currentHp);
+
+        var defenseCard = gameState.cardInstances[defenseCardInstanceId];
+        Assert.Equal(targetPlayerState.discardZoneId, defenseCard.zoneId);
+        Assert.Equal(ZoneKey.discard, defenseCard.zoneKey);
+        Assert.False(defenseCard.isDefensePlacedOnField);
+        Assert.DoesNotContain(defenseCardInstanceId, gameState.zones[targetPlayerState.fieldZoneId].cardInstanceIds);
+        Assert.Contains(defenseCardInstanceId, gameState.zones[targetPlayerState.discardZoneId].cardInstanceIds);
+
+        Assert.Contains(
+            finalEvents,
+            gameEvent => gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                         damageResolvedEvent.finalDamageValue == 0);
         Assert.Contains(
             finalEvents,
             gameEvent => gameEvent is CardMovedEvent cardMovedEvent &&
@@ -2719,6 +3313,25 @@ public class ActionRequestProcessorResponseWindowDamageTests
             });
     }
 
+    private static void addGapZone(RuleCore.GameState.GameState gameState)
+    {
+        gameState.publicState = new PublicState
+        {
+            gapZoneId = new ZoneId(990004),
+            summonZoneId = new ZoneId(990001),
+            publicTreasureDeckZoneId = new ZoneId(990002),
+            anomalyDeckZoneId = new ZoneId(990003),
+            sakuraCakeDeckZoneId = new ZoneId(990005),
+        };
+        gameState.zones[gameState.publicState.gapZoneId] = new ZoneState
+        {
+            zoneId = gameState.publicState.gapZoneId,
+            zoneType = ZoneKey.gapZone,
+            ownerPlayerId = null,
+            publicOrPrivate = ZonePublicOrPrivate.publicZone,
+        };
+    }
+
     private static void createCardInPlayerHand(
         RuleCore.GameState.GameState gameState,
         PlayerState ownerPlayerState,
@@ -2736,6 +3349,25 @@ public class ActionRequestProcessorResponseWindowDamageTests
 
         gameState.cardInstances.Add(cardInstanceId, cardInstance);
         gameState.zones[ownerPlayerState.handZoneId].cardInstanceIds.Add(cardInstanceId);
+    }
+
+    private static void createCardInPlayerField(
+        RuleCore.GameState.GameState gameState,
+        PlayerState ownerPlayerState,
+        CardInstanceId cardInstanceId,
+        string definitionId)
+    {
+        var cardInstance = new CardInstance
+        {
+            cardInstanceId = cardInstanceId,
+            definitionId = definitionId,
+            ownerPlayerId = ownerPlayerState.playerId,
+            zoneId = ownerPlayerState.fieldZoneId,
+            zoneKey = ZoneKey.field,
+        };
+
+        gameState.cardInstances.Add(cardInstanceId, cardInstance);
+        gameState.zones[ownerPlayerState.fieldZoneId].cardInstanceIds.Add(cardInstanceId);
     }
 
     private static CharacterInstance createTargetCharacter(

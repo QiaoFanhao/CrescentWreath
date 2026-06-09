@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
@@ -9,6 +10,10 @@ namespace CrescentWreath.RuleCore.Tests;
 
 public class GameInitializerTests
 {
+    private const string MagicCircuitDefinitionId = "starter:magicCircuit";
+    private const string KourindouCouponDefinitionId = "starter:kourindouCoupon";
+    private const string FateStayNightAnomalyDefinitionId = "A010";
+
     [Fact]
     public void CreateStandard2v2MatchState_ShouldSatisfyInitializationStructuralInvariants()
     {
@@ -25,10 +30,7 @@ public class GameInitializerTests
         var currentAnomalyState = gameState.currentAnomalyState;
 
         Assert.NotNull(currentAnomalyState);
-        Assert.Equal("A001", currentAnomalyState!.currentAnomalyDefinitionId);
-        Assert.Equal(9, currentAnomalyState.anomalyDeckDefinitionIds.Count);
-        Assert.Equal("A002", currentAnomalyState.anomalyDeckDefinitionIds[0]);
-        Assert.Equal("A010", currentAnomalyState.anomalyDeckDefinitionIds[8]);
+        assertInitialAnomalyDeckIsShuffledAndOpenAnomalyIsValid(currentAnomalyState!);
 
         Assert.Equal(4, matchMeta.seatOrder.Count);
         Assert.Equal(4, matchMeta.seatOrder.Distinct().Count());
@@ -152,9 +154,10 @@ public class GameInitializerTests
         Assert.False(gameState.turnState.hasResolvedAnomalyThisTurn);
 
         Assert.NotNull(gameState.currentAnomalyState);
-        Assert.Equal("A001", gameState.currentAnomalyState!.currentAnomalyDefinitionId);
-        Assert.Equal(9, gameState.currentAnomalyState.anomalyDeckDefinitionIds.Count);
-        Assert.Equal("A002", gameState.currentAnomalyState.anomalyDeckDefinitionIds[0]);
+        assertInitialAnomalyDeckIsShuffledAndOpenAnomalyIsValid(gameState.currentAnomalyState!);
+        Assert.Null(gameState.currentActionChain);
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
 
         Assert.NotNull(gameState.publicState);
         assertPublicZoneReference(gameState, gameState.publicState!.publicTreasureDeckZoneId, ZoneKey.publicTreasureDeck);
@@ -193,10 +196,12 @@ public class GameInitializerTests
             Assert.True(gameState.characterInstances.ContainsKey(playerState.activeCharacterInstanceId!.Value));
             var activeCharacter = gameState.characterInstances[playerState.activeCharacterInstanceId.Value];
             Assert.Equal(playerState.playerId, activeCharacter.ownerPlayerId);
+            Assert.Equal(resolveExpectedTemporaryCharacterDefinitionId(playerState.playerId), activeCharacter.definitionId);
             Assert.Equal(4, activeCharacter.currentHp);
             Assert.Equal(4, activeCharacter.maxHp);
             Assert.True(activeCharacter.isAlive);
             Assert.True(activeCharacter.isInPlay);
+            assertTemporaryStarterRaceTags(playerState.playerId, activeCharacter.raceTags);
 
             Assert.Equal(4, gameState.zones[playerState.deckZoneId].cardInstanceIds.Count);
             Assert.Equal(6, gameState.zones[playerState.handZoneId].cardInstanceIds.Count);
@@ -251,6 +256,99 @@ public class GameInitializerTests
         Assert.Equal(firstSummonDefinitions, secondSummonDefinitions);
     }
 
+    [Fact]
+    public void CreateStandard2v2MatchState_WhenStarterDeckShuffleSeedIsProvided_ShouldProduceDeterministicPlayerOpeningZones()
+    {
+        var initializer = new GameInitializer();
+
+        var firstGameState = initializer.createStandard2v2MatchState(
+            publicDeckShuffleSeed: 12345,
+            starterDeckShuffleSeed: 24680);
+        var secondGameState = initializer.createStandard2v2MatchState(
+            publicDeckShuffleSeed: 12345,
+            starterDeckShuffleSeed: 24680);
+
+        foreach (var playerId in firstGameState.matchMeta!.seatOrder)
+        {
+            var firstHandDefinitions = getZoneDefinitionIds(
+                firstGameState,
+                firstGameState.players[playerId].handZoneId);
+            var secondHandDefinitions = getZoneDefinitionIds(
+                secondGameState,
+                secondGameState.players[playerId].handZoneId);
+            var firstDeckDefinitions = getZoneDefinitionIds(
+                firstGameState,
+                firstGameState.players[playerId].deckZoneId);
+            var secondDeckDefinitions = getZoneDefinitionIds(
+                secondGameState,
+                secondGameState.players[playerId].deckZoneId);
+
+            Assert.Equal(firstHandDefinitions, secondHandDefinitions);
+            Assert.Equal(firstDeckDefinitions, secondDeckDefinitions);
+        }
+    }
+
+    [Fact]
+    public void CreateStandard2v2MatchState_ShouldShuffleStarterDeckBeforeDrawingOpeningHand()
+    {
+        var initializer = new GameInitializer();
+
+        var gameState = initializer.createStandard2v2MatchState(
+            publicDeckShuffleSeed: 12345,
+            starterDeckShuffleSeed: 24680);
+
+        var unshuffledOpeningHand = new[]
+        {
+            MagicCircuitDefinitionId,
+            MagicCircuitDefinitionId,
+            MagicCircuitDefinitionId,
+            KourindouCouponDefinitionId,
+            KourindouCouponDefinitionId,
+            KourindouCouponDefinitionId,
+        };
+
+        Assert.All(
+            gameState.matchMeta!.seatOrder,
+            playerId =>
+            {
+                var openingHandDefinitions = getZoneDefinitionIds(
+                    gameState,
+                    gameState.players[playerId].handZoneId);
+
+                Assert.NotEqual(unshuffledOpeningHand, openingHandDefinitions);
+            });
+    }
+
+    [Fact]
+    public void CreateStandard2v2MatchState_WhenAnomalyDeckShuffleSeedIsProvided_ShouldProduceDeterministicInitialAnomalyDeck()
+    {
+        var initializer = new GameInitializer();
+
+        var firstGameState = initializer.createStandard2v2MatchState(anomalyDeckShuffleSeed: 13579);
+        var secondGameState = initializer.createStandard2v2MatchState(anomalyDeckShuffleSeed: 13579);
+
+        Assert.Equal(
+            firstGameState.currentAnomalyState!.currentAnomalyDefinitionId,
+            secondGameState.currentAnomalyState!.currentAnomalyDefinitionId);
+        Assert.Equal(
+            firstGameState.currentAnomalyState.anomalyDeckDefinitionIds,
+            secondGameState.currentAnomalyState.anomalyDeckDefinitionIds);
+    }
+
+    [Fact]
+    public void CreateStandard2v2MatchState_ShouldNeverOpenFateStayNightAsInitialAnomaly()
+    {
+        var initializer = new GameInitializer();
+
+        for (var seed = 0; seed < 200; seed++)
+        {
+            var gameState = initializer.createStandard2v2MatchState(anomalyDeckShuffleSeed: seed);
+
+            Assert.NotEqual(FateStayNightAnomalyDefinitionId, gameState.currentAnomalyState!.currentAnomalyDefinitionId);
+            assertInitialAnomalyDeckIsShuffledAndOpenAnomalyIsValid(gameState.currentAnomalyState);
+        }
+    }
+
     private static void assertSinglePublicZone(RuleCore.GameState.GameState gameState, ZoneKey zoneKey)
     {
         var zones = gameState.zones.Values.Where(zone => zone.zoneType == zoneKey).ToList();
@@ -267,5 +365,58 @@ public class GameInitializerTests
         Assert.True(gameState.zones.ContainsKey(zoneId));
         var zoneState = gameState.zones[zoneId];
         Assert.Equal(expectedZoneKey, zoneState.zoneType);
+    }
+
+    private static void assertInitialAnomalyDeckIsShuffledAndOpenAnomalyIsValid(CurrentAnomalyState currentAnomalyState)
+    {
+        Assert.False(string.IsNullOrWhiteSpace(currentAnomalyState.currentAnomalyDefinitionId));
+        Assert.NotEqual(FateStayNightAnomalyDefinitionId, currentAnomalyState.currentAnomalyDefinitionId);
+        Assert.Equal(9, currentAnomalyState.anomalyDeckDefinitionIds.Count);
+
+        var expectedDefinitionIds = Enumerable.Range(1, 10)
+            .Select(index => $"A{index:000}")
+            .OrderBy(definitionId => definitionId, StringComparer.Ordinal)
+            .ToArray();
+        var actualDefinitionIds = currentAnomalyState.anomalyDeckDefinitionIds
+            .Append(currentAnomalyState.currentAnomalyDefinitionId!)
+            .OrderBy(definitionId => definitionId, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(expectedDefinitionIds, actualDefinitionIds);
+    }
+
+    private static void assertTemporaryStarterRaceTags(PlayerId playerId, IEnumerable<string> raceTags)
+    {
+        var expectedRaceTags = playerId.Value switch
+        {
+            1 => new[] { "human" },
+            2 => new[] { "nonHuman" },
+            3 => new[] { "human", "nonHuman" },
+            4 => new[] { "human", "nonHuman" },
+            _ => Array.Empty<string>(),
+        };
+
+        Assert.Equal(
+            expectedRaceTags.OrderBy(raceTag => raceTag, StringComparer.Ordinal),
+            raceTags.OrderBy(raceTag => raceTag, StringComparer.Ordinal));
+    }
+
+    private static string resolveExpectedTemporaryCharacterDefinitionId(PlayerId playerId)
+    {
+        return playerId.Value switch
+        {
+            1 => "C001",
+            2 => "C016",
+            3 => "C005",
+            4 => "C010",
+            _ => "C001",
+        };
+    }
+
+    private static string[] getZoneDefinitionIds(RuleCore.GameState.GameState gameState, ZoneId zoneId)
+    {
+        return gameState.zones[zoneId].cardInstanceIds
+            .Select(cardInstanceId => gameState.cardInstances[cardInstanceId].definitionId)
+            .ToArray();
     }
 }

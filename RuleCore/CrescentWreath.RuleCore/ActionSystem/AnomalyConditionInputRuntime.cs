@@ -31,6 +31,7 @@ public sealed class AnomalyConditionInputRuntime
     private const string A009ConditionContextKey = "anomaly:A009:conditionOpponentOptionalBenefit";
     private const string A009ConditionChoiceKeyAccept = "accept";
     private const string A009ConditionChoiceKeyDecline = "decline";
+    private const string A009ConditionSelectedChoiceLocalStatePrefix = "anomaly:A009:conditionSelectedChoice:";
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly Func<long> nextInputContextIdSupplier;
@@ -400,6 +401,75 @@ public sealed class AnomalyConditionInputRuntime
             eventId);
     }
 
+    public void openA009ConditionParallelInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        IReadOnlyList<PlayerId> requiredOpponentPlayerIds,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null)
+        {
+            throw new InvalidOperationException("A009 anomaly condition input requires gameState.currentInputContext to be null before opening.");
+        }
+
+        var inputContextId = new InputContextId(nextInputContextIdSupplier());
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = null,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = A009ConditionInputTypeKeyBarrierOptional,
+            contextKey = A009ConditionContextKey,
+        };
+
+        foreach (var requiredOpponentPlayerId in requiredOpponentPlayerIds)
+        {
+            if (!gameState.players.TryGetValue(requiredOpponentPlayerId, out var opponentPlayerState))
+            {
+                throw new InvalidOperationException("A009 anomaly condition input requires requiredPlayerId to exist in gameState.players.");
+            }
+
+            if (!gameState.zones.ContainsKey(opponentPlayerState.discardZoneId))
+            {
+                throw new InvalidOperationException("A009 anomaly condition input requires required player discardZoneId to exist in gameState.zones.");
+            }
+
+            inputContextState.requiredPlayerIds.Add(requiredOpponentPlayerId);
+            inputContextState.choiceKeysByRequiredPlayerNumericId[requiredOpponentPlayerId.Value] = new List<string>
+            {
+                A009ConditionChoiceKeyAccept,
+                A009ConditionChoiceKeyDecline,
+            };
+        }
+
+        if (inputContextState.requiredPlayerIds.Count == 0)
+        {
+            throw new InvalidOperationException("A009 anomaly condition input requires at least one requiredPlayerId.");
+        }
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = AnomalyProcessor.ContinuationKeyA009ConditionOpponentOptionalBenefit;
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = false;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+    }
+
+    public bool isA009ParallelInputContext(InputContextState? inputContextState)
+    {
+        return inputContextState is not null &&
+               inputContextState.requiredPlayerIds.Count > 0 &&
+               string.Equals(inputContextState.contextKey, A009ConditionContextKey, StringComparison.Ordinal) &&
+               string.Equals(inputContextState.inputTypeKey, A009ConditionInputTypeKeyBarrierOptional, StringComparison.Ordinal);
+    }
+
     private void openA009ConditionInputContextForStep(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
@@ -615,6 +685,14 @@ public sealed class AnomalyConditionInputRuntime
             return false;
         }
 
+        if (inputContextState.requiredPlayerIds.Count > 0)
+        {
+            return inputContextState.choiceKeysByRequiredPlayerNumericId.TryGetValue(
+                       submitInputChoiceActionRequest.actorPlayerId.Value,
+                       out var actorChoiceKeys) &&
+                   actorChoiceKeys.Contains(submitInputChoiceActionRequest.choiceKey);
+        }
+
         return inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey);
     }
 
@@ -623,6 +701,15 @@ public sealed class AnomalyConditionInputRuntime
         InputContextState inputContextState,
         SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
     {
+        if (isA009ParallelInputContext(inputContextState))
+        {
+            ensureValidA009ParallelConditionChoiceForContinuation(
+                gameState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return;
+        }
+
         var requiredOpponentPlayerId = ensureValidConditionContinuationEnvironment(
             inputContextState,
             submitInputChoiceActionRequest.actorPlayerId,
@@ -841,6 +928,43 @@ public sealed class AnomalyConditionInputRuntime
             inputContextState,
             submitInputChoiceActionRequest);
 
+        if (isA009ParallelInputContext(inputContextState))
+        {
+            inputContextState.submittedPlayerIds.Add(submitInputChoiceActionRequest.actorPlayerId);
+            actionChainState.localState[createA009SelectedChoiceLocalStateKey(submitInputChoiceActionRequest.actorPlayerId)] =
+                submitInputChoiceActionRequest.choiceKey;
+
+            if (inputContextState.submittedPlayerIds.Count < inputContextState.requiredPlayerIds.Count)
+            {
+                actionChainState.isCompleted = false;
+                return AnomalyConditionInputAdvanceResult.createPending();
+            }
+
+            foreach (var opponentPlayerId in resolveA009ConditionResolutionOrder(gameState, inputContextState.requiredPlayerIds))
+            {
+                if (!string.Equals(
+                        resolveA009RecordedChoice(actionChainState, opponentPlayerId),
+                        A009ConditionChoiceKeyAccept,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                applyA009AcceptedOpponentBarrierOptionalBenefit(
+                    gameState,
+                    actionChainState,
+                    opponentPlayerId);
+                applyA009AcceptedOpponentSakuraOptionalBenefit(
+                    gameState,
+                    actionChainState,
+                    opponentPlayerId,
+                    submitInputChoiceActionRequest.requestId);
+            }
+
+            closeInputContext(gameState, actionChainState, inputContextState, submitInputChoiceActionRequest.requestId);
+            return AnomalyConditionInputAdvanceResult.createCompleted();
+        }
+
         if (!inputContextState.requiredPlayerId.HasValue)
         {
             throw new InvalidOperationException("A009 anomaly condition continuation requires currentInputContext.requiredPlayerId.");
@@ -889,6 +1013,50 @@ public sealed class AnomalyConditionInputRuntime
                 actionChainState,
                 nextOpponentPlayerId,
                 submitInputChoiceActionRequest.requestId));
+    }
+
+    private static void ensureValidA009ParallelConditionChoiceForContinuation(
+        RuleCore.GameState.GameState gameState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (!string.Equals(inputContextState.contextKey, A009ConditionContextKey, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires currentInputContext.contextKey to be anomaly:A009:conditionOpponentOptionalBenefit.");
+        }
+
+        if (!string.Equals(inputContextState.inputTypeKey, A009ConditionInputTypeKeyBarrierOptional, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires currentInputContext.inputTypeKey to be anomalyA009ConditionOpponentOptionalBenefit.");
+        }
+
+        if (!inputContextState.requiredPlayerIds.Contains(submitInputChoiceActionRequest.actorPlayerId))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires actorPlayerId to be one of currentInputContext.requiredPlayerIds.");
+        }
+
+        if (inputContextState.submittedPlayerIds.Contains(submitInputChoiceActionRequest.actorPlayerId))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation does not allow duplicate submission.");
+        }
+
+        if (!inputContextState.choiceKeysByRequiredPlayerNumericId.TryGetValue(
+                submitInputChoiceActionRequest.actorPlayerId.Value,
+                out var choiceKeys) ||
+            !choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires choiceKey to be one of currentInputContext.choiceKeysByRequiredPlayerNumericId[actorPlayerId].");
+        }
+
+        if (!gameState.players.TryGetValue(submitInputChoiceActionRequest.actorPlayerId, out var requiredOpponentPlayerState))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires requiredPlayerId to exist in gameState.players.");
+        }
+
+        if (!gameState.zones.ContainsKey(requiredOpponentPlayerState.discardZoneId))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires required player discardZoneId to exist in gameState.zones.");
+        }
     }
 
     private void openConditionInputContext(
@@ -1366,6 +1534,140 @@ public sealed class AnomalyConditionInputRuntime
             actionChainState.actionChainId,
             eventId);
         actionChainState.producedEvents.Add(movedEvent);
+    }
+
+    private static List<PlayerId> resolveA009ConditionResolutionOrder(
+        RuleCore.GameState.GameState gameState,
+        IReadOnlyList<PlayerId> requiredPlayerIds)
+    {
+        var orderedPlayerIds = resolveSeatOrderPlayerIds(gameState);
+        if (gameState.turnState is not null)
+        {
+            orderedPlayerIds = rotatePlayerOrderAfterCurrentPlayer(
+                orderedPlayerIds,
+                gameState.turnState.currentPlayerId);
+        }
+
+        var result = new List<PlayerId>();
+        foreach (var playerId in orderedPlayerIds)
+        {
+            if (containsPlayerId(requiredPlayerIds, playerId) && !result.Contains(playerId))
+            {
+                result.Add(playerId);
+            }
+        }
+
+        foreach (var playerId in requiredPlayerIds)
+        {
+            if (!result.Contains(playerId))
+            {
+                result.Add(playerId);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool containsPlayerId(IReadOnlyList<PlayerId> playerIds, PlayerId playerId)
+    {
+        for (var index = 0; index < playerIds.Count; index++)
+        {
+            if (playerIds[index] == playerId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static List<PlayerId> resolveSeatOrderPlayerIds(RuleCore.GameState.GameState gameState)
+    {
+        var seatOrderPlayerIds = new List<PlayerId>();
+        if (gameState.matchMeta is not null && gameState.matchMeta.seatOrder.Count > 0)
+        {
+            foreach (var seatPlayerId in gameState.matchMeta.seatOrder)
+            {
+                if (gameState.players.ContainsKey(seatPlayerId) &&
+                    !seatOrderPlayerIds.Contains(seatPlayerId))
+                {
+                    seatOrderPlayerIds.Add(seatPlayerId);
+                }
+            }
+        }
+
+        if (seatOrderPlayerIds.Count > 0)
+        {
+            return seatOrderPlayerIds;
+        }
+
+        foreach (var playerId in gameState.players.Keys)
+        {
+            seatOrderPlayerIds.Add(playerId);
+        }
+
+        seatOrderPlayerIds.Sort((leftPlayerId, rightPlayerId) => leftPlayerId.Value.CompareTo(rightPlayerId.Value));
+        return seatOrderPlayerIds;
+    }
+
+    private static List<PlayerId> rotatePlayerOrderAfterCurrentPlayer(
+        IReadOnlyList<PlayerId> seatOrderPlayerIds,
+        PlayerId currentPlayerId)
+    {
+        var result = new List<PlayerId>();
+        var currentPlayerIndex = indexOfPlayerId(seatOrderPlayerIds, currentPlayerId);
+        if (currentPlayerIndex < 0)
+        {
+            foreach (var playerId in seatOrderPlayerIds)
+            {
+                result.Add(playerId);
+            }
+
+            return result;
+        }
+
+        for (var offset = 1; offset <= seatOrderPlayerIds.Count; offset++)
+        {
+            var nextIndex = (currentPlayerIndex + offset) % seatOrderPlayerIds.Count;
+            result.Add(seatOrderPlayerIds[nextIndex]);
+        }
+
+        return result;
+    }
+
+    private static string resolveA009RecordedChoice(ActionChainState actionChainState, PlayerId playerId)
+    {
+        if (!actionChainState.localState.TryGetValue(createA009SelectedChoiceLocalStateKey(playerId), out var selectedChoice) ||
+            string.IsNullOrWhiteSpace(selectedChoice))
+        {
+            throw new InvalidOperationException("A009 anomaly condition continuation requires every required player choice to be recorded.");
+        }
+
+        return selectedChoice;
+    }
+
+    private static void closeInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        long eventId)
+    {
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextClosed",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextState.inputContextId,
+            isOpened = false,
+        });
+        gameState.currentInputContext = null;
+        actionChainState.pendingContinuationKey = null;
+    }
+
+    private static string createA009SelectedChoiceLocalStateKey(PlayerId playerId)
+    {
+        return A009ConditionSelectedChoiceLocalStatePrefix + playerId.Value;
     }
 
     private sealed class A009ConditionOptionalStepDefinition

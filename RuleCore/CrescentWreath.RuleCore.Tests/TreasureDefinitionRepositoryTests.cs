@@ -127,6 +127,47 @@ public class TreasureDefinitionRepositoryTests
         Assert.Null(definition.defenseTypeKey);
     }
 
+    [Fact]
+    public void GetDeclarableTreasureDefinitionIds_ShouldIncludeGameplayTreasuresAndExcludeTestDefinitions()
+    {
+        var definitionIds = TreasureDefinitionRepository.getDeclarableTreasureDefinitionIds();
+
+        Assert.Contains("starter:magicCircuit", definitionIds);
+        Assert.Contains("starter:kourindouCoupon", definitionIds);
+        Assert.Contains("S001", definitionIds);
+        foreach (var index in Enumerable.Range(1, 29))
+        {
+            Assert.Contains($"T{index:000}", definitionIds);
+        }
+
+        Assert.DoesNotContain("test-summon-card", definitionIds);
+        Assert.DoesNotContain("test:defensePhysical2", definitionIds);
+        Assert.Equal(32, definitionIds.Count);
+    }
+
+    [Fact]
+    public void SkillPointGainOnPlay_ShouldIdentifyA004PaymentCards()
+    {
+        var expectedDefinitionIds = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "S001",
+            "T005",
+            "T011",
+            "T018",
+        };
+
+        var definitions = new InMemoryTreasureDefinitionSource().getTreasureDefinitions();
+        var actualDefinitionIds = definitions
+            .Where(definition => definition.skillPointGainOnPlay > 0)
+            .Select(definition => definition.definitionId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.True(expectedDefinitionIds.SetEquals(actualDefinitionIds));
+        Assert.All(
+            definitions.Where(definition => expectedDefinitionIds.Contains(definition.definitionId)),
+            definition => Assert.Equal(1, definition.skillPointGainOnPlay));
+    }
+
     [Theory]
     [InlineData("test:defensePhysical2", 2, "physical")]
     [InlineData("test:defensePhysical1", 1, "physical")]

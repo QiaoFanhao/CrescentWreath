@@ -10,7 +10,13 @@ public sealed class CharacterDefinition
 
     public int baseMaxHp { get; set; } = 4;
 
+    public string factionKey { get; set; } = string.Empty;
+
     public List<string> raceTags { get; set; } = new();
+
+    public List<string> allowedMarkerTypes { get; set; } = new();
+
+    public Dictionary<string, int> markerCaps { get; set; } = new();
 
     public Dictionary<string, CharacterSkillDefinition> skills { get; set; } = new();
 }

@@ -10,6 +10,8 @@ public sealed class TreasureDefinition
 
     public int sigilPreviewGainOnEnterField { get; set; }
 
+    public int skillPointGainOnPlay { get; set; }
+
     public int? summonSigilCost { get; set; }
 
     public bool persistOnFieldAcrossEnd { get; set; }

@@ -34,6 +34,9 @@ public sealed class ActionRequestProcessor
     private const string StatusKeyCharm = "Charm";
     private const string StatusKeyPenetrate = "Penetrate";
     private const string TreasureDefinitionIdT014 = "T014";
+    private const string TreasureDefinitionIdT015 = "T015";
+    private const string TreasureDefinitionIdT020 = "T020";
+    private const string TreasureDefinitionIdT025 = "T025";
 
     private enum DamageResponseStage
     {
@@ -50,6 +53,9 @@ public sealed class ActionRequestProcessor
         public readonly bool isEndPhaseHandDiscardContinuation;
         public readonly bool isTurnStartShackleDiscardContinuation;
         public readonly bool isAnomalyContinuation;
+        public readonly bool isMechanicalJadeContinuation;
+        public readonly bool isTreasureDefenseContinuation;
+        public readonly bool isT029DamageImmunityContinuation;
 
         public SubmitInputChoiceContinuationState(string? pendingContinuationKey)
         {
@@ -65,6 +71,10 @@ public sealed class ActionRequestProcessor
             isTurnStartShackleDiscardContinuation =
                 pendingContinuationKey == TurnTransitionProcessor.ContinuationKeyTurnStartShackleDiscard;
             isAnomalyContinuation = AnomalyProcessor.isAnomalyContinuationKey(pendingContinuationKey);
+            isMechanicalJadeContinuation = MechanicalJadeRuntime.isMechanicalJadeContinuationKey(pendingContinuationKey);
+            isTreasureDefenseContinuation = TreasureDefenseEffectRuntime.isTreasureDefenseContinuationKey(pendingContinuationKey);
+            isT029DamageImmunityContinuation =
+                pendingContinuationKey == DamageProcessor.ContinuationKeyT029DamageImmunity;
         }
     }
 
@@ -72,6 +82,9 @@ public sealed class ActionRequestProcessor
     private readonly DamageProcessor damageProcessor;
     private readonly TreasureOnPlayEffectRuntime treasureOnPlayEffectRuntime;
     private readonly TreasureArrivalEffectRuntime treasureArrivalEffectRuntime;
+    private readonly MechanicalJadeRuntime mechanicalJadeRuntime;
+    private readonly TreasureBanishEffectRuntime treasureBanishEffectRuntime;
+    private readonly TreasureDefenseEffectRuntime treasureDefenseEffectRuntime;
     private readonly TurnTransitionProcessor turnTransitionProcessor;
     private readonly EndPhaseProcessor endPhaseProcessor;
     private readonly AnomalyProcessor anomalyProcessor;
@@ -94,12 +107,23 @@ public sealed class ActionRequestProcessor
         this.damageProcessor = damageProcessor;
         Func<long> nextInputContextIdSupplier = () => Interlocked.Increment(ref nextInputContextNumericId);
         Func<long> nextResponseWindowIdSupplier = () => Interlocked.Increment(ref nextResponseWindowNumericId);
+        anomalyProcessor = new AnomalyProcessor(
+            zoneMovementService,
+            nextInputContextIdSupplier);
         treasureOnPlayEffectRuntime = new TreasureOnPlayEffectRuntime(
             nextInputContextIdSupplier,
             nextResponseWindowIdSupplier,
             zoneMovementService,
-            this.damageProcessor);
+            this.damageProcessor,
+            anomalyProcessor.forceResolveCurrentAnomalyFromExternalEffect);
         treasureArrivalEffectRuntime = new TreasureArrivalEffectRuntime(
+            nextInputContextIdSupplier,
+            zoneMovementService);
+        mechanicalJadeRuntime = new MechanicalJadeRuntime(
+            nextInputContextIdSupplier,
+            zoneMovementService);
+        treasureBanishEffectRuntime = new TreasureBanishEffectRuntime(zoneMovementService);
+        treasureDefenseEffectRuntime = new TreasureDefenseEffectRuntime(
             nextInputContextIdSupplier,
             zoneMovementService);
         endPhaseProcessor = new EndPhaseProcessor(
@@ -108,9 +132,6 @@ public sealed class ActionRequestProcessor
         turnTransitionProcessor = new TurnTransitionProcessor(
             zoneMovementService,
             endPhaseProcessor,
-            nextInputContextIdSupplier);
-        anomalyProcessor = new AnomalyProcessor(
-            zoneMovementService,
             nextInputContextIdSupplier);
     }
 
@@ -259,6 +280,16 @@ public sealed class ActionRequestProcessor
         }
 
         appendScriptedOnPlayEffectEvents(gameState, actionChainState, playTreasureCardActionRequest, cardInstance);
+        tryApplyTreasureBanishEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            playTreasureCardActionRequest.requestId,
+            producedEventsStartIndex: 1);
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            playTreasureCardActionRequest.requestId,
+            producedEventsStartIndex: 1);
         if (gameState.currentInputContext is null && gameState.currentResponseWindow is null)
         {
             actionChainState.isCompleted = true;
@@ -503,7 +534,7 @@ public sealed class ActionRequestProcessor
 
         if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
         {
-            var discardCardIdsInCurrentOrder = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            var discardCardIdsInCurrentOrder = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
             foreach (var cardInstanceId in discardCardIdsInCurrentOrder)
             {
                 var discardedCardInstance = gameState.cardInstances[cardInstanceId];
@@ -631,6 +662,16 @@ public sealed class ActionRequestProcessor
             useSkillActionRequest,
             actorPlayerState,
             characterInstance);
+        tryApplyTreasureBanishEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            useSkillActionRequest.requestId,
+            producedEventsStartIndex: 0);
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            useSkillActionRequest.requestId,
+            producedEventsStartIndex: 0);
 
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted =
@@ -826,7 +867,7 @@ public sealed class ActionRequestProcessor
 
         if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
         {
-            var discardCardIdsInCurrentOrder = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            var discardCardIdsInCurrentOrder = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
             foreach (var cardInstanceId in discardCardIdsInCurrentOrder)
             {
                 var discardedCardInstance = gameState.cardInstances[cardInstanceId];
@@ -983,6 +1024,101 @@ public sealed class ActionRequestProcessor
             defenseCardInstance.isDefensePlacedOnField = false;
         }
     }
+
+    private void applyT015OnDefensePostResolution(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId,
+        GameState.PlayerState defenderPlayerState,
+        PlayerId damageSourcePlayerId,
+        CardInstance defenseCardInstance,
+        int producedEventsStartIndexForDamageResolution,
+        CharacterInstanceId? defenderActiveCharacterInstanceIdBeforeResolution)
+    {
+        var defenderWasKilledInThisResolution = false;
+        if (defenderActiveCharacterInstanceIdBeforeResolution.HasValue)
+        {
+            for (var eventIndex = Math.Max(0, producedEventsStartIndexForDamageResolution);
+                 eventIndex < actionChainState.producedEvents.Count;
+                 eventIndex++)
+            {
+                if (actionChainState.producedEvents[eventIndex] is not KillRecordedEvent killRecordedEvent)
+                {
+                    continue;
+                }
+
+                if (killRecordedEvent.killedCharacterInstanceId == defenderActiveCharacterInstanceIdBeforeResolution.Value)
+                {
+                    defenderWasKilledInThisResolution = true;
+                    break;
+                }
+            }
+        }
+
+        if (!defenderWasKilledInThisResolution &&
+            defenderActiveCharacterInstanceIdBeforeResolution.HasValue &&
+            gameState.characterInstances.TryGetValue(
+                defenderActiveCharacterInstanceIdBeforeResolution.Value,
+                out var defenderCharacterInstance) &&
+            defenderCharacterInstance.isAlive &&
+            defenderCharacterInstance.isInPlay &&
+            tryFindAliveInPlayCharacterInstanceByOwner(
+                gameState,
+                damageSourcePlayerId,
+                out var damageSourceCharacterInstance))
+        {
+            var directDamageContext = new DamageContext
+            {
+                damageContextId = new DamageContextId(requestId),
+                sourcePlayerId = defenderPlayerState.playerId,
+                sourceCardInstanceId = defenseCardInstance.cardInstanceId,
+                targetPlayerId = damageSourcePlayerId,
+                targetCharacterInstanceId = damageSourceCharacterInstance.characterInstanceId,
+                baseDamageValue = 1,
+                damageType = DamageTypeKeyDirect,
+            };
+            actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, directDamageContext));
+        }
+
+        if (defenseCardInstance.zoneId == defenderPlayerState.fieldZoneId &&
+            defenseCardInstance.isDefensePlacedOnField)
+        {
+            var movedEvent = zoneMovementService.moveCard(
+                gameState,
+                defenseCardInstance,
+                defenderPlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                requestId);
+            actionChainState.producedEvents.Add(movedEvent);
+            defenseCardInstance.isDefensePlacedOnField = false;
+        }
+    }
+
+    private void moveDefensePlacedCardToDiscardPostResolution(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId,
+        GameState.PlayerState defenderPlayerState,
+        CardInstance defenseCardInstance)
+    {
+        if (defenseCardInstance.zoneId != defenderPlayerState.fieldZoneId ||
+            !defenseCardInstance.isDefensePlacedOnField)
+        {
+            return;
+        }
+
+        var movedEvent = zoneMovementService.moveCard(
+            gameState,
+            defenseCardInstance,
+            defenderPlayerState.discardZoneId,
+            CardMoveReason.discard,
+            actionChainState.actionChainId,
+            requestId);
+        actionChainState.producedEvents.Add(movedEvent);
+        defenseCardInstance.isDefensePlacedOnField = false;
+    }
+
     private List<GameEvent> processEnterActionPhaseActionRequest(
         GameState.GameState gameState,
         EnterActionPhaseActionRequest enterActionPhaseActionRequest)
@@ -1023,9 +1159,19 @@ public sealed class ActionRequestProcessor
         GameState.GameState gameState,
         TryResolveAnomalyActionRequest tryResolveAnomalyActionRequest)
     {
-        return anomalyProcessor.processTryResolveAnomalyActionRequest(
+        var producedEvents = anomalyProcessor.processTryResolveAnomalyActionRequest(
             gameState,
             tryResolveAnomalyActionRequest);
+        if (gameState.currentActionChain is not null)
+        {
+            tryApplyTreasureBanishEffectsFromProducedEvents(
+                gameState,
+                gameState.currentActionChain,
+                tryResolveAnomalyActionRequest.requestId,
+                producedEventsStartIndex: 0);
+        }
+
+        return producedEvents;
     }
 
     private static (int manaCost, int skillPointCost) resolveUseSkillResourceCost(
@@ -1585,6 +1731,9 @@ public sealed class ActionRequestProcessor
 
         CardInstance? formalDefenseCardInstance = null;
         var shouldApplyT014OnDefensePostResolution = false;
+        var shouldApplyT015OnDefensePostResolution = false;
+        var shouldMoveDefenseCardToDiscardPostResolution = false;
+        var shouldOpenT025ExtraDiscardInputContext = false;
         var producedEventsCountBeforeDamageResolution = actionChainState.producedEvents.Count;
         if (submitDefenseActionRequest.defenseTypeKey == DefenseTypeKeyFixedReduce1)
         {
@@ -1604,6 +1753,12 @@ public sealed class ActionRequestProcessor
             formalDefenseCardInstance = defenseCardInstance;
             shouldApplyT014OnDefensePostResolution =
                 string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT014, StringComparison.Ordinal);
+            shouldApplyT015OnDefensePostResolution =
+                string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT015, StringComparison.Ordinal);
+            shouldMoveDefenseCardToDiscardPostResolution =
+                string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT020, StringComparison.Ordinal);
+            shouldOpenT025ExtraDiscardInputContext =
+                string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT025, StringComparison.Ordinal);
 
             if (defenseCardInstance.ownerPlayerId != submitDefenseActionRequest.actorPlayerId)
             {
@@ -1653,6 +1808,17 @@ public sealed class ActionRequestProcessor
                 effectiveDeclaredDefenseValue);
         }
 
+        if (shouldOpenT025ExtraDiscardInputContext && formalDefenseCardInstance is not null)
+        {
+            treasureDefenseEffectRuntime.openT025ExtraDiscardInputContext(
+                gameState,
+                actionChainState,
+                submitDefenseActionRequest.requestId,
+                actorPlayerState,
+                formalDefenseCardInstance.cardInstanceId);
+            return actionChainState.producedEvents;
+        }
+
         var producedEvents = closeDamageResponseWindowAndResolveDamage(
             gameState,
             actionChainState,
@@ -1669,6 +1835,39 @@ public sealed class ActionRequestProcessor
                 producedEventsCountBeforeDamageResolution,
                 defenderActiveCharacterInstanceIdBeforeResolution);
         }
+
+        if (shouldApplyT015OnDefensePostResolution && formalDefenseCardInstance is not null)
+        {
+            applyT015OnDefensePostResolution(
+                gameState,
+                actionChainState,
+                submitDefenseActionRequest.requestId,
+                actorPlayerState,
+                pendingDamageSourcePlayerId.Value,
+                formalDefenseCardInstance,
+                producedEventsCountBeforeDamageResolution,
+                defenderActiveCharacterInstanceIdBeforeResolution);
+        }
+
+        if (shouldMoveDefenseCardToDiscardPostResolution && formalDefenseCardInstance is not null)
+        {
+            moveDefensePlacedCardToDiscardPostResolution(
+                gameState,
+                actionChainState,
+                submitDefenseActionRequest.requestId,
+                actorPlayerState,
+                formalDefenseCardInstance);
+        }
+
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            submitDefenseActionRequest.requestId,
+            producedEventsCountBeforeDamageResolution);
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey);
 
         return producedEvents;
     }
@@ -1816,9 +2015,26 @@ public sealed class ActionRequestProcessor
             defenseDeclarationKey = responseWindowState.pendingDamageDefenseDeclarationKey,
         };
 
+        var producedEventsStartIndex = actionChainState.producedEvents.Count;
         actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
-        actionChainState.pendingContinuationKey = null;
-        actionChainState.isCompleted = true;
+        if (gameState.currentInputContext is null &&
+            string.Equals(
+                actionChainState.pendingContinuationKey,
+                ContinuationKeyStagedResponseDamage,
+                StringComparison.Ordinal))
+        {
+            actionChainState.pendingContinuationKey = null;
+        }
+
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            requestId,
+            producedEventsStartIndex);
+        actionChainState.isCompleted =
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey);
 
         return actionChainState.producedEvents;
     }
@@ -2137,6 +2353,7 @@ public sealed class ActionRequestProcessor
         if (continuationState.isTreasureArrivalContinuation &&
             treasureArrivalEffectRuntime.isParallelTreasureArrivalInputContext(inputContextState))
         {
+            var producedEventsCountBeforeParallelArrivalContinuation = actionChainState.producedEvents.Count;
             if (!treasureArrivalEffectRuntime.tryContinueOnSubmitInputChoice(
                     gameState,
                     actionChainState,
@@ -2145,6 +2362,154 @@ public sealed class ActionRequestProcessor
             {
                 throw new InvalidOperationException("SubmitInputChoiceActionRequest treasure arrival continuation could not be resolved.");
             }
+
+            tryApplyTreasureBanishEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeParallelArrivalContinuation);
+
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
+            return actionChainState.producedEvents;
+        }
+
+        if (continuationState.isAnomalyContinuation &&
+            anomalyProcessor.isParallelAnomalyInputContext(inputContextState))
+        {
+            var producedEventsCountBeforeParallelAnomalyContinuation = actionChainState.producedEvents.Count;
+            if (!anomalyProcessor.tryContinueParallelAnomalyInputChoice(
+                    gameState,
+                    actionChainState,
+                    inputContextState,
+                    submitInputChoiceActionRequest,
+                    continuationState.pendingContinuationKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest anomaly parallel continuation could not be resolved.");
+            }
+
+            tryApplyTreasureBanishEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeParallelAnomalyContinuation);
+            tryOpenTreasureArrivalEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeParallelAnomalyContinuation);
+            tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeParallelAnomalyContinuation);
+
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
+            return actionChainState.producedEvents;
+        }
+
+        if (continuationState.isMechanicalJadeContinuation)
+        {
+            ensureValidSubmitInputChoiceByContinuationGroup(
+                gameState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                continuationState);
+
+            actionChainState.producedEvents.Add(new InteractionWindowEvent
+            {
+                eventId = submitInputChoiceActionRequest.requestId,
+                eventTypeKey = "inputContextClosed",
+                sourceActionChainId = actionChainState.actionChainId,
+                windowKindKey = "inputContext",
+                inputContextId = inputContextState.inputContextId,
+                isOpened = false,
+            });
+            gameState.currentInputContext = null;
+            if (!mechanicalJadeRuntime.tryContinueOnSubmitInputChoice(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest Mechanical Jade continuation could not be resolved.");
+            }
+
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
+            return actionChainState.producedEvents;
+        }
+
+        if (continuationState.isTreasureDefenseContinuation)
+        {
+            ensureValidSubmitInputChoiceByContinuationGroup(
+                gameState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                continuationState);
+
+            actionChainState.producedEvents.Add(new InteractionWindowEvent
+            {
+                eventId = submitInputChoiceActionRequest.requestId,
+                eventTypeKey = "inputContextClosed",
+                sourceActionChainId = actionChainState.actionChainId,
+                windowKindKey = "inputContext",
+                inputContextId = inputContextState.inputContextId,
+                isOpened = false,
+            });
+            gameState.currentInputContext = null;
+
+            continueT025ExtraDiscardDefenseAndResolveDamage(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
+            return actionChainState.producedEvents;
+        }
+
+        if (continuationState.isT029DamageImmunityContinuation)
+        {
+            ensureValidT029DamageImmunityChoiceRequest(inputContextState, submitInputChoiceActionRequest);
+
+            var producedEventsCountBeforeT029Continuation = actionChainState.producedEvents.Count;
+            actionChainState.producedEvents.Add(new InteractionWindowEvent
+            {
+                eventId = submitInputChoiceActionRequest.requestId,
+                eventTypeKey = "inputContextClosed",
+                sourceActionChainId = actionChainState.actionChainId,
+                windowKindKey = "inputContext",
+                inputContextId = inputContextState.inputContextId,
+                isOpened = false,
+            });
+            inputContextState.selectedChoiceKey = submitInputChoiceActionRequest.choiceKey;
+            gameState.currentInputContext = null;
+
+            continueT029DamageImmunityChoice(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest);
+
+            tryApplyTreasureBanishEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeT029Continuation);
+            tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeT029Continuation);
 
             actionChainState.isCompleted =
                 gameState.currentInputContext is null &&
@@ -2191,6 +2556,25 @@ public sealed class ActionRequestProcessor
                 submitInputChoiceActionRequest,
                 continuationState))
         {
+            tryApplyTreasureBanishEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeContinuation);
+            tryOpenTreasureArrivalEffectsFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeContinuation);
+            tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeContinuation);
+            actionChainState.isCompleted =
+                gameState.currentInputContext is null &&
+                gameState.currentResponseWindow is null &&
+                actionChainState.pendingContinuationKey is null;
             return actionChainState.producedEvents;
         }
 
@@ -2232,7 +2616,17 @@ public sealed class ActionRequestProcessor
             actionChainState.pendingContinuationKey = null;
         }
 
+        tryApplyTreasureBanishEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            producedEventsCountBeforeContinuation);
         tryOpenTreasureArrivalEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            producedEventsCountBeforeContinuation);
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
             gameState,
             actionChainState,
             submitInputChoiceActionRequest.requestId,
@@ -2243,6 +2637,228 @@ public sealed class ActionRequestProcessor
             gameState.currentResponseWindow is null &&
             actionChainState.pendingContinuationKey is null;
         return actionChainState.producedEvents;
+    }
+
+    private void tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        int producedEventsStartIndex)
+    {
+        if (anomalyProcessor.tryOpenA010KillBanishSetAsideInputFromProducedEvents(
+                gameState,
+                actionChainState,
+                eventId,
+                producedEventsStartIndex))
+        {
+            return;
+        }
+
+        mechanicalJadeRuntime.tryOpenOverlayAfterKillInputContextFromProducedEvents(
+            gameState,
+            actionChainState,
+            eventId,
+            producedEventsStartIndex);
+    }
+
+    private void tryApplyTreasureBanishEffectsFromProducedEvents(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        int producedEventsStartIndex)
+    {
+        treasureBanishEffectRuntime.applyBanishEffectsFromProducedEvents(
+            gameState,
+            actionChainState,
+            eventId,
+            producedEventsStartIndex);
+    }
+
+    private void continueT025ExtraDiscardDefenseAndResolveDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        var responseWindowState = gameState.currentResponseWindow;
+        if (responseWindowState is null || responseWindowState.windowTypeKey != "damageResponse")
+        {
+            throw new InvalidOperationException("T025 extra-discard defense continuation requires an active damageResponse currentResponseWindow.");
+        }
+
+        if (!tryParseCardDefenseDeclarationKey(
+                responseWindowState.pendingDamageDefenseDeclarationKey ?? string.Empty,
+                out var defenseTypeKey,
+                out var defenseValue))
+        {
+            throw new InvalidOperationException("T025 extra-discard defense continuation requires a pending card defense declaration.");
+        }
+
+        var extraDiscardCount = treasureDefenseEffectRuntime.continueT025ExtraDiscard(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        responseWindowState.pendingDamageDefenseDeclarationKey = createCardDefenseDeclarationKey(
+            defenseTypeKey,
+            defenseValue + extraDiscardCount);
+
+        closeDamageResponseWindowAndResolveDamage(
+            gameState,
+            actionChainState,
+            responseWindowState,
+            submitInputChoiceActionRequest.requestId);
+    }
+
+    private void continueT029DamageImmunityChoice(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        var damageContext = loadT029PendingDamageContextOrThrow(actionChainState);
+        clearT029PendingDamageContext(actionChainState);
+
+        if (!string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                DamageProcessor.ChoiceKeyT029Decline,
+                StringComparison.Ordinal))
+        {
+            var t029CardInstanceId = parseT029BanishChoiceKey(submitInputChoiceActionRequest.choiceKey);
+            if (gameState.publicState is null)
+            {
+                throw new InvalidOperationException("T029 damage immunity continuation requires gameState.publicState.");
+            }
+
+            if (!gameState.cardInstances.TryGetValue(t029CardInstanceId, out var t029CardInstance))
+            {
+                throw new InvalidOperationException("T029 damage immunity continuation requires selected cardInstanceId to exist.");
+            }
+
+            if (!gameState.players.TryGetValue(submitInputChoiceActionRequest.actorPlayerId, out var actorPlayerState))
+            {
+                throw new InvalidOperationException("T029 damage immunity continuation requires actorPlayerId to exist.");
+            }
+
+            if (t029CardInstance.ownerPlayerId != submitInputChoiceActionRequest.actorPlayerId ||
+                t029CardInstance.zoneId != actorPlayerState.handZoneId ||
+                !string.Equals(t029CardInstance.definitionId, "T029", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("T029 damage immunity continuation requires selected T029 to be in actor hand zone.");
+            }
+
+            var movedEvent = zoneMovementService.moveCard(
+                gameState,
+                t029CardInstance,
+                gameState.publicState.gapZoneId,
+                CardMoveReason.banish,
+                actionChainState.actionChainId,
+                submitInputChoiceActionRequest.requestId);
+            actionChainState.producedEvents.Add(movedEvent);
+            damageContext.isPrevented = true;
+            damageContext.isImmune = true;
+        }
+
+        damageContext.suppressT029DamageImmunityPrompt = true;
+        var producedEventsStartIndex = actionChainState.producedEvents.Count;
+        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
+        actionChainState.pendingContinuationKey = null;
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId,
+            producedEventsStartIndex);
+    }
+
+    private static DamageContext loadT029PendingDamageContextOrThrow(ActionChainState actionChainState)
+    {
+        var damageContext = new DamageContext
+        {
+            damageContextId = new DamageContextId(loadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029DamageContextId)),
+            targetCharacterInstanceId = new CharacterInstanceId(loadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029TargetCharacterInstanceId)),
+            baseDamageValue = (int)loadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029BaseDamageValue),
+            damageType = loadStringLocalState(actionChainState, DamageProcessor.LocalStateKeyT029DamageType),
+        };
+
+        if (tryLoadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029SourcePlayerId, out var sourcePlayerNumericId))
+        {
+            damageContext.sourcePlayerId = new PlayerId(sourcePlayerNumericId);
+        }
+
+        if (tryLoadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029SourceCardInstanceId, out var sourceCardNumericId))
+        {
+            damageContext.sourceCardInstanceId = new CardInstanceId(sourceCardNumericId);
+        }
+
+        if (tryLoadLongLocalState(actionChainState, DamageProcessor.LocalStateKeyT029SourceCharacterInstanceId, out var sourceCharacterNumericId))
+        {
+            damageContext.sourceCharacterInstanceId = new CharacterInstanceId(sourceCharacterNumericId);
+        }
+
+        if (actionChainState.localState.TryGetValue(
+                DamageProcessor.LocalStateKeyT029DefenseDeclarationKey,
+                out var defenseDeclarationKey))
+        {
+            damageContext.defenseDeclarationKey = defenseDeclarationKey;
+        }
+
+        return damageContext;
+    }
+
+    private static void clearT029PendingDamageContext(ActionChainState actionChainState)
+    {
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029DamageContextId);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029SourcePlayerId);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029SourceCardInstanceId);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029SourceCharacterInstanceId);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029TargetCharacterInstanceId);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029BaseDamageValue);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029DamageType);
+        actionChainState.localState.Remove(DamageProcessor.LocalStateKeyT029DefenseDeclarationKey);
+    }
+
+    private static long loadLongLocalState(ActionChainState actionChainState, string key)
+    {
+        if (!tryLoadLongLocalState(actionChainState, key, out var value))
+        {
+            throw new InvalidOperationException($"T029 damage immunity continuation requires localState[{key}].");
+        }
+
+        return value;
+    }
+
+    private static bool tryLoadLongLocalState(ActionChainState actionChainState, string key, out long value)
+    {
+        value = 0;
+        return actionChainState.localState.TryGetValue(key, out var serializedValue) &&
+               long.TryParse(serializedValue, out value);
+    }
+
+    private static string loadStringLocalState(ActionChainState actionChainState, string key)
+    {
+        if (!actionChainState.localState.TryGetValue(key, out var value) ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"T029 damage immunity continuation requires localState[{key}].");
+        }
+
+        return value;
+    }
+
+    private static CardInstanceId parseT029BanishChoiceKey(string choiceKey)
+    {
+        if (!choiceKey.StartsWith(DamageProcessor.ChoiceKeyT029BanishPrefix, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("T029 damage immunity continuation requires choiceKey to be T029:decline or T029:banish:{cardId}.");
+        }
+
+        var cardIdSegment = choiceKey.Substring(DamageProcessor.ChoiceKeyT029BanishPrefix.Length);
+        if (!long.TryParse(cardIdSegment, out var cardNumericId) || cardNumericId <= 0)
+        {
+            throw new InvalidOperationException("T029 damage immunity continuation requires numeric T029 cardInstanceId.");
+        }
+
+        return new CardInstanceId(cardNumericId);
     }
 
     private void tryOpenTreasureArrivalEffectsFromProducedEvents(
@@ -2319,12 +2935,59 @@ public sealed class ActionRequestProcessor
                 continuationState.pendingContinuationKey);
         }
 
+        if (TreasureOnPlayEffectRuntime.isT021OverlayCardsContinuationKey(continuationState.pendingContinuationKey))
+        {
+            TreasureOnPlayEffectRuntime.ensureValidT021OverlayChoiceRequest(
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return false;
+        }
+
+        if (continuationState.isMechanicalJadeContinuation)
+        {
+            MechanicalJadeRuntime.ensureValidOverlayAfterKillChoiceRequest(
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return false;
+        }
+
+        if (continuationState.isTreasureDefenseContinuation)
+        {
+            TreasureDefenseEffectRuntime.ensureValidT025ExtraDiscardChoiceRequest(
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return false;
+        }
+
         if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
         {
             throw new InvalidOperationException("SubmitInputChoiceActionRequest choiceKey is not allowed by currentInputContext.choiceKeys.");
         }
 
         return false;
+    }
+
+    private static void ensureValidT029DamageImmunityChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (!string.Equals(
+                inputContextState.contextKey,
+                DamageProcessor.ContextKeyT029DamageImmunity,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("T029 damage immunity continuation requires currentInputContext.contextKey to match T029 immunity context.");
+        }
+
+        if (inputContextState.requiredPlayerId != submitInputChoiceActionRequest.actorPlayerId)
+        {
+            throw new InvalidOperationException("T029 damage immunity continuation requires actorPlayerId to match currentInputContext.requiredPlayerId.");
+        }
+
+        if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+        {
+            throw new InvalidOperationException("T029 damage immunity continuation requires choiceKey to be one of currentInputContext.choiceKeys.");
+        }
     }
 
     private static void ensureSubmitInputChoiceActorAllowed(
@@ -2388,6 +3051,17 @@ public sealed class ActionRequestProcessor
                 inputContextState,
                 submitInputChoiceActionRequest,
                 continuationState.pendingContinuationKey);
+            if (string.Equals(
+                    continuationState.pendingContinuationKey,
+                    AnomalyProcessor.ContinuationKeyA010ArrivalSetAside,
+                    StringComparison.Ordinal))
+            {
+                treasureArrivalEffectRuntime.resumeArrivalQueueAfterExternalContinuation(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest.requestId);
+            }
+
             return true;
         }
 

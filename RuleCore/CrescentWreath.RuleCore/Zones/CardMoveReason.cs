@@ -10,6 +10,7 @@ public enum CardMoveReason
     discard,
     banish,
     setAside,
+    overlay,
     reveal,
     returnToSource,
 }

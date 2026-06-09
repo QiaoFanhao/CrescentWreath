@@ -80,6 +80,7 @@ public sealed class TurnTransitionProcessor
 
         var actorPlayerState = gameState.players[enterActionPhaseActionRequest.actorPlayerId];
         actorPlayerState.skillPoint = TurnStartSkillPointBaseline;
+        MechanicalJadeRuntime.applyTurnStartResourceBonuses(gameState, actorPlayerState);
         gameState.turnState.currentPhase = TurnPhase.action;
         gameState.turnState.phaseStepIndex = 0;
 
@@ -195,7 +196,10 @@ public sealed class TurnTransitionProcessor
         }
 
         var nextSeatIndex = (currentSeatIndex + 1) % seatOrder.Count;
-        var nextPlayerId = seatOrder[nextSeatIndex];
+        var normalNextPlayerId = seatOrder[nextSeatIndex];
+        var nextPlayerId = ExtraTurnRuntime.resolveNextTurnPlayer(
+            gameState.turnState,
+            normalNextPlayerId);
         if (!gameState.matchMeta.teamAssignments.TryGetValue(nextPlayerId, out var nextTeamId))
         {
             throw new InvalidOperationException("StartNextTurnActionRequest requires nextPlayerId to exist in gameState.matchMeta.teamAssignments.");

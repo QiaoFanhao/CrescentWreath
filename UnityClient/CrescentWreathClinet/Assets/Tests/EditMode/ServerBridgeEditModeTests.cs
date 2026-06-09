@@ -35,7 +35,6 @@ public class ServerBridgeEditModeTests
         using var bridge = new ServerBridge(fakeSocketClient)
         {
             viewerPlayerNumericId = 3,
-            actorPlayerNumericId = 3,
         };
 
         bridge.Connect("ws://127.0.0.1:18080/ws");
@@ -50,7 +49,6 @@ public class ServerBridgeEditModeTests
         using var bridge = new ServerBridge(fakeSocketClient)
         {
             viewerPlayerNumericId = 4,
-            actorPlayerNumericId = 4,
         };
 
         bridge.Connect("ws://127.0.0.1:18080/ws?debug=true");
@@ -198,14 +196,13 @@ public class ServerBridgeEditModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 2,
+            viewerPlayerNumericId = 2,
         };
 
         fakeSocketClient.EmitText(
             "{"
             + "\"isSucceeded\":true,"
-            + "\"viewerPlayerNumericId\":1,"
+            + "\"viewerPlayerNumericId\":2,"
             + "\"interaction\":{\"responseWindow\":{\"responseWindowNumericId\":789,\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[2,1]}}"
             + "}");
 
@@ -238,13 +235,12 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
-    public void SendSubmitResponseNoAsActor_WhenResponseWindowExists_ShouldUseOverrideActor()
+    public void SendSubmitResponseNoAsActor_WhenResponseWindowExists_ShouldUseLocalPlayerAndIgnoreOverrideActor()
     {
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
             viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 99,
         };
 
         fakeSocketClient.EmitText(
@@ -258,7 +254,7 @@ public class ServerBridgeEditModeTests
 
         var root = parseEnvelope(fakeSocketClient.lastSentText);
         Assert.That(root.actionType, Is.EqualTo("submitResponse"));
-        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(1));
         Assert.That(root.payload.responseWindowNumericId, Is.EqualTo(790));
         Assert.That(root.payload.shouldRespond, Is.False);
     }
@@ -269,14 +265,13 @@ public class ServerBridgeEditModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 2,
+            viewerPlayerNumericId = 2,
         };
 
         fakeSocketClient.EmitText(
             "{"
             + "\"isSucceeded\":true,"
-            + "\"viewerPlayerNumericId\":1,"
+            + "\"viewerPlayerNumericId\":2,"
             + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":321,\"requiredPlayerNumericId\":2,\"choiceCount\":2,\"choiceKeys\":[\"confirm\",\"decline\"]}}"
             + "}");
 
@@ -314,8 +309,7 @@ public class ServerBridgeEditModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 2,
+            viewerPlayerNumericId = 2,
         };
 
         bridge.SendDebugOpenDamageResponseWindow();
@@ -334,8 +328,7 @@ public class ServerBridgeEditModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 3,
+            viewerPlayerNumericId = 3,
         };
 
         bridge.SendDebugOpenDamageResponseWindow(targetCharacterInstanceNumericId: 200002, baseDamageValue: 3, damageTypeKey: "physical");
@@ -354,8 +347,7 @@ public class ServerBridgeEditModeTests
         var fakeSocketClient = new FakeSocketClient();
         using var bridge = new ServerBridge(fakeSocketClient)
         {
-            viewerPlayerNumericId = 1,
-            actorPlayerNumericId = 2,
+            viewerPlayerNumericId = 2,
         };
 
         bridge.SendDebugResetMatch();
@@ -438,7 +430,7 @@ public class ServerBridgeEditModeTests
             + "\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":301,\"definitionId\":\"T004\",\"zoneKey\":\"summonZone\"}]},"
             + "\"sakuraCakeDeckZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":401,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"},{\"cardInstanceNumericId\":402,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"}]}"
             + "},"
-            + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"statusKeys\":[\"Seal\",\"Shackle\"]},{\"characterInstanceNumericId\":200002,\"currentHp\":2,\"maxHp\":4,\"statusKeys\":[\"Penetrate\"]}]"
+            + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"raceTags\":[\"human\"],\"statusKeys\":[\"Seal\",\"Shackle\"]},{\"characterInstanceNumericId\":200002,\"currentHp\":2,\"maxHp\":4,\"raceTags\":[\"nonHuman\"],\"statusKeys\":[\"Penetrate\"]}]"
             + "},"
             + "\"eventLog\":[{\"eventTypeKey\":\"cardMoved\",\"cardInstanceNumericId\":101,\"moveReason\":\"play\"}],"
             + "\"interaction\":{\"inputContext\":{\"inputContextNumericId\":66,\"requiredPlayerNumericId\":1,\"inputTypeKey\":\"testInput\",\"contextKey\":\"test:projection\",\"choiceCount\":2,\"choiceKeys\":[\"accept\",\"decline\"],\"selectedChoiceKey\":\"decline\"},\"responseWindow\":{\"responseWindowNumericId\":88,\"responseWindowOriginType\":\"damageResponse\",\"currentResponderPlayerNumericId\":2,\"responderPlayerNumericIds\":[1,2],\"pendingDamageResponseStageKey\":\"awaitDefense\",\"pendingDamageTypeKey\":\"physical\",\"pendingDamageTargetCharacterInstanceNumericId\":200001,\"pendingDamageDefenderPlayerNumericId\":1}}"
@@ -470,6 +462,7 @@ public class ServerBridgeEditModeTests
         Assert.That(viewerSummary.fieldCount, Is.EqualTo(1));
         Assert.That(viewerSummary.discardCount, Is.EqualTo(5));
         Assert.That(viewerSummary.activeCharacterCurrentHp, Is.EqualTo(3));
+        Assert.That(viewerSummary.activeCharacterRaceTags, Is.EquivalentTo(new[] { "human" }));
         Assert.That(viewerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Seal", "Shackle" }));
 
         var currentPlayerSummary = projection.playerSummaries.Find(summary => summary.playerNumericId == 2);
@@ -480,6 +473,7 @@ public class ServerBridgeEditModeTests
         Assert.That(currentPlayerSummary.fieldCount, Is.EqualTo(2));
         Assert.That(currentPlayerSummary.discardCount, Is.EqualTo(3));
         Assert.That(currentPlayerSummary.activeCharacterCurrentHp, Is.EqualTo(2));
+        Assert.That(currentPlayerSummary.activeCharacterRaceTags, Is.EquivalentTo(new[] { "nonHuman" }));
         Assert.That(currentPlayerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Penetrate" }));
         Assert.That(projection.mana, Is.EqualTo(4));
         Assert.That(projection.skillPoint, Is.EqualTo(2));
@@ -494,6 +488,7 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.sakuraCakeCards.Count, Is.EqualTo(2));
         Assert.That(projection.activeCharacterCurrentHp, Is.EqualTo(3));
         Assert.That(projection.activeCharacterMaxHp, Is.EqualTo(4));
+        Assert.That(projection.activeCharacterRaceTags, Is.EquivalentTo(new[] { "human" }));
         Assert.That(projection.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Seal", "Shackle" }));
         Assert.That(projection.eventLog.Count, Is.EqualTo(1));
         Assert.That(projection.recentEventTypeKey, Is.EqualTo("cardMoved"));
@@ -791,6 +786,50 @@ public class ServerBridgeEditModeTests
         var shackleDiscardChoiceKeys = SocketDebugPanel.CollectShackleDiscardChoiceKeys(inputChoiceKeys);
 
         Assert.That(shackleDiscardChoiceKeys, Is.EqualTo(new[] { "discardCard:100001", "discardCard:100002" }));
+    }
+
+    [Test]
+    public void SelectionHelper_CollectHandCardChoiceKeys_ShouldKeepOnlyHandCardOptions()
+    {
+        var inputChoiceKeys = new List<string>
+        {
+            "handCard:100010",
+            "discardCard:100001",
+            "handCard:100016",
+            "anomaly:decline",
+        };
+
+        var handCardChoiceKeys = SocketDebugPanel.CollectHandCardChoiceKeys(inputChoiceKeys);
+
+        Assert.That(handCardChoiceKeys, Is.EqualTo(new[] { "handCard:100010", "handCard:100016" }));
+    }
+
+    [Test]
+    public void SelectionHelper_IsA005ConditionDefenseLikePlaceInputContext_WhenContextKeyMatchesAndHasId_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(2);
+        projection.interaction.hasInputContext = true;
+        projection.interaction.inputContextNumericId = 5;
+        projection.interaction.inputTypeKey = "anomalyA005ConditionDefenseLikePlace";
+        projection.interaction.contextKey = "anomaly:A005:conditionDefenseLikePlace";
+
+        var isA005ConditionContext = SocketDebugPanel.IsA005ConditionDefenseLikePlaceInputContext(projection);
+
+        Assert.That(isA005ConditionContext, Is.True);
+    }
+
+    [Test]
+    public void SelectionHelper_IsA010RewardChooseTwoInputContext_WhenContextKeyMatchesAndHasId_ShouldReturnTrue()
+    {
+        var projection = ProjectionViewModel.createDefault(1);
+        projection.interaction.hasInputContext = true;
+        projection.interaction.inputContextNumericId = 10;
+        projection.interaction.inputTypeKey = "anomalyA010RewardChooseTwo";
+        projection.interaction.contextKey = "anomaly:A010:rewardChooseTwo";
+
+        var isA010RewardContext = SocketDebugPanel.IsA010RewardChooseTwoInputContext(projection);
+
+        Assert.That(isA010RewardContext, Is.True);
     }
 
     [Test]

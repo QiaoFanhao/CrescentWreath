@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
+using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Ids;
 using CrescentWreath.RuleCore.ResponseSystem;
 using CrescentWreath.RuleCore.StatusSystem;
@@ -12,10 +13,25 @@ namespace CrescentWreath.RuleCore.DamageSystem;
 
 public sealed class DamageProcessor
 {
+    public const string ContinuationKeyT029DamageImmunity = "continuation:damage:T029:damageImmunity";
+    public const string InputTypeKeyT029DamageImmunityChoice = "damage:T029:immunityChoice";
+    public const string ContextKeyT029DamageImmunity = "damage:T029:immunity";
+    public const string ChoiceKeyT029Decline = "T029:decline";
+    public const string ChoiceKeyT029BanishPrefix = "T029:banish:";
+    public const string LocalStateKeyT029DamageContextId = "damage:T029:damageContextId";
+    public const string LocalStateKeyT029SourcePlayerId = "damage:T029:sourcePlayerId";
+    public const string LocalStateKeyT029SourceCardInstanceId = "damage:T029:sourceCardInstanceId";
+    public const string LocalStateKeyT029SourceCharacterInstanceId = "damage:T029:sourceCharacterInstanceId";
+    public const string LocalStateKeyT029TargetCharacterInstanceId = "damage:T029:targetCharacterInstanceId";
+    public const string LocalStateKeyT029BaseDamageValue = "damage:T029:baseDamageValue";
+    public const string LocalStateKeyT029DamageType = "damage:T029:damageType";
+    public const string LocalStateKeyT029DefenseDeclarationKey = "damage:T029:defenseDeclarationKey";
+
     private const string ResponseKeyCommitKill = "commitKill";
     private const string ResponseKeyReplaceKill = "replaceKill";
     private const string EndedExternalResolutionRejectedMessage = "DamageProcessor cannot accept external resolution calls when gameState.matchState is ended.";
     private const string DamageTypeKeyDirect = "direct";
+    private const string DefinitionIdT029 = "T029";
     private const string StatusKeyBarrier = "Barrier";
     private const string StatusKeyBarrierLegacy = "status:barrier";
     private const string StatusKeyCharm = "Charm";
@@ -29,6 +45,15 @@ public sealed class DamageProcessor
 
         var targetCharacterInstanceId = damageContext.targetCharacterInstanceId!.Value;
         var targetCharacter = gameState.characterInstances[targetCharacterInstanceId];
+
+        if (tryOpenT029DamageImmunityInputContext(
+                gameState,
+                damageContext,
+                targetCharacter,
+                out var t029ImmunityEvents))
+        {
+            return t029ImmunityEvents;
+        }
 
         var consumedShortEffectKeys = consumeSourceShortEffects(gameState, damageContext.sourcePlayerId);
         foreach (var shortEffectKey in consumedShortEffectKeys)
@@ -44,7 +69,7 @@ public sealed class DamageProcessor
 
         var hpBefore = targetCharacter.currentHp;
         var finalDamageValue = damageContext.baseDamageValue;
-        if (isBarrierPrevented)
+        if (damageContext.isPrevented)
         {
             finalDamageValue = 0;
         }
@@ -366,7 +391,9 @@ public sealed class DamageProcessor
         GameState.GameState gameState,
         DamageContext damageContext)
     {
-        if (!damageContext.didDealDamage || !damageContext.sourcePlayerId.HasValue)
+        if (!damageContext.didDealDamage ||
+            !damageContext.sourcePlayerId.HasValue ||
+            !damageContext.targetCharacterInstanceId.HasValue)
         {
             return;
         }
@@ -382,7 +409,148 @@ public sealed class DamageProcessor
             return;
         }
 
+        var targetCharacter = gameState.characterInstances[damageContext.targetCharacterInstanceId.Value];
+        if (!gameState.players.TryGetValue(targetCharacter.ownerPlayerId, out var targetPlayerState))
+        {
+            return;
+        }
+
+        if (targetPlayerState.teamId.Equals(sourcePlayerState.teamId))
+        {
+            return;
+        }
+
         sourceTeamState.leyline += 1;
+    }
+
+    private static bool tryOpenT029DamageImmunityInputContext(
+        GameState.GameState gameState,
+        DamageContext damageContext,
+        CharacterInstance targetCharacter,
+        out List<GameEvent> producedEvents)
+    {
+        producedEvents = new List<GameEvent>();
+        if (damageContext.suppressT029DamageImmunityPrompt ||
+            damageContext.baseDamageValue <= 0 ||
+            !string.IsNullOrWhiteSpace(damageContext.defenseDeclarationKey) ||
+            damageContext.sourcePlayerId is null ||
+            !damageContext.targetCharacterInstanceId.HasValue ||
+            gameState.currentInputContext is not null ||
+            gameState.currentActionChain is null)
+        {
+            return false;
+        }
+
+        if (hasBarrierStatusOnTarget(gameState, damageContext.targetCharacterInstanceId.Value))
+        {
+            return false;
+        }
+
+        if (!gameState.players.TryGetValue(damageContext.sourcePlayerId.Value, out var sourcePlayerState) ||
+            !gameState.players.TryGetValue(targetCharacter.ownerPlayerId, out var targetPlayerState) ||
+            sourcePlayerState.teamId == targetPlayerState.teamId)
+        {
+            return false;
+        }
+
+        if (!gameState.zones.TryGetValue(targetPlayerState.handZoneId, out var targetHandZoneState))
+        {
+            return false;
+        }
+
+        var t029ChoiceKeys = new List<string>
+        {
+            ChoiceKeyT029Decline,
+        };
+        foreach (var handCardInstanceId in targetHandZoneState.cardInstanceIds)
+        {
+            if (!gameState.cardInstances.TryGetValue(handCardInstanceId, out var handCardInstance))
+            {
+                continue;
+            }
+
+            if (handCardInstance.ownerPlayerId != targetCharacter.ownerPlayerId ||
+                !string.Equals(handCardInstance.definitionId, DefinitionIdT029, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            t029ChoiceKeys.Add(ChoiceKeyT029BanishPrefix + handCardInstanceId.Value);
+        }
+
+        if (t029ChoiceKeys.Count <= 1)
+        {
+            return false;
+        }
+
+        var actionChainState = gameState.currentActionChain;
+        saveT029DamageContext(actionChainState, damageContext);
+
+        var inputContextId = new InputContextId(damageContext.damageContextId.Value);
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = targetCharacter.ownerPlayerId,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = InputTypeKeyT029DamageImmunityChoice,
+            contextKey = ContextKeyT029DamageImmunity,
+        };
+        inputContextState.choiceKeys.AddRange(t029ChoiceKeys);
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = ContinuationKeyT029DamageImmunity;
+        actionChainState.isCompleted = false;
+        producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = damageContext.damageContextId.Value,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+
+        return true;
+    }
+
+    private static bool hasBarrierStatusOnTarget(GameState.GameState gameState, CharacterInstanceId targetCharacterInstanceId)
+    {
+        return StatusRuntime.hasStatusOnCharacter(gameState, targetCharacterInstanceId, StatusKeyBarrier) ||
+               StatusRuntime.hasStatusOnCharacter(gameState, targetCharacterInstanceId, StatusKeyBarrierLegacy);
+    }
+
+    private static void saveT029DamageContext(
+        ActionChainState actionChainState,
+        DamageContext damageContext)
+    {
+        actionChainState.localState[LocalStateKeyT029DamageContextId] = damageContext.damageContextId.Value.ToString();
+        if (damageContext.sourcePlayerId.HasValue)
+        {
+            actionChainState.localState[LocalStateKeyT029SourcePlayerId] = damageContext.sourcePlayerId.Value.Value.ToString();
+        }
+
+        if (damageContext.sourceCardInstanceId.HasValue)
+        {
+            actionChainState.localState[LocalStateKeyT029SourceCardInstanceId] = damageContext.sourceCardInstanceId.Value.Value.ToString();
+        }
+
+        if (damageContext.sourceCharacterInstanceId.HasValue)
+        {
+            actionChainState.localState[LocalStateKeyT029SourceCharacterInstanceId] = damageContext.sourceCharacterInstanceId.Value.Value.ToString();
+        }
+
+        actionChainState.localState[LocalStateKeyT029TargetCharacterInstanceId] =
+            damageContext.targetCharacterInstanceId!.Value.Value.ToString();
+        actionChainState.localState[LocalStateKeyT029BaseDamageValue] = damageContext.baseDamageValue.ToString();
+        actionChainState.localState[LocalStateKeyT029DamageType] = damageContext.damageType;
+        if (!string.IsNullOrWhiteSpace(damageContext.defenseDeclarationKey))
+        {
+            actionChainState.localState[LocalStateKeyT029DefenseDeclarationKey] = damageContext.defenseDeclarationKey;
+        }
+        else
+        {
+            actionChainState.localState.Remove(LocalStateKeyT029DefenseDeclarationKey);
+        }
     }
 
     private static void applyMatchEndIfThresholdReached(
@@ -648,7 +816,7 @@ public sealed class DamageProcessor
 
         if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
         {
-            var discardCardInstanceIds = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            var discardCardInstanceIds = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
             foreach (var discardedCardInstanceId in discardCardInstanceIds)
             {
                 var discardedCardInstance = gameState.cardInstances[discardedCardInstanceId];

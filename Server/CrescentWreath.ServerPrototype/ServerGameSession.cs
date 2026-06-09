@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.RuleCore.ActionSystem;
+using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.Initialization;
@@ -27,10 +28,14 @@ public sealed class ServerGameSession
         debugZoneMovementService = new ZoneMovementService();
     }
 
-    public static ServerGameSession createStandard2v2(int? publicDeckShuffleSeed = null)
+    public static ServerGameSession createStandard2v2(
+        int? publicDeckShuffleSeed = null,
+        int? starterDeckShuffleSeed = null)
     {
         var gameInitializer = new GameInitializer();
-        var initializedGameState = gameInitializer.createStandard2v2MatchState(publicDeckShuffleSeed);
+        var initializedGameState = gameInitializer.createStandard2v2MatchState(
+            publicDeckShuffleSeed,
+            starterDeckShuffleSeed);
         return new ServerGameSession(initializedGameState, new ActionRequestProcessor());
     }
 
@@ -138,6 +143,29 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, useSkillActionRequest);
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
+        }
+        catch (Exception exception)
+        {
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
+        }
+    }
+
+    public ServerActionProcessResult processTryResolveAnomaly(ServerTryResolveAnomalyRequestDto requestDto)
+    {
+        try
+        {
+            var tryResolveAnomalyActionRequest = new TryResolveAnomalyActionRequest
+            {
+                requestId = requestDto.requestId,
+                actorPlayerId = new PlayerId(requestDto.actorPlayerNumericId),
+                targetPlayerId = requestDto.targetPlayerNumericId.HasValue && requestDto.targetPlayerNumericId.Value > 0
+                    ? new PlayerId(requestDto.targetPlayerNumericId.Value)
+                    : null,
+                sourceKey = "server:anomaly:tryResolve",
+            };
+
+            var producedEvents = actionRequestProcessor.processActionRequest(gameState, tryResolveAnomalyActionRequest);
             return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
@@ -393,6 +421,53 @@ public sealed class ServerGameSession
             }
 
             return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
+        }
+        catch (Exception exception)
+        {
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
+        }
+    }
+
+    // Debug-only helper to force a non-current anomaly definition to the top of the unopened anomaly deck.
+    public ServerActionProcessResult debugPutAnomalyOnTopByDefinition(ServerDebugPutAnomalyOnTopByDefinitionRequestDto requestDto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(requestDto.anomalyDefinitionId))
+            {
+                throw new InvalidOperationException("debugPutAnomalyOnTopByDefinition requires non-empty anomalyDefinitionId.");
+            }
+
+            if (gameState.currentAnomalyState is null)
+            {
+                throw new InvalidOperationException("debugPutAnomalyOnTopByDefinition requires currentAnomalyState to be initialized.");
+            }
+
+            var normalizedDefinitionId = requestDto.anomalyDefinitionId.Trim();
+            _ = AnomalyDefinitionRepository.resolveByDefinitionId(normalizedDefinitionId);
+
+            if (string.Equals(
+                    gameState.currentAnomalyState.currentAnomalyDefinitionId,
+                    normalizedDefinitionId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("debugPutAnomalyOnTopByDefinition requires anomalyDefinitionId to be non-current.");
+            }
+
+            var anomalyDeckDefinitionIds = gameState.currentAnomalyState.anomalyDeckDefinitionIds;
+            var sourceIndex = anomalyDeckDefinitionIds.FindIndex(
+                definitionId => string.Equals(definitionId, normalizedDefinitionId, StringComparison.OrdinalIgnoreCase));
+            if (sourceIndex < 0)
+            {
+                throw new InvalidOperationException(
+                    $"debugPutAnomalyOnTopByDefinition requires anomalyDefinitionId={normalizedDefinitionId} to exist in unopened anomaly deck.");
+            }
+
+            var exactDefinitionId = anomalyDeckDefinitionIds[sourceIndex];
+            anomalyDeckDefinitionIds.RemoveAt(sourceIndex);
+            anomalyDeckDefinitionIds.Insert(0, exactDefinitionId);
+
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, new List<GameEvent>());
         }
         catch (Exception exception)
         {

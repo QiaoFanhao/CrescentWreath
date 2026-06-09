@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CrescentWreath.RuleCore.ActionSystem;
+using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
@@ -24,6 +26,7 @@ public sealed class ServerStateProjection
     public List<ServerTeamProjection> teams { get; } = new();
     public List<ServerPlayerProjection> players { get; } = new();
     public ServerPublicZonesProjection? publicZones { get; set; }
+    public ServerAnomalyProjection? currentAnomaly { get; set; }
     public List<ServerCharacterProjection> characters { get; } = new();
 }
 
@@ -72,16 +75,41 @@ public sealed class ServerPublicZonesProjection
     public ServerZoneProjection anomalyDeckZone { get; set; } = new();
 }
 
+public sealed class ServerAnomalyProjection
+{
+    public string definitionId { get; set; } = string.Empty;
+    public string name { get; set; } = string.Empty;
+    public string arrivalText { get; set; } = string.Empty;
+    public string resolveText { get; set; } = string.Empty;
+    public string oncePerTurnHint { get; set; } = string.Empty;
+    public string resolveConditionKey { get; set; } = string.Empty;
+    public string resolveRewardKey { get; set; } = string.Empty;
+    public int remainingDeckCount { get; set; }
+    public bool hasResolvedThisTurn { get; set; }
+}
+
 public sealed class ServerCharacterProjection
 {
     public long characterInstanceNumericId { get; set; }
     public string definitionId { get; set; } = string.Empty;
+    public string factionKey { get; set; } = string.Empty;
     public long ownerPlayerNumericId { get; set; }
     public int currentHp { get; set; }
     public int maxHp { get; set; }
     public bool isAlive { get; set; }
     public bool isInPlay { get; set; }
+    public bool isActivated { get; set; }
+    public List<string> raceTags { get; } = new();
     public List<string> statusKeys { get; } = new();
+    public List<ServerMarkerProjection> markers { get; } = new();
+}
+
+public sealed class ServerMarkerProjection
+{
+    public string markerTypeKey { get; set; } = string.Empty;
+    public int count { get; set; }
+    public int maxCount { get; set; }
+    public string displayNameKey { get; set; } = string.Empty;
 }
 
 public sealed class ServerZoneProjection
@@ -103,6 +131,9 @@ public sealed class ServerCardProjection
     public bool isFaceUp { get; set; }
     public bool isSetAside { get; set; }
     public bool isDefensePlacedOnField { get; set; }
+    public long? overlayContainerCardInstanceNumericId { get; set; }
+    public int? overlayOrderIndex { get; set; }
+    public int overlayCardCount { get; set; }
 }
 
 public sealed class ServerInteractionProjection
@@ -148,6 +179,9 @@ public sealed class ServerEventLogEntry
     public string eventTypeKey { get; set; } = string.Empty;
     public long? sourceActionChainNumericId { get; set; }
     public long? cardInstanceNumericId { get; set; }
+    public long? ownerPlayerNumericId { get; set; }
+    public string? definitionId { get; set; }
+    public string? revealReasonKey { get; set; }
     public string? fromZoneKey { get; set; }
     public string? toZoneKey { get; set; }
     public string? moveReason { get; set; }
@@ -166,6 +200,12 @@ public sealed class ServerEventLogEntry
     public bool? isOpened { get; set; }
     public long? responseWindowNumericId { get; set; }
     public long? inputContextNumericId { get; set; }
+    public string? markerTypeKey { get; set; }
+    public int? markerBeforeCount { get; set; }
+    public int? markerAfterCount { get; set; }
+    public bool? wasActivated { get; set; }
+    public bool? isActivated { get; set; }
+    public string? message { get; set; }
 }
 
 internal static class ServerProjectionBuilder
@@ -247,18 +287,27 @@ internal static class ServerProjectionBuilder
             };
         }
 
+        projection.currentAnomaly = buildCurrentAnomalyProjection(gameState);
+
         foreach (var characterInstance in gameState.characterInstances.Values.OrderBy(character => character.characterInstanceId.Value))
         {
             var characterProjection = new ServerCharacterProjection
             {
                 characterInstanceNumericId = characterInstance.characterInstanceId.Value,
                 definitionId = characterInstance.definitionId,
+                factionKey = CharacterDefinitionRepository.resolveByDefinitionId(characterInstance.definitionId).factionKey,
                 ownerPlayerNumericId = characterInstance.ownerPlayerId.Value,
                 currentHp = characterInstance.currentHp,
                 maxHp = characterInstance.maxHp,
                 isAlive = characterInstance.isAlive,
                 isInPlay = characterInstance.isInPlay,
+                isActivated = characterInstance.isActivated,
             };
+            characterProjection.raceTags.AddRange(
+                characterInstance.raceTags
+                    .Where(raceTag => !string.IsNullOrWhiteSpace(raceTag))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(raceTag => raceTag, StringComparer.Ordinal));
 
             var characterStatuses = gameState.statusInstances
                 .Where(status => status.targetCharacterInstanceId == characterInstance.characterInstanceId)
@@ -266,10 +315,48 @@ internal static class ServerProjectionBuilder
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(statusKey => statusKey, StringComparer.Ordinal);
             characterProjection.statusKeys.AddRange(characterStatuses);
+
+            foreach (var markerEntry in characterInstance.markerState.markerMap
+                         .Where(entry => entry.Value > 0)
+                         .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            {
+                characterProjection.markers.Add(new ServerMarkerProjection
+                {
+                    markerTypeKey = markerEntry.Key,
+                    count = markerEntry.Value,
+                    maxCount = MarkerRuntime.getMarkerCap(characterInstance, markerEntry.Key),
+                    displayNameKey = markerEntry.Key,
+                });
+            }
+
             projection.characters.Add(characterProjection);
         }
 
         return projection;
+    }
+
+    private static ServerAnomalyProjection? buildCurrentAnomalyProjection(GameState gameState)
+    {
+        if (gameState.currentAnomalyState is null ||
+            string.IsNullOrWhiteSpace(gameState.currentAnomalyState.currentAnomalyDefinitionId))
+        {
+            return null;
+        }
+
+        var anomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(
+            gameState.currentAnomalyState.currentAnomalyDefinitionId);
+        return new ServerAnomalyProjection
+        {
+            definitionId = anomalyDefinition.definitionId,
+            name = anomalyDefinition.name,
+            arrivalText = anomalyDefinition.arrivalText,
+            resolveText = anomalyDefinition.resolveText,
+            oncePerTurnHint = anomalyDefinition.oncePerTurnHint,
+            resolveConditionKey = anomalyDefinition.resolveConditionKey,
+            resolveRewardKey = anomalyDefinition.resolveRewardKey,
+            remainingDeckCount = gameState.currentAnomalyState.anomalyDeckDefinitionIds.Count,
+            hasResolvedThisTurn = gameState.turnState?.hasResolvedAnomalyThisTurn ?? false,
+        };
     }
 
     public static ServerInteractionProjection buildInteractionProjection(GameState gameState, PlayerId viewerPlayerId)
@@ -393,6 +480,21 @@ internal static class ServerProjectionBuilder
                 continue;
             }
 
+            if (producedEvent is CardRevealedEvent cardRevealedEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = cardRevealedEvent.eventId,
+                    eventTypeKey = cardRevealedEvent.eventTypeKey,
+                    sourceActionChainNumericId = cardRevealedEvent.sourceActionChainId?.Value,
+                    cardInstanceNumericId = cardRevealedEvent.cardInstanceId.Value,
+                    ownerPlayerNumericId = cardRevealedEvent.ownerPlayerId.Value,
+                    definitionId = cardRevealedEvent.definitionId,
+                    revealReasonKey = cardRevealedEvent.revealReasonKey,
+                });
+                continue;
+            }
+
             if (producedEvent is StatusChangedEvent statusChangedEvent)
             {
                 projectedEvents.Add(new ServerEventLogEntry
@@ -419,6 +521,51 @@ internal static class ServerProjectionBuilder
                     damageContextNumericId = damageResolvedEvent.damageContextId.Value,
                     finalDamageValue = damageResolvedEvent.finalDamageValue,
                     didDealDamage = damageResolvedEvent.didDealDamage,
+                });
+                continue;
+            }
+
+            if (producedEvent is MarkerChangedEvent markerChangedEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = markerChangedEvent.eventId,
+                    eventTypeKey = markerChangedEvent.eventTypeKey,
+                    sourceActionChainNumericId = markerChangedEvent.sourceActionChainId?.Value,
+                    targetPlayerNumericId = markerChangedEvent.targetPlayerId.Value,
+                    targetCharacterInstanceNumericId = markerChangedEvent.targetCharacterInstanceId.Value,
+                    markerTypeKey = markerChangedEvent.markerTypeKey,
+                    markerBeforeCount = markerChangedEvent.beforeCount,
+                    markerAfterCount = markerChangedEvent.afterCount,
+                    delta = markerChangedEvent.delta,
+                });
+                continue;
+            }
+
+            if (producedEvent is CharacterActivationChangedEvent activationChangedEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = activationChangedEvent.eventId,
+                    eventTypeKey = activationChangedEvent.eventTypeKey,
+                    sourceActionChainNumericId = activationChangedEvent.sourceActionChainId?.Value,
+                    targetPlayerNumericId = activationChangedEvent.targetPlayerId.Value,
+                    targetCharacterInstanceNumericId = activationChangedEvent.targetCharacterInstanceId.Value,
+                    wasActivated = activationChangedEvent.wasActivated,
+                    isActivated = activationChangedEvent.isActivated,
+                });
+                continue;
+            }
+
+            if (producedEvent is AnomalyRewardPlaceholderEvent anomalyRewardPlaceholderEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = anomalyRewardPlaceholderEvent.eventId,
+                    eventTypeKey = anomalyRewardPlaceholderEvent.eventTypeKey,
+                    sourceActionChainNumericId = anomalyRewardPlaceholderEvent.sourceActionChainId?.Value,
+                    definitionId = anomalyRewardPlaceholderEvent.anomalyDefinitionId,
+                    message = anomalyRewardPlaceholderEvent.message,
                 });
                 continue;
             }
@@ -515,6 +662,9 @@ internal static class ServerProjectionBuilder
                 isFaceUp = cardInstance.isFaceUp,
                 isSetAside = cardInstance.isSetAside,
                 isDefensePlacedOnField = cardInstance.isDefensePlacedOnField,
+                overlayContainerCardInstanceNumericId = cardInstance.overlayContainerCardInstanceId?.Value,
+                overlayOrderIndex = cardInstance.overlayOrderIndex,
+                overlayCardCount = OverlayRuntime.getOverlayCardCount(gameState, cardInstance.cardInstanceId),
             });
         }
 

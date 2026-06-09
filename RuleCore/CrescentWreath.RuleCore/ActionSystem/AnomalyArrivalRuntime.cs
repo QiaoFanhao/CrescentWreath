@@ -21,6 +21,9 @@ public static class AnomalyArrivalRuntime
     public const string ArrivalStepKeyApplyOptionalBanishForAllPlayersAndExtraOptionalForC007 = "applyOptionalBanishForAllPlayersAndExtraOptionalForC007";
     public const string ArrivalStepKeyApplyA001RaceFlowWithRemiliaHealInput = "applyA001RaceFlowWithRemiliaHealInput";
     public const string ArrivalStepKeyApplyA006RaceFlowWithDefenseDiscardInput = "applyA006RaceFlowWithDefenseDiscardInput";
+    public const string ArrivalStepKeyA002ParallelDirectSummonChoice = "a002ArrivalParallelDirectSummonChoice";
+    public const string ArrivalStepKeyA004ReturnDefenseCardsThenKaguyaDraw = "a004ArrivalReturnDefenseCardsThenKaguyaDraw";
+    public const string ArrivalStepKeyA010FateStayNightSetAsideInput = AnomalyA010Runtime.ArrivalStepKey;
     private const string KazamiYuukaDefinitionId = "C023";
 
     private static readonly HashSet<string> SealArrivalExemptCharacterDefinitionIds = new(StringComparer.Ordinal)
@@ -35,11 +38,15 @@ public static class AnomalyArrivalRuntime
         ZoneMovementService zoneMovementService,
         AnomalyDefinition anomalyDefinition,
         AnomalyArrivalInputRuntime anomalyArrivalInputRuntime,
+        AnomalyA004Runtime anomalyA004Runtime,
+        AnomalyA007A008Runtime anomalyA007A008Runtime,
         string a003ArrivalContinuationKey,
         string a005ArrivalContinuationKey,
         string a007ArrivalContinuationKey,
         string a001ArrivalContinuationKey,
-        string a006ArrivalContinuationKey)
+        string a006ArrivalContinuationKey,
+        string a002ArrivalContinuationKey,
+        AnomalyA010Runtime? anomalyA010Runtime = null)
     {
         if (gameState is null)
         {
@@ -61,6 +68,15 @@ public static class AnomalyArrivalRuntime
             throw new ArgumentNullException(nameof(anomalyArrivalInputRuntime));
         }
 
+        if (anomalyA004Runtime is null)
+        {
+            throw new ArgumentNullException(nameof(anomalyA004Runtime));
+        }
+
+        if (anomalyA007A008Runtime is null)
+        {
+            throw new ArgumentNullException(nameof(anomalyA007A008Runtime));
+        }
         foreach (var arrivalStep in anomalyDefinition.arrivalSteps)
         {
             if (string.Equals(arrivalStep.arrivalStepKey, ArrivalStepKeyLegacyNoop, StringComparison.Ordinal))
@@ -132,10 +148,9 @@ public static class AnomalyArrivalRuntime
 
             if (string.Equals(arrivalStep.arrivalStepKey, ArrivalStepKeyApplyOptionalBanishForAllPlayersAndExtraOptionalForC007, StringComparison.Ordinal))
             {
-                var isSuspendedByInput = anomalyArrivalInputRuntime.tryOpenA007ArrivalOptionalBanishInputContext(
+                var isSuspendedByInput = anomalyA007A008Runtime.tryOpenA007ArrivalHandBanishInput(
                     gameState,
                     actionChainState,
-                    a007ArrivalContinuationKey,
                     requestId);
                 if (isSuspendedByInput)
                 {
@@ -168,6 +183,52 @@ public static class AnomalyArrivalRuntime
                     a006ArrivalContinuationKey,
                     requestId);
                 if (isSuspendedByInput)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (string.Equals(arrivalStep.arrivalStepKey, ArrivalStepKeyA002ParallelDirectSummonChoice, StringComparison.Ordinal))
+            {
+                var isSuspendedByInput = anomalyArrivalInputRuntime.tryOpenA002ArrivalParallelDirectSummonInputContext(
+                    gameState,
+                    actionChainState,
+                    a002ArrivalContinuationKey,
+                    requestId);
+                if (isSuspendedByInput)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (string.Equals(arrivalStep.arrivalStepKey, ArrivalStepKeyA004ReturnDefenseCardsThenKaguyaDraw, StringComparison.Ordinal))
+            {
+                if (anomalyA004Runtime.tryOpenArrivalInputOrComplete(
+                        gameState,
+                        actionChainState,
+                        requestId))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (string.Equals(arrivalStep.arrivalStepKey, ArrivalStepKeyA010FateStayNightSetAsideInput, StringComparison.Ordinal))
+            {
+                if (anomalyA010Runtime is null)
+                {
+                    throw new InvalidOperationException("A010 anomaly arrival requires AnomalyA010Runtime.");
+                }
+
+                if (anomalyA010Runtime.tryOpenArrivalSetAsideInput(
+                        gameState,
+                        actionChainState,
+                        requestId))
                 {
                     return true;
                 }

@@ -22,6 +22,8 @@ public sealed class SocketDebugPanel : MonoBehaviour
     [SerializeField] private string debugDamageValueText = "3";
     [SerializeField] private string debugDamageTypeKeyText = "physical";
     [SerializeField] private string debugTreasureDefinitionIdText = "T004";
+    [SerializeField] private string debugAnomalyDefinitionIdText = "A001";
+    [SerializeField] private string anomalyTargetPlayerNumericIdText = string.Empty;
     [SerializeField] private string inputChoiceKeyManualText = string.Empty;
     [SerializeField] private string traceExportCountText = "20";
 
@@ -54,7 +56,20 @@ public sealed class SocketDebugPanel : MonoBehaviour
     private long? selectedSakuraCakeCardId;
     private long? selectedDefenseCardId;
     private readonly List<string> selectedShackleDiscardChoiceKeys = new();
+    private readonly List<string> selectedOverlayChoiceKeys = new();
+    private readonly List<string> selectedT025ExtraDiscardChoiceKeys = new();
+    private readonly List<string> selectedA001RewardShackleChoiceKeys = new();
+    private readonly List<string> selectedA005ConditionDefenseLikePlaceChoiceKeys = new();
+    private readonly List<string> selectedA010RewardChoiceKeys = new();
     private long? selectedShackleInputContextNumericId;
+    private long? selectedOverlayInputContextNumericId;
+    private long? selectedT025ExtraDiscardInputContextNumericId;
+    private long? selectedA001RewardShackleInputContextNumericId;
+    private long? selectedA005ConditionDefenseLikePlaceInputContextNumericId;
+    private long? selectedA010RewardInputContextNumericId;
+    private long? selectedDeclareCardNameInputContextNumericId;
+    private int selectedDeclareCardNameChoiceIndex;
+    private bool isDeclareCardNameChoiceListExpanded;
 
     private long? lastPlayedSelectedHandCardId;
     private long? lastSummonedSelectedCardId;
@@ -210,6 +225,141 @@ public sealed class SocketDebugPanel : MonoBehaviour
                choiceKey.StartsWith("discardCard:", StringComparison.Ordinal);
     }
 
+    public static bool IsT021OverlayInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               projection.interaction.inputContextNumericId.HasValue &&
+               projection.interaction.inputContextNumericId.Value > 0 &&
+               (string.Equals(
+                    projection.interaction.inputTypeKey,
+                    "treasureOnPlayOverlayCardsChoice",
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    projection.interaction.contextKey,
+                     "treasureOnPlay:T021:onPlayOverlayCardsForMana",
+                     StringComparison.Ordinal));
+    }
+
+    public static bool IsT025ExtraDiscardInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               projection.interaction.inputContextNumericId.HasValue &&
+               projection.interaction.inputContextNumericId.Value > 0 &&
+               (string.Equals(
+                    projection.interaction.inputTypeKey,
+                    "treasureDefenseT025ExtraDiscardChoice",
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    projection.interaction.contextKey,
+                     "treasureDefense:T025:extraDiscard",
+                     StringComparison.Ordinal));
+    }
+
+    public static bool IsA001RewardOptionalShackleInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               projection.interaction.inputContextNumericId.HasValue &&
+               projection.interaction.inputContextNumericId.Value > 0 &&
+               (string.Equals(
+                    projection.interaction.inputTypeKey,
+                    "anomalyA001RewardOptionalShackleOpponents",
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    projection.interaction.contextKey,
+                     "anomaly:A001:rewardOptionalShackleOpponents",
+                     StringComparison.Ordinal));
+    }
+
+    public static bool IsA005ConditionDefenseLikePlaceInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               projection.interaction.inputContextNumericId.HasValue &&
+               projection.interaction.inputContextNumericId.Value > 0 &&
+               (string.Equals(
+                    projection.interaction.inputTypeKey,
+                    "anomalyA005ConditionDefenseLikePlace",
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    projection.interaction.contextKey,
+                    "anomaly:A005:conditionDefenseLikePlace",
+                    StringComparison.Ordinal));
+    }
+
+    public static bool IsA010RewardChooseTwoInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               projection.interaction.inputContextNumericId.HasValue &&
+               projection.interaction.inputContextNumericId.Value > 0 &&
+               (string.Equals(
+                    projection.interaction.inputTypeKey,
+                    "anomalyA010RewardChooseTwo",
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    projection.interaction.contextKey,
+                    "anomaly:A010:rewardChooseTwo",
+                    StringComparison.Ordinal));
+    }
+
+    public static bool IsOverlayCardChoiceKey(string choiceKey)
+    {
+        return !string.IsNullOrWhiteSpace(choiceKey) &&
+               choiceKey.StartsWith("overlayCard:", StringComparison.Ordinal);
+    }
+
+    public static bool IsHandCardChoiceKey(string choiceKey)
+    {
+        return !string.IsNullOrWhiteSpace(choiceKey) &&
+               choiceKey.StartsWith("handCard:", StringComparison.Ordinal);
+    }
+
+    public static bool IsOpponentPlayerChoiceKey(string choiceKey)
+    {
+        return !string.IsNullOrWhiteSpace(choiceKey) &&
+               choiceKey.StartsWith("opponentPlayer:", StringComparison.Ordinal);
+    }
+
+    public static List<string> CollectOverlayCardChoiceKeys(List<string> inputChoiceKeys)
+    {
+        var result = new List<string>();
+        foreach (var choiceKey in inputChoiceKeys)
+        {
+            if (IsOverlayCardChoiceKey(choiceKey))
+            {
+                result.Add(choiceKey);
+            }
+        }
+
+        return result;
+    }
+
+    public static List<string> CollectOpponentPlayerChoiceKeys(List<string> inputChoiceKeys)
+    {
+        var result = new List<string>();
+        foreach (var choiceKey in inputChoiceKeys)
+        {
+            if (IsOpponentPlayerChoiceKey(choiceKey))
+            {
+                result.Add(choiceKey);
+            }
+        }
+
+        return result;
+    }
+
+    public static List<string> CollectHandCardChoiceKeys(List<string> inputChoiceKeys)
+    {
+        var result = new List<string>();
+        foreach (var choiceKey in inputChoiceKeys)
+        {
+            if (IsHandCardChoiceKey(choiceKey))
+            {
+                result.Add(choiceKey);
+            }
+        }
+
+        return result;
+    }
+
     public static List<string> CollectShackleDiscardChoiceKeys(List<string> inputChoiceKeys)
     {
         var result = new List<string>();
@@ -222,6 +372,11 @@ public sealed class SocketDebugPanel : MonoBehaviour
         }
 
         return result;
+    }
+
+    public static List<string> CollectDiscardCardChoiceKeys(List<string> inputChoiceKeys)
+    {
+        return CollectShackleDiscardChoiceKeys(inputChoiceKeys);
     }
 
     public static void PruneSelectedChoiceKeysByAvailable(
@@ -268,6 +423,26 @@ public sealed class SocketDebugPanel : MonoBehaviour
         return true;
     }
 
+    public static void ToggleUnboundedChoiceSelection(
+        List<string> selectedChoiceKeys,
+        string choiceKey)
+    {
+        if (string.IsNullOrWhiteSpace(choiceKey))
+        {
+            return;
+        }
+
+        var existingIndex = selectedChoiceKeys.FindIndex(
+            selectedChoiceKey => string.Equals(selectedChoiceKey, choiceKey, StringComparison.Ordinal));
+        if (existingIndex >= 0)
+        {
+            selectedChoiceKeys.RemoveAt(existingIndex);
+            return;
+        }
+
+        selectedChoiceKeys.Add(choiceKey);
+    }
+
     public static bool IsDirectResponseForPendingRequest(
         bool requestInFlight,
         long? pendingRequestId,
@@ -281,7 +456,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
     public static bool TryValidateSubmitResponseNoActor(
         ProjectionViewModel projection,
-        string actorPlayerNumericIdText,
+        string localPlayerNumericIdText,
         out long currentResponderPlayerNumericId,
         out string failureReason)
     {
@@ -303,16 +478,16 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
         currentResponderPlayerNumericId = projection.interaction.responseCurrentResponderPlayerNumericId.Value;
 
-        if (!long.TryParse(actorPlayerNumericIdText, out var actorPlayerNumericId) || actorPlayerNumericId <= 0)
+        if (!long.TryParse(localPlayerNumericIdText, out var localPlayerNumericId) || localPlayerNumericId <= 0)
         {
-            failureReason = "本地拦截：actorPlayerNumericId 非法。";
+            failureReason = "本地拦截：本机玩家ID非法。";
             return false;
         }
 
-        if (actorPlayerNumericId != currentResponderPlayerNumericId)
+        if (localPlayerNumericId != currentResponderPlayerNumericId)
         {
             failureReason =
-                $"本地拦截：actorPlayerNumericId（{actorPlayerNumericId}）必须等于 currentResponderPlayerNumericId（{currentResponderPlayerNumericId}）。";
+                $"本地拦截：本机玩家ID（{localPlayerNumericId}）必须等于 currentResponderPlayerNumericId（{currentResponderPlayerNumericId}）。";
             return false;
         }
 
@@ -321,12 +496,12 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
     public static bool TryValidateSubmitDefenseActor(
         ProjectionViewModel projection,
-        string actorPlayerNumericIdText,
+        string localPlayerNumericIdText,
         out string failureReason)
     {
         return TryValidateSubmitResponseNoActor(
             projection,
-            actorPlayerNumericIdText,
+            localPlayerNumericIdText,
             out _,
             out failureReason);
     }
@@ -606,6 +781,29 @@ public sealed class SocketDebugPanel : MonoBehaviour
         return true;
     }
 
+    public static bool TryResolveOptionalPositiveLong(
+        string inputText,
+        out long? resolvedValue,
+        out string failureReason)
+    {
+        resolvedValue = null;
+        failureReason = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(inputText))
+        {
+            return true;
+        }
+
+        if (!long.TryParse(inputText.Trim(), out var parsedValue) || parsedValue <= 0)
+        {
+            failureReason = "本地拦截：目标玩家ID若填写，必须是大于0的整数。";
+            return false;
+        }
+
+        resolvedValue = parsedValue;
+        return true;
+    }
+
     private void OnEnable()
     {
         ensureFlowTraceBuckets();
@@ -671,6 +869,8 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.Space(8f);
         drawPhaseActionSection();
         GUILayout.Space(8f);
+        drawAnomalySection();
+        GUILayout.Space(8f);
         drawDamageInteractionTestSection();
         GUILayout.Space(8f);
         drawCardActionSection();
@@ -696,17 +896,16 @@ public sealed class SocketDebugPanel : MonoBehaviour
         var connectionBoundText = "(未连接)";
         if (bridge is not null && bridge.isConnected)
         {
-            connectionBoundText = $"viewerPlayerNumericId={viewerPlayerNumericIdText}";
+            connectionBoundText = $"本机玩家ID={viewerPlayerNumericIdText}";
         }
 
         GUILayout.Label("WebSocket 地址");
         wsUrl = GUILayout.TextField(wsUrl, GUILayout.Height(26f));
 
         GUILayout.BeginHorizontal();
-        GUILayout.Label("观察者", GUILayout.Width(80f));
+        GUILayout.Label("本机玩家ID", GUILayout.Width(90f));
         viewerPlayerNumericIdText = GUILayout.TextField(viewerPlayerNumericIdText, GUILayout.Width(120f));
-        GUILayout.Label("操作者", GUILayout.Width(80f));
-        actorPlayerNumericIdText = GUILayout.TextField(actorPlayerNumericIdText, GUILayout.Width(120f));
+        actorPlayerNumericIdText = viewerPlayerNumericIdText;
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
@@ -729,8 +928,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
     private void drawInteractionStatusBar()
     {
         ProjectionViewModel projectionSnapshot;
-        string actorTextSnapshot;
-        string viewerTextSnapshot;
+        string localPlayerTextSnapshot;
         long? pendingRequestIdSnapshot;
         long? lastDirectRequestIdSnapshot;
         long? lastPushRequestIdSnapshot;
@@ -740,8 +938,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
         lock (stateLock)
         {
             projectionSnapshot = latestProjection.deepClone();
-            actorTextSnapshot = actorPlayerNumericIdText;
-            viewerTextSnapshot = viewerPlayerNumericIdText;
+            localPlayerTextSnapshot = viewerPlayerNumericIdText;
             pendingRequestIdSnapshot = pendingRequestId;
             lastDirectRequestIdSnapshot = lastDirectRequestId;
             lastPushRequestIdSnapshot = lastPushRequestId;
@@ -750,8 +947,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
             lastResponseOriginSnapshot = lastResponseOriginForUi;
         }
 
-        var actorValid = long.TryParse(actorTextSnapshot, out var actorPlayerNumericId);
-        var viewerValid = long.TryParse(viewerTextSnapshot, out var viewerPlayerNumericId);
+        var localPlayerValid = long.TryParse(localPlayerTextSnapshot, out var localPlayerNumericId);
 
         var hasValidResponseWindow = projectionSnapshot.interaction.hasResponseWindow &&
                                      projectionSnapshot.interaction.responseWindowNumericId.HasValue &&
@@ -759,34 +955,34 @@ public sealed class SocketDebugPanel : MonoBehaviour
                                      projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId.HasValue &&
                                      projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId.Value > 0;
         var responseSubmitReady = hasValidResponseWindow &&
-                                  actorValid &&
-                                  actorPlayerNumericId == projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId!.Value;
+                                  localPlayerValid &&
+                                  localPlayerNumericId == projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId!.Value;
 
         var hasValidInputContext = projectionSnapshot.interaction.hasInputContext &&
                                    projectionSnapshot.interaction.inputContextNumericId.HasValue &&
                                    projectionSnapshot.interaction.inputContextNumericId.Value > 0;
         var isParallelInputContext = projectionSnapshot.interaction.inputRequiredPlayerNumericIds.Count > 0;
-        var actorMatchesInputRequired = false;
-        var actorAlreadySubmittedInput = false;
-        if (actorValid && hasValidInputContext)
+        var localPlayerMatchesInputRequired = false;
+        var localPlayerAlreadySubmittedInput = false;
+        if (localPlayerValid && hasValidInputContext)
         {
             if (isParallelInputContext)
             {
-                actorMatchesInputRequired = projectionSnapshot.interaction.inputRequiredPlayerNumericIds.Contains(actorPlayerNumericId);
-                actorAlreadySubmittedInput = projectionSnapshot.interaction.inputSubmittedPlayerNumericIds.Contains(actorPlayerNumericId);
+                localPlayerMatchesInputRequired = projectionSnapshot.interaction.inputRequiredPlayerNumericIds.Contains(localPlayerNumericId);
+                localPlayerAlreadySubmittedInput = projectionSnapshot.interaction.inputSubmittedPlayerNumericIds.Contains(localPlayerNumericId);
             }
             else if (projectionSnapshot.interaction.inputRequiredPlayerNumericId.HasValue &&
                      projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value > 0)
             {
-                actorMatchesInputRequired =
-                    actorPlayerNumericId == projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value;
+                localPlayerMatchesInputRequired =
+                    localPlayerNumericId == projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value;
             }
         }
 
         var inputSubmitReady = hasValidInputContext &&
-                               actorValid &&
-                               actorMatchesInputRequired &&
-                               !actorAlreadySubmittedInput;
+                               localPlayerValid &&
+                               localPlayerMatchesInputRequired &&
+                               !localPlayerAlreadySubmittedInput;
 
         var previousColor = GUI.color;
         GUI.color = new Color(0.14f, 0.14f, 0.14f, 0.95f);
@@ -794,9 +990,9 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUI.color = previousColor;
 
         GUILayout.Label(
-            $"交互状态条 | 操作者={actorTextSnapshot} 观察者={viewerTextSnapshot} 当前玩家={projectionSnapshot.currentPlayerNumericId?.ToString() ?? "(空)"} 当前阶段={localizePhaseText(projectionSnapshot.currentPhase)}");
+            $"交互状态条 | 本机玩家={localPlayerTextSnapshot} 当前玩家={projectionSnapshot.currentPlayerNumericId?.ToString() ?? "(空)"} 当前阶段={localizePhaseText(projectionSnapshot.currentPhase)}");
         GUILayout.Label(
-            $"ResponseWindow: has={projectionSnapshot.interaction.hasResponseWindow} id={projectionSnapshot.interaction.responseWindowNumericId?.ToString() ?? "(空)"} responder={projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId?.ToString() ?? "(空)"} | actor可提交response={(responseSubmitReady ? "匹配" : "不匹配")}");
+            $"ResponseWindow: has={projectionSnapshot.interaction.hasResponseWindow} id={projectionSnapshot.interaction.responseWindowNumericId?.ToString() ?? "(空)"} responder={projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId?.ToString() ?? "(空)"} | 本机可提交response={(responseSubmitReady ? "是" : "否")}");
         var inputRequiredText = isParallelInputContext
             ? $"[{string.Join(",", projectionSnapshot.interaction.inputRequiredPlayerNumericIds)}]"
             : projectionSnapshot.interaction.inputRequiredPlayerNumericId?.ToString() ?? "(空)";
@@ -804,13 +1000,13 @@ public sealed class SocketDebugPanel : MonoBehaviour
             ? $"[{string.Join(",", projectionSnapshot.interaction.inputSubmittedPlayerNumericIds)}]"
             : "(空)";
         GUILayout.Label(
-            $"InputContext: has={projectionSnapshot.interaction.hasInputContext} id={projectionSnapshot.interaction.inputContextNumericId?.ToString() ?? "(空)"} required={inputRequiredText} submitted={inputSubmittedText} | actor可提交input={(inputSubmitReady ? "匹配" : "不匹配")}");
+            $"InputContext: has={projectionSnapshot.interaction.hasInputContext} id={projectionSnapshot.interaction.inputContextNumericId?.ToString() ?? "(空)"} required={inputRequiredText} submitted={inputSubmittedText} | 本机可提交input={(inputSubmitReady ? "是" : "否")}");
         GUILayout.Label(
             $"消息来源: 最近={lastResponseOriginSnapshot} pendingRequestId={pendingRequestIdSnapshot?.ToString() ?? "(空)"} lastDirectRequestId={lastDirectRequestIdSnapshot?.ToString() ?? "(空)"} pushCount={pushUpdateCountSnapshot} lastPushRequestId={lastPushRequestIdSnapshot?.ToString() ?? "(空)"} lastPushEventDelta={lastPushEventLogDeltaSnapshot}");
 
-        if (!actorValid || !viewerValid)
+        if (!localPlayerValid)
         {
-            GUILayout.Label("提示：actor/viewer 需要是有效数字 ID。");
+            GUILayout.Label("提示：本机玩家ID需要是有效数字 ID。");
         }
 
         GUILayout.EndVertical();
@@ -988,8 +1184,97 @@ public sealed class SocketDebugPanel : MonoBehaviour
             }
         }
         GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("调试异变定义ID", GUILayout.Width(105f));
+        debugAnomalyDefinitionIdText = GUILayout.TextField(debugAnomalyDefinitionIdText, GUILayout.Width(120f));
+        GUI.enabled = canSend;
+        if (GUILayout.Button("调试：置入异变牌堆顶部", GUILayout.Width(210f)))
+        {
+            var trimmedDefinitionId = debugAnomalyDefinitionIdText?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(trimmedDefinitionId))
+            {
+                onLocalBlocked("本地拦截：调试异变定义ID不能为空（例如 A001）。");
+            }
+            else
+            {
+                applyViewerAndActor();
+                sendTrackedAction(
+                    "debugPutAnomalyOnTopByDefinition",
+                    () => bridge?.SendDebugPutAnomalyOnTopByDefinition(trimmedDefinitionId));
+            }
+        }
+        GUI.enabled = previousEnabled;
+        GUILayout.Label("提示：只能置顶未翻开的非当前异变；下一次翻开时触发其降临。");
+        GUILayout.EndHorizontal();
         GUILayout.EndVertical();
 
+        GUI.enabled = previousEnabled;
+    }
+
+    private void drawAnomalySection()
+    {
+        ProjectionViewModel projectionSnapshot;
+        lock (stateLock)
+        {
+            projectionSnapshot = latestProjection.deepClone();
+        }
+
+        var canSend = canSendRequest();
+        var previousEnabled = GUI.enabled;
+
+        GUILayout.BeginVertical("box");
+        GUILayout.Label("当前异变");
+
+        if (!projectionSnapshot.currentAnomaly.hasCurrentAnomaly)
+        {
+            GUILayout.Label("当前没有翻开的异变。");
+            GUILayout.EndVertical();
+            GUI.enabled = previousEnabled;
+            return;
+        }
+
+        GUILayout.Label(
+            $"{projectionSnapshot.currentAnomaly.definitionId} {projectionSnapshot.currentAnomaly.name} | " +
+            $"剩余异变牌堆: {projectionSnapshot.currentAnomaly.remainingDeckCount} | " +
+            $"本回合已尝试/解决: {(projectionSnapshot.currentAnomaly.hasResolvedThisTurn ? "是" : "否")}");
+        GUILayout.Label($"解决条件: {emptyToPlaceholder(projectionSnapshot.currentAnomaly.resolveText)}");
+        GUILayout.Label($"降临效果: {emptyToPlaceholder(projectionSnapshot.currentAnomaly.arrivalText)}");
+        if (!string.IsNullOrWhiteSpace(projectionSnapshot.currentAnomaly.oncePerTurnHint))
+        {
+            GUILayout.Label($"限制: {projectionSnapshot.currentAnomaly.oncePerTurnHint}");
+        }
+
+        GUILayout.Label(
+            $"conditionKey={emptyToPlaceholder(projectionSnapshot.currentAnomaly.resolveConditionKey)} | " +
+            $"rewardKey={emptyToPlaceholder(projectionSnapshot.currentAnomaly.resolveRewardKey)}");
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("目标玩家ID（可空）", GUILayout.Width(130f));
+        anomalyTargetPlayerNumericIdText = GUILayout.TextField(anomalyTargetPlayerNumericIdText, GUILayout.Width(90f));
+        GUI.enabled = canSend;
+        if (GUILayout.Button("尝试解决异变", GUILayout.Width(150f)))
+        {
+            if (!TryResolveOptionalPositiveLong(
+                    anomalyTargetPlayerNumericIdText,
+                    out var targetPlayerNumericId,
+                    out var failureReason))
+            {
+                onLocalBlocked(failureReason);
+            }
+            else
+            {
+                applyViewerAndActor();
+                sendTrackedAction(
+                    "tryResolveAnomaly",
+                    () => bridge?.SendTryResolveAnomaly(targetPlayerNumericId));
+            }
+        }
+        GUI.enabled = previousEnabled;
+        GUILayout.Label("提示：部分异变不需要目标，留空即可；失败原因会在错误条显示。");
+        GUILayout.EndHorizontal();
+
+        GUILayout.EndVertical();
         GUI.enabled = previousEnabled;
     }
 
@@ -1247,7 +1532,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
         lock (stateLock)
         {
             projectionSnapshot = latestProjection.deepClone();
-            actorPlayerNumericIdTextSnapshot = actorPlayerNumericIdText;
+            actorPlayerNumericIdTextSnapshot = viewerPlayerNumericIdText;
             selectedHandCardIdSnapshot = selectedHandCardId;
             selectedDefenseCardIdSnapshot = selectedDefenseCardId;
         }
@@ -1529,7 +1814,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
         }, isReadOnly: false);
 
         GUILayout.Label(
-            $"当前角色: 生命={projectionSnapshot.activeCharacterCurrentHp?.ToString() ?? "(空)"}/{projectionSnapshot.activeCharacterMaxHp?.ToString() ?? "(空)"} 状态=[{string.Join(",", projectionSnapshot.activeCharacterStatusKeys)}]");
+            $"当前角色: 生命={projectionSnapshot.activeCharacterCurrentHp?.ToString() ?? "(空)"}/{projectionSnapshot.activeCharacterMaxHp?.ToString() ?? "(空)"} 阵营={localizeFactionKey(projectionSnapshot.activeCharacterFactionKey)} 启动={(projectionSnapshot.activeCharacterIsActivated ? "是" : "否")} 种族=[{buildLocalizedRaceText(projectionSnapshot.activeCharacterRaceTags)}] 状态=[{string.Join(",", projectionSnapshot.activeCharacterStatusKeys)}] 指示物=[{buildLocalizedMarkerText(projectionSnapshot.activeCharacterMarkers)}]");
         GUILayout.Label(
             $"交互信息: 有输入上下文={projectionSnapshot.interaction.hasInputContext} 输入上下文ID={projectionSnapshot.interaction.inputContextNumericId?.ToString() ?? "(空)"} 必需玩家={projectionSnapshot.interaction.inputRequiredPlayerNumericId?.ToString() ?? "(空)"} 输入类型={projectionSnapshot.interaction.inputTypeKey} 上下文键={projectionSnapshot.interaction.contextKey} 选项数量={projectionSnapshot.interaction.inputChoiceCount} 有响应窗={projectionSnapshot.interaction.hasResponseWindow} 响应窗ID={projectionSnapshot.interaction.responseWindowNumericId?.ToString() ?? "(空)"} 当前响应者={projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId?.ToString() ?? "(空)"} 响应者数量={projectionSnapshot.interaction.responseResponderCount}");
         GUILayout.Label(
@@ -1574,7 +1859,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.Label(
             $"当前回合玩家快照: P{currentPlayerSummary.playerNumericId} 队伍={currentPlayerSummary.teamNumericId} 队伍灵脉={leylineText} 灵力={currentPlayerSummary.mana} 技能点={currentPlayerSummary.skillPoint} 灵符预览={currentPlayerSummary.sigilPreview} 锁定灵符={(currentPlayerSummary.isSigilLocked ? currentPlayerSummary.lockedSigil?.ToString() ?? "(空)" : "(未锁定)")} 手牌={currentPlayerSummary.handCount} 场上={currentPlayerSummary.fieldCount} 弃牌={currentPlayerSummary.discardCount}");
         GUILayout.Label(
-            $"当前回合玩家角色: HP={currentPlayerSummary.activeCharacterCurrentHp?.ToString() ?? "(空)"}/{currentPlayerSummary.activeCharacterMaxHp?.ToString() ?? "(空)"} 状态=[{string.Join(",", currentPlayerSummary.activeCharacterStatusKeys)}]");
+            $"当前回合玩家角色: HP={currentPlayerSummary.activeCharacterCurrentHp?.ToString() ?? "(空)"}/{currentPlayerSummary.activeCharacterMaxHp?.ToString() ?? "(空)"} 阵营={localizeFactionKey(currentPlayerSummary.activeCharacterFactionKey)} 启动={(currentPlayerSummary.activeCharacterIsActivated ? "是" : "否")} 种族=[{buildLocalizedRaceText(currentPlayerSummary.activeCharacterRaceTags)}] 状态=[{string.Join(",", currentPlayerSummary.activeCharacterStatusKeys)}] 指示物=[{buildLocalizedMarkerText(currentPlayerSummary.activeCharacterMarkers)}]");
     }
 
     private static void drawTeamResourceSummarySection(ProjectionViewModel projection)
@@ -1613,11 +1898,13 @@ public sealed class SocketDebugPanel : MonoBehaviour
             var statusText = summary.activeCharacterStatusKeys.Count > 0
                 ? string.Join(",", summary.activeCharacterStatusKeys)
                 : "(无)";
+            var raceText = buildLocalizedRaceText(summary.activeCharacterRaceTags);
             var playerStatusText = summary.playerStatusKeys.Count > 0
                 ? string.Join(",", summary.playerStatusKeys)
                 : "(无)";
+            var markerText = buildLocalizedMarkerText(summary.activeCharacterMarkers);
             GUILayout.Label(
-                $"P{summary.playerNumericId} {currentTag}{viewerTag} 队伍={summary.teamNumericId} HP={hpText} 角色状态=[{statusText}] 玩家状态=[{playerStatusText}] 灵力={summary.mana} 技能点={summary.skillPoint} 灵符预览={summary.sigilPreview} 锁定灵符={lockedSigilText} 手牌={summary.handCount} 场上={summary.fieldCount} 弃牌={summary.discardCount}");
+                $"P{summary.playerNumericId} {currentTag}{viewerTag} 队伍={summary.teamNumericId} HP={hpText} 阵营={localizeFactionKey(summary.activeCharacterFactionKey)} 启动={(summary.activeCharacterIsActivated ? "是" : "否")} 种族=[{raceText}] 角色状态=[{statusText}] 指示物=[{markerText}] 玩家状态=[{playerStatusText}] 灵力={summary.mana} 技能点={summary.skillPoint} 灵符预览={summary.sigilPreview} 锁定灵符={lockedSigilText} 手牌={summary.handCount} 场上={summary.fieldCount} 弃牌={summary.discardCount}");
         }
     }
 
@@ -1634,11 +1921,91 @@ public sealed class SocketDebugPanel : MonoBehaviour
         {
             var playerStatusText = buildLocalizedStatusText(summary.playerStatusKeys);
             var characterStatusText = buildLocalizedStatusText(summary.activeCharacterStatusKeys);
+            var raceText = buildLocalizedRaceText(summary.activeCharacterRaceTags);
+            var markerText = buildLocalizedMarkerText(summary.activeCharacterMarkers);
 
             var viewerTag = summary.isViewerPlayer ? "（自己）" : string.Empty;
             var currentTag = summary.isCurrentPlayer ? "（当前行动）" : string.Empty;
-            GUILayout.Label($"P{summary.playerNumericId}{viewerTag}{currentTag}：玩家状态={playerStatusText}；角色状态={characterStatusText}");
+            GUILayout.Label($"P{summary.playerNumericId}{viewerTag}{currentTag}：阵营={localizeFactionKey(summary.activeCharacterFactionKey)}；启动={(summary.activeCharacterIsActivated ? "是" : "否")}；种族={raceText}；玩家状态={playerStatusText}；角色状态={characterStatusText}；指示物={markerText}");
         }
+    }
+
+    private static string localizeFactionKey(string factionKey)
+    {
+        return factionKey switch
+        {
+            "TM" => "TM/型月",
+            "TH" => "TH/东方",
+            _ => string.IsNullOrWhiteSpace(factionKey) ? "未知" : factionKey,
+        };
+    }
+
+    private static string buildLocalizedMarkerText(List<ProjectionMarkerViewModel> markers)
+    {
+        if (markers.Count <= 0)
+        {
+            return "(无)";
+        }
+
+        var localizedMarkers = new List<string>(markers.Count);
+        foreach (var marker in markers)
+        {
+            var maxText = marker.maxCount > 0 ? marker.maxCount.ToString() : "?";
+            localizedMarkers.Add($"{localizeMarkerTypeKey(marker.markerTypeKey)} {marker.count}/{maxText}");
+        }
+
+        return string.Join(",", localizedMarkers);
+    }
+
+    private static string buildLocalizedRaceText(List<string> raceTags)
+    {
+        if (raceTags.Count <= 0)
+        {
+            return "(未提供)";
+        }
+
+        var localizedRaceTags = new List<string>(raceTags.Count);
+        foreach (var raceTag in raceTags)
+        {
+            localizedRaceTags.Add(localizeRaceTag(raceTag));
+        }
+
+        return string.Join(",", localizedRaceTags);
+    }
+
+    private static string localizeRaceTag(string raceTag)
+    {
+        if (string.Equals(raceTag, "human", StringComparison.OrdinalIgnoreCase))
+        {
+            return "人类";
+        }
+
+        if (string.Equals(raceTag, "nonHuman", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(raceTag, "non-human", StringComparison.OrdinalIgnoreCase))
+        {
+            return "人外";
+        }
+
+        return raceTag;
+    }
+
+    private static string localizeMarkerTypeKey(string markerTypeKey)
+    {
+        return markerTypeKey switch
+        {
+            "swordAura" => "剑气",
+            "dream" => "梦境",
+            "destruction" => "毁灭",
+            "metal" => "金",
+            "wood" => "木",
+            "water" => "水",
+            "fire" => "火",
+            "earth" => "土",
+            "doll" => "人形",
+            "divinity" => "神灵",
+            "jewel" => "宝石",
+            _ => string.IsNullOrWhiteSpace(markerTypeKey) ? "(未知)" : markerTypeKey,
+        };
     }
 
     private static string buildLocalizedStatusText(List<string> statusKeys)
@@ -2240,7 +2607,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
                 if (!TryValidateSubmitResponseNoActor(
                         projectionSnapshot,
-                        actorPlayerNumericIdText,
+                        viewerPlayerNumericIdText,
                         out _,
                         out var failureReason))
                 {
@@ -2287,12 +2654,6 @@ public sealed class SocketDebugPanel : MonoBehaviour
                 {
                     onLocalBlocked("本地拦截：C6 没有有效 inputContextNumericId。");
                     return;
-                }
-
-                if (projectionSnapshot.interaction.inputRequiredPlayerNumericId.HasValue &&
-                    projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value > 0)
-                {
-                    actorPlayerNumericIdText = projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value.ToString();
                 }
 
                 string choiceKeyToSend;
@@ -2391,10 +2752,139 @@ public sealed class SocketDebugPanel : MonoBehaviour
             return "选项：不弃牌并跳过行动/召唤（shackle:decline）";
         }
 
+        if (string.Equals(choiceKey, "discard:decline", StringComparison.Ordinal))
+        {
+            return "选项：不弃牌（discard:decline）";
+        }
+
+        if (string.Equals(choiceKey, "overlay:decline", StringComparison.Ordinal))
+        {
+            return "选项：不叠放（overlay:decline）";
+        }
+
+        if (string.Equals(choiceKey, "markerGrant:decline", StringComparison.Ordinal))
+        {
+            return "选项：不添加指示物（markerGrant:decline）";
+        }
+
+        if (string.Equals(choiceKey, "banishDiscard:decline", StringComparison.Ordinal))
+        {
+            return "选项：不放逐弃牌堆（banishDiscard:decline）";
+        }
+
+        if (string.Equals(choiceKey, "banishSummonZone:decline", StringComparison.Ordinal))
+        {
+            return "选项：不放逐召唤区（banishSummonZone:decline）";
+        }
+
+        if (string.Equals(choiceKey, "sakuraCake:accept", StringComparison.Ordinal))
+        {
+            return "选项：召唤一张樱花饼（sakuraCake:accept）";
+        }
+
+        if (string.Equals(choiceKey, "sakuraCake:decline", StringComparison.Ordinal))
+        {
+            return "选项：不召唤樱花饼（sakuraCake:decline）";
+        }
+
+        if (string.Equals(choiceKey, "activation:accept", StringComparison.Ordinal))
+        {
+            return "选项：直接启动（activation:accept）";
+        }
+
+        if (string.Equals(choiceKey, "activation:decline", StringComparison.Ordinal))
+        {
+            return "选项：不启动（activation:decline）";
+        }
+
+        if (string.Equals(choiceKey, "reward:leyline3", StringComparison.Ordinal))
+        {
+            return "奖励：己方获得3灵脉";
+        }
+
+        if (string.Equals(choiceKey, "reward:killScorePlus1", StringComparison.Ordinal))
+        {
+            return "奖励：己方击杀分+1";
+        }
+
+        if (string.Equals(choiceKey, "reward:summonToHand", StringComparison.Ordinal))
+        {
+            return "奖励：将召唤区一张牌直接置于手中";
+        }
+
+        if (choiceKey.StartsWith("markerGrant:", StringComparison.Ordinal))
+        {
+            var payload = choiceKey.Substring("markerGrant:".Length);
+            var segments = payload.Split(':');
+            if (segments.Length == 2)
+            {
+                return $"选项：Player {segments[0]} 获得 {localizeMarkerTypeKey(segments[1])} 指示物";
+            }
+
+            return $"选项：添加指示物（{choiceKey}）";
+        }
+
+        if (choiceKey.StartsWith("giveToAlly:", StringComparison.Ordinal))
+        {
+            var playerSegment = choiceKey.Substring("giveToAlly:".Length);
+            return $"选项：将此牌交给队友 Player {playerSegment} 的手牌";
+        }
+
+        if (choiceKey.StartsWith("allyDiscardForMana:", StringComparison.Ordinal))
+        {
+            var playerSegment = choiceKey.Substring("allyDiscardForMana:".Length);
+            return $"选项：令队友 Player {playerSegment} 弃1张牌；若弃牌，你获得3魔力";
+        }
+
+        if (choiceKey.StartsWith("declareCardName:", StringComparison.Ordinal))
+        {
+            var definitionId = choiceKey.Substring("declareCardName:".Length);
+            return $"选项：宣告 {localizeDeclarableTreasureDefinitionId(definitionId)}（{definitionId}）";
+        }
+
         if (choiceKey.StartsWith("player:", StringComparison.Ordinal))
         {
             var playerSegment = choiceKey.Substring("player:".Length);
             return $"选项：玩家 {playerSegment}";
+        }
+
+        if (choiceKey.StartsWith("opponentPlayer:", StringComparison.Ordinal))
+        {
+            var playerSegment = choiceKey.Substring("opponentPlayer:".Length);
+            return $"选项：对手玩家 {playerSegment}";
+        }
+
+        if (choiceKey.StartsWith("summonCard:", StringComparison.Ordinal))
+        {
+            var cardSegment = choiceKey.Substring("summonCard:".Length);
+            if (long.TryParse(cardSegment, out var cardNumericId) &&
+                tryResolveCardChoiceDisplayInfo(projection, cardNumericId, out var definitionId, out var zoneKey))
+            {
+                return $"选项：召唤区直接召唤 #{cardNumericId}（{definitionId} / {localizeZoneKeyText(zoneKey)}）";
+            }
+
+            return $"选项：召唤区直接召唤 #{cardSegment}";
+        }
+
+        if (choiceKey.StartsWith("setAsideCard:", StringComparison.Ordinal))
+        {
+            var cardSegment = choiceKey.Substring("setAsideCard:".Length);
+            if (long.TryParse(cardSegment, out var cardNumericId) &&
+                tryResolveCardChoiceDisplayInfo(projection, cardNumericId, out var definitionId, out var zoneKey))
+            {
+                return $"选项：将 #{cardNumericId}（{definitionId} / {localizeZoneKeyText(zoneKey)}）盖放在角色下";
+            }
+
+            return $"选项：将卡牌 #{cardSegment} 盖放在角色下";
+        }
+
+        if (choiceKey.StartsWith("friendlySetAside:", StringComparison.Ordinal))
+        {
+            var segments = choiceKey.Substring("friendlySetAside:".Length).Split(':');
+            if (segments.Length == 2)
+            {
+                return $"选项：放逐友方 Player {segments[0]} 角色下的盖牌 #{segments[1]}";
+            }
         }
 
         if (choiceKey.StartsWith("discardCard:", StringComparison.Ordinal))
@@ -2421,7 +2911,63 @@ public sealed class SocketDebugPanel : MonoBehaviour
             return $"选项：放逐 #{cardSegment}";
         }
 
+        if (choiceKey.StartsWith("banishDiscardCard:", StringComparison.Ordinal))
+        {
+            var cardSegment = choiceKey.Substring("banishDiscardCard:".Length);
+            if (long.TryParse(cardSegment, out var cardNumericId) &&
+                tryResolveCardChoiceDisplayInfo(projection, cardNumericId, out var definitionId, out var zoneKey))
+            {
+                return $"选项：从弃牌堆放逐 #{cardNumericId}（{definitionId} / {localizeZoneKeyText(zoneKey)}）";
+            }
+
+            return $"选项：从弃牌堆放逐 #{cardSegment}";
+        }
+
+        if (choiceKey.StartsWith("banishSummonZoneCard:", StringComparison.Ordinal))
+        {
+            var cardSegment = choiceKey.Substring("banishSummonZoneCard:".Length);
+            if (long.TryParse(cardSegment, out var cardNumericId) &&
+                tryResolveCardChoiceDisplayInfo(projection, cardNumericId, out var definitionId, out var zoneKey))
+            {
+                return $"选项：从召唤区放逐 #{cardNumericId}（{definitionId} / {localizeZoneKeyText(zoneKey)}）";
+            }
+
+            return $"选项：从召唤区放逐 #{cardSegment}";
+        }
+
+        if (choiceKey.StartsWith("overlayCard:", StringComparison.Ordinal))
+        {
+            var cardSegment = choiceKey.Substring("overlayCard:".Length);
+            if (long.TryParse(cardSegment, out var cardNumericId) &&
+                tryResolveCardChoiceDisplayInfo(projection, cardNumericId, out var definitionId, out var zoneKey))
+            {
+                return $"选项：叠放 #{cardNumericId}（{definitionId} / {localizeZoneKeyText(zoneKey)}）";
+            }
+
+            return $"选项：叠放 #{cardSegment}";
+        }
+
         return $"选项：{choiceKey}";
+    }
+
+    private static bool IsDeclareCardNameInputContext(ProjectionViewModel projection)
+    {
+        return projection.interaction.hasInputContext &&
+               string.Equals(
+                   projection.interaction.inputTypeKey,
+                   "treasureOnPlayDeclareCardNameChoice",
+                   StringComparison.Ordinal);
+    }
+
+    private static string localizeDeclarableTreasureDefinitionId(string definitionId)
+    {
+        return definitionId switch
+        {
+            "starter:magicCircuit" => "魔术回路",
+            "starter:kourindouCoupon" => "香霖堂购物券",
+            "S001" => "樱花饼",
+            _ => definitionId,
+        };
     }
 
     private static bool tryResolveCardChoiceDisplayInfo(
@@ -2570,6 +3116,20 @@ public sealed class SocketDebugPanel : MonoBehaviour
         var zoneRect = new Rect(cardRect.x + 8f, cardRect.y + 186f, cardRect.width - 16f, 16f);
         GUI.Label(zoneRect, localizeZoneKeyText(card.zoneKey), metaStyle);
 
+        if (card.overlayCardCount > 0 || card.overlayContainerCardInstanceNumericId.HasValue)
+        {
+            var overlayLabel = card.overlayCardCount > 0
+                ? $"叠放:{card.overlayCardCount}"
+                : $"压在 #{card.overlayContainerCardInstanceNumericId!.Value} 下";
+            var overlayStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(0.55f, 0.85f, 1f, 1f) },
+            };
+            GUI.Label(new Rect(cardRect.x + 8f, cardRect.y + 200f, cardRect.width - 16f, 12f), overlayLabel, overlayStyle);
+        }
+
         if (!string.IsNullOrWhiteSpace(selectionLabel))
         {
             var selectionStyle = new GUIStyle(GUI.skin.label)
@@ -2665,14 +3225,30 @@ public sealed class SocketDebugPanel : MonoBehaviour
     private void drawInputContextActionSection()
     {
         ProjectionViewModel projectionSnapshot;
-        string actorTextSnapshot;
+        string localPlayerTextSnapshot;
         List<string> selectedShackleDiscardChoiceKeysSnapshot;
+        List<string> selectedOverlayChoiceKeysSnapshot;
+        List<string> selectedT025ExtraDiscardChoiceKeysSnapshot;
+        List<string> selectedA001RewardShackleChoiceKeysSnapshot;
+        List<string> selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot;
+        List<string> selectedA010RewardChoiceKeysSnapshot;
         lock (stateLock)
         {
             projectionSnapshot = latestProjection.deepClone();
-            actorTextSnapshot = actorPlayerNumericIdText;
+            localPlayerTextSnapshot = viewerPlayerNumericIdText;
             syncShackleDiscardSelectionWithInputContextLocked(projectionSnapshot);
+            syncOverlaySelectionWithInputContextLocked(projectionSnapshot);
+            syncT025ExtraDiscardSelectionWithInputContextLocked(projectionSnapshot);
+            syncA001RewardShackleSelectionWithInputContextLocked(projectionSnapshot);
+            syncA005ConditionDefenseLikePlaceSelectionWithInputContextLocked(projectionSnapshot);
+            syncA010RewardSelectionWithInputContextLocked(projectionSnapshot);
             selectedShackleDiscardChoiceKeysSnapshot = new List<string>(selectedShackleDiscardChoiceKeys);
+            selectedOverlayChoiceKeysSnapshot = new List<string>(selectedOverlayChoiceKeys);
+            selectedT025ExtraDiscardChoiceKeysSnapshot = new List<string>(selectedT025ExtraDiscardChoiceKeys);
+            selectedA001RewardShackleChoiceKeysSnapshot = new List<string>(selectedA001RewardShackleChoiceKeys);
+            selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot =
+                new List<string>(selectedA005ConditionDefenseLikePlaceChoiceKeys);
+            selectedA010RewardChoiceKeysSnapshot = new List<string>(selectedA010RewardChoiceKeys);
         }
 
         GUILayout.Label("输入上下文");
@@ -2700,36 +3276,36 @@ public sealed class SocketDebugPanel : MonoBehaviour
             return;
         }
 
-        var actorMatchedRequiredPlayer = true;
-        var actorHasAlreadySubmitted = false;
-        if (long.TryParse(actorTextSnapshot, out var actorPlayerNumericId))
+        var localPlayerMatchedRequiredPlayer = true;
+        var localPlayerHasAlreadySubmitted = false;
+        if (long.TryParse(localPlayerTextSnapshot, out var localPlayerNumericId))
         {
             if (isParallelInputContext)
             {
-                actorMatchedRequiredPlayer =
-                    projectionSnapshot.interaction.inputRequiredPlayerNumericIds.Contains(actorPlayerNumericId);
-                actorHasAlreadySubmitted =
-                    projectionSnapshot.interaction.inputSubmittedPlayerNumericIds.Contains(actorPlayerNumericId);
+                localPlayerMatchedRequiredPlayer =
+                    projectionSnapshot.interaction.inputRequiredPlayerNumericIds.Contains(localPlayerNumericId);
+                localPlayerHasAlreadySubmitted =
+                    projectionSnapshot.interaction.inputSubmittedPlayerNumericIds.Contains(localPlayerNumericId);
             }
             else if (projectionSnapshot.interaction.inputRequiredPlayerNumericId.HasValue)
             {
-                actorMatchedRequiredPlayer =
-                    actorPlayerNumericId == projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value;
+                localPlayerMatchedRequiredPlayer =
+                    localPlayerNumericId == projectionSnapshot.interaction.inputRequiredPlayerNumericId.Value;
             }
         }
 
-        if (!actorMatchedRequiredPlayer)
+        if (!localPlayerMatchedRequiredPlayer)
         {
             GUILayout.Label(
-                $"警告：操作者ID（{actorTextSnapshot}）不在当前输入上下文的可提交玩家集合内。");
+                $"警告：本机玩家ID（{localPlayerTextSnapshot}）不在当前输入上下文的可提交玩家集合内。");
         }
 
-        if (actorHasAlreadySubmitted)
+        if (localPlayerHasAlreadySubmitted)
         {
             GUILayout.Label("你已提交本次选择，正在等待其他玩家完成。");
         }
 
-        var canSend = canSendRequest() && actorMatchedRequiredPlayer && !actorHasAlreadySubmitted;
+        var canSend = canSendRequest() && localPlayerMatchedRequiredPlayer && !localPlayerHasAlreadySubmitted;
         var previousEnabled = GUI.enabled;
         GUI.enabled = canSend;
 
@@ -2740,9 +3316,45 @@ public sealed class SocketDebugPanel : MonoBehaviour
             GUILayout.Label($"当前已选：{selectedShackleDiscardChoiceKeysSnapshot.Count}/4");
         }
 
-        if (projectionSnapshot.interaction.inputChoiceKeys.Count == 0)
+        var isDeclareCardNameContext = IsDeclareCardNameInputContext(projectionSnapshot);
+        var isT021OverlayContext = IsT021OverlayInputContext(projectionSnapshot);
+        var isT025ExtraDiscardContext = IsT025ExtraDiscardInputContext(projectionSnapshot);
+        var isA001RewardShackleContext = IsA001RewardOptionalShackleInputContext(projectionSnapshot);
+        var isA005ConditionDefenseLikePlaceContext = IsA005ConditionDefenseLikePlaceInputContext(projectionSnapshot);
+        var isA010RewardChooseTwoContext = IsA010RewardChooseTwoInputContext(projectionSnapshot);
+        if (isT021OverlayContext)
         {
-            GUILayout.Label("(当前观察者不可见 choiceKeys，或选项为空)");
+            GUILayout.Label("制御棒处理：可点选最多2张手牌，面朝下叠放在制御棒下面；每叠放1张获得2魔力。");
+            GUILayout.Label($"当前已选：{selectedOverlayChoiceKeysSnapshot.Count}/2");
+        }
+        if (isT025ExtraDiscardContext)
+        {
+            GUILayout.Label("正式外典Gamaliel：可点选任意数量手牌额外弃置；每额外弃1张，本次防御值+1。");
+            GUILayout.Label($"当前已选：{selectedT025ExtraDiscardChoiceKeysSnapshot.Count} 张");
+        }
+        if (isA001RewardShackleContext)
+        {
+            GUILayout.Label("红雾异变奖励：可选择0到2名人外对手获得禁锢。");
+            GUILayout.Label($"当前已选：{selectedA001RewardShackleChoiceKeysSnapshot.Count}/2");
+        }
+        if (isA005ConditionDefenseLikePlaceContext)
+        {
+            GUILayout.Label("温泉异变解决条件：必须点选恰好2张手牌，如防御牌般放在阵地区。");
+            GUILayout.Label($"当前已选：{selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot.Count}/2");
+        }
+        if (isA010RewardChooseTwoContext)
+        {
+            GUILayout.Label("命运长夜解决奖励：从3项中恰好选择2项，按灵脉、击杀分、召唤区入手的顺序结算。");
+            GUILayout.Label($"当前已选：{selectedA010RewardChoiceKeysSnapshot.Count}/2");
+        }
+
+        if (isDeclareCardNameContext)
+        {
+            drawDeclareCardNameInputContextSection(projectionSnapshot, canSend);
+        }
+        else if (projectionSnapshot.interaction.inputChoiceKeys.Count == 0)
+        {
+            GUILayout.Label("(当前客户端不可见 choiceKeys，或选项为空)");
         }
         else
         {
@@ -2754,6 +3366,41 @@ public sealed class SocketDebugPanel : MonoBehaviour
                 if (isTurnStartShackleContext && IsShackleDiscardChoiceKey(capturedChoiceKey))
                 {
                     var isSelected = selectedShackleDiscardChoiceKeysSnapshot.Contains(capturedChoiceKey);
+                    optionLabel = isSelected
+                        ? $"[已选] {optionLabel}"
+                        : $"[可选] {optionLabel}";
+                }
+                else if (isT021OverlayContext && IsOverlayCardChoiceKey(capturedChoiceKey))
+                {
+                    var isSelected = selectedOverlayChoiceKeysSnapshot.Contains(capturedChoiceKey);
+                    optionLabel = isSelected
+                        ? $"[已选] {optionLabel}"
+                        : $"[可选] {optionLabel}";
+                }
+                else if (isT025ExtraDiscardContext && IsShackleDiscardChoiceKey(capturedChoiceKey))
+                {
+                    var isSelected = selectedT025ExtraDiscardChoiceKeysSnapshot.Contains(capturedChoiceKey);
+                    optionLabel = isSelected
+                        ? $"[已选] {optionLabel}"
+                        : $"[可选] {optionLabel}";
+                }
+                else if (isA001RewardShackleContext && IsOpponentPlayerChoiceKey(capturedChoiceKey))
+                {
+                    var isSelected = selectedA001RewardShackleChoiceKeysSnapshot.Contains(capturedChoiceKey);
+                    optionLabel = isSelected
+                        ? $"[已选] {optionLabel}"
+                        : $"[可选] {optionLabel}";
+                }
+                else if (isA005ConditionDefenseLikePlaceContext && IsHandCardChoiceKey(capturedChoiceKey))
+                {
+                    var isSelected = selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot.Contains(capturedChoiceKey);
+                    optionLabel = isSelected
+                        ? $"[已选] {optionLabel}"
+                        : $"[可选] {optionLabel}";
+                }
+                else if (isA010RewardChooseTwoContext)
+                {
+                    var isSelected = selectedA010RewardChoiceKeysSnapshot.Contains(capturedChoiceKey);
                     optionLabel = isSelected
                         ? $"[已选] {optionLabel}"
                         : $"[可选] {optionLabel}";
@@ -2785,6 +3432,114 @@ public sealed class SocketDebugPanel : MonoBehaviour
                         if (!toggleSucceeded)
                         {
                             onLocalBlocked(toggleFailureReasonSnapshot);
+                        }
+                    }
+                    else if (isT021OverlayContext && IsOverlayCardChoiceKey(capturedChoiceKey))
+                    {
+                        var toggleSucceeded = false;
+                        string toggleFailureReasonSnapshot;
+                        lock (stateLock)
+                        {
+                            toggleSucceeded = TryToggleBoundedChoiceSelection(
+                                selectedOverlayChoiceKeys,
+                                capturedChoiceKey,
+                                2,
+                                out toggleFailureReasonSnapshot);
+                            if (toggleSucceeded)
+                            {
+                                localInterceptionBanner = string.Empty;
+                            }
+
+                            selectedOverlayChoiceKeysSnapshot = new List<string>(selectedOverlayChoiceKeys);
+                        }
+
+                        if (!toggleSucceeded)
+                        {
+                            onLocalBlocked(toggleFailureReasonSnapshot.Replace("弃牌", "叠放牌", StringComparison.Ordinal));
+                        }
+                    }
+                    else if (isT025ExtraDiscardContext && IsShackleDiscardChoiceKey(capturedChoiceKey))
+                    {
+                        lock (stateLock)
+                        {
+                            ToggleUnboundedChoiceSelection(selectedT025ExtraDiscardChoiceKeys, capturedChoiceKey);
+                            localInterceptionBanner = string.Empty;
+                            selectedT025ExtraDiscardChoiceKeysSnapshot =
+                                new List<string>(selectedT025ExtraDiscardChoiceKeys);
+                        }
+                    }
+                    else if (isA001RewardShackleContext && IsOpponentPlayerChoiceKey(capturedChoiceKey))
+                    {
+                        var toggleSucceeded = false;
+                        string toggleFailureReasonSnapshot;
+                        lock (stateLock)
+                        {
+                            toggleSucceeded = TryToggleBoundedChoiceSelection(
+                                selectedA001RewardShackleChoiceKeys,
+                                capturedChoiceKey,
+                                2,
+                                out toggleFailureReasonSnapshot);
+                            if (toggleSucceeded)
+                            {
+                                localInterceptionBanner = string.Empty;
+                            }
+
+                            selectedA001RewardShackleChoiceKeysSnapshot =
+                                new List<string>(selectedA001RewardShackleChoiceKeys);
+                        }
+
+                        if (!toggleSucceeded)
+                        {
+                            onLocalBlocked(toggleFailureReasonSnapshot.Replace("弃牌", "禁锢目标", StringComparison.Ordinal));
+                        }
+                    }
+                    else if (isA005ConditionDefenseLikePlaceContext && IsHandCardChoiceKey(capturedChoiceKey))
+                    {
+                        var toggleSucceeded = false;
+                        string toggleFailureReasonSnapshot;
+                        lock (stateLock)
+                        {
+                            toggleSucceeded = TryToggleBoundedChoiceSelection(
+                                selectedA005ConditionDefenseLikePlaceChoiceKeys,
+                                capturedChoiceKey,
+                                2,
+                                out toggleFailureReasonSnapshot);
+                            if (toggleSucceeded)
+                            {
+                                localInterceptionBanner = string.Empty;
+                            }
+
+                            selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot =
+                                new List<string>(selectedA005ConditionDefenseLikePlaceChoiceKeys);
+                        }
+
+                        if (!toggleSucceeded)
+                        {
+                            onLocalBlocked(toggleFailureReasonSnapshot.Replace("弃牌", "防御放置手牌", StringComparison.Ordinal));
+                        }
+                    }
+                    else if (isA010RewardChooseTwoContext)
+                    {
+                        var toggleSucceeded = false;
+                        string toggleFailureReasonSnapshot;
+                        lock (stateLock)
+                        {
+                            toggleSucceeded = TryToggleBoundedChoiceSelection(
+                                selectedA010RewardChoiceKeys,
+                                capturedChoiceKey,
+                                2,
+                                out toggleFailureReasonSnapshot);
+                            if (toggleSucceeded)
+                            {
+                                localInterceptionBanner = string.Empty;
+                            }
+
+                            selectedA010RewardChoiceKeysSnapshot = new List<string>(selectedA010RewardChoiceKeys);
+                        }
+
+                        if (!toggleSucceeded)
+                        {
+                            onLocalBlocked(toggleFailureReasonSnapshot.Replace("弃牌", "奖励", StringComparison.Ordinal));
                         }
                     }
                     else
@@ -2843,6 +3598,199 @@ public sealed class SocketDebugPanel : MonoBehaviour
                 }
                 GUI.enabled = canSend;
             }
+
+            if (isT021OverlayContext)
+            {
+                var overlayChoiceKeys = CollectOverlayCardChoiceKeys(projectionSnapshot.interaction.inputChoiceKeys);
+                var hasOverlayDeclineChoice = projectionSnapshot.interaction.inputChoiceKeys
+                    .Contains("overlay:decline");
+
+                GUILayout.Space(6f);
+                GUILayout.Label("已选叠放牌：");
+                if (selectedOverlayChoiceKeysSnapshot.Count == 0)
+                {
+                    GUILayout.Label("(未选择)");
+                }
+                else
+                {
+                    foreach (var selectedChoiceKey in selectedOverlayChoiceKeysSnapshot)
+                    {
+                        GUILayout.Label($"- {buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey)}");
+                    }
+                }
+
+                var selectedCountValid = selectedOverlayChoiceKeysSnapshot.Count > 0 &&
+                                         selectedOverlayChoiceKeysSnapshot.Count <= 2;
+                GUI.enabled = canSend && selectedCountValid;
+                if (GUILayout.Button("制御棒：提交已选叠放牌", GUILayout.Height(28f)))
+                {
+                    if (overlayChoiceKeys.Count == 0)
+                    {
+                        onLocalBlocked("本地拦截：当前没有可叠放手牌。");
+                    }
+                    else if (!selectedCountValid)
+                    {
+                        onLocalBlocked($"本地拦截：制御棒需要选择1到2张叠放牌，当前为 {selectedOverlayChoiceKeysSnapshot.Count} 张。");
+                    }
+                    else
+                    {
+                        var selectedChoiceKeysForSubmit = new List<string>(selectedOverlayChoiceKeysSnapshot);
+                        applyViewerAndActor();
+                        sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoices(selectedChoiceKeysForSubmit));
+                    }
+                }
+
+                GUI.enabled = canSend && hasOverlayDeclineChoice;
+                if (GUILayout.Button("制御棒：不叠放", GUILayout.Height(28f)))
+                {
+                    applyViewerAndActor();
+                    sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoice("overlay:decline"));
+                }
+
+                GUI.enabled = canSend;
+            }
+
+            if (isT025ExtraDiscardContext)
+            {
+                var t025DiscardChoiceKeys = CollectDiscardCardChoiceKeys(projectionSnapshot.interaction.inputChoiceKeys);
+                var hasDeclineChoice = projectionSnapshot.interaction.inputChoiceKeys
+                    .Contains("discard:decline");
+
+                GUILayout.Space(6f);
+                GUILayout.Label("已选额外弃牌：");
+                if (selectedT025ExtraDiscardChoiceKeysSnapshot.Count == 0)
+                {
+                    GUILayout.Label("(未选择，等同额外弃0张)");
+                }
+                else
+                {
+                    foreach (var selectedChoiceKey in selectedT025ExtraDiscardChoiceKeysSnapshot)
+                    {
+                        GUILayout.Label($"- {buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey)}");
+                    }
+                }
+
+                GUI.enabled = canSend && selectedT025ExtraDiscardChoiceKeysSnapshot.Count > 0;
+                if (GUILayout.Button("正式外典：提交已选额外弃牌", GUILayout.Height(28f)))
+                {
+                    if (t025DiscardChoiceKeys.Count == 0)
+                    {
+                        onLocalBlocked("本地拦截：当前没有可额外弃置的手牌。");
+                    }
+                    else
+                    {
+                        var selectedChoiceKeysForSubmit = new List<string>(selectedT025ExtraDiscardChoiceKeysSnapshot);
+                        applyViewerAndActor();
+                        sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoices(selectedChoiceKeysForSubmit));
+                    }
+                }
+
+                GUI.enabled = canSend && hasDeclineChoice;
+                if (GUILayout.Button("正式外典：不额外弃牌", GUILayout.Height(28f)))
+                {
+                    applyViewerAndActor();
+                    sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoice("discard:decline"));
+                }
+
+                GUI.enabled = canSend;
+            }
+
+            if (isA001RewardShackleContext)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("已选禁锢目标：");
+                if (selectedA001RewardShackleChoiceKeysSnapshot.Count == 0)
+                {
+                    GUILayout.Label("(未选择，等同不禁锢)");
+                }
+                else
+                {
+                    foreach (var selectedChoiceKey in selectedA001RewardShackleChoiceKeysSnapshot)
+                    {
+                        GUILayout.Label($"- {buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey)}");
+                    }
+                }
+
+                GUI.enabled = canSend;
+                if (GUILayout.Button("红雾异变：提交已选禁锢目标（可为0个）", GUILayout.Height(28f)))
+                {
+                    var selectedChoiceKeysForSubmit = new List<string>(selectedA001RewardShackleChoiceKeysSnapshot);
+                    applyViewerAndActor();
+                    sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoices(selectedChoiceKeysForSubmit));
+                }
+
+                GUI.enabled = canSend;
+            }
+
+            if (isA005ConditionDefenseLikePlaceContext)
+            {
+                var handCardChoiceKeys = CollectHandCardChoiceKeys(projectionSnapshot.interaction.inputChoiceKeys);
+
+                GUILayout.Space(6f);
+                GUILayout.Label("已选防御式放置手牌：");
+                if (selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot.Count == 0)
+                {
+                    GUILayout.Label("(未选择)");
+                }
+                else
+                {
+                    foreach (var selectedChoiceKey in selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot)
+                    {
+                        GUILayout.Label($"- {buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey)}");
+                    }
+                }
+
+                var selectedCountValid = selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot.Count == 2;
+                GUI.enabled = canSend && selectedCountValid;
+                if (GUILayout.Button("温泉异变：提交已选2张手牌", GUILayout.Height(28f)))
+                {
+                    if (handCardChoiceKeys.Count < 2)
+                    {
+                        onLocalBlocked("本地拦截：当前可选手牌不足2张，无法解决温泉异变。");
+                    }
+                    else if (!selectedCountValid)
+                    {
+                        onLocalBlocked($"本地拦截：温泉异变必须恰好选择2张手牌，当前为 {selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot.Count} 张。");
+                    }
+                    else
+                    {
+                        var selectedChoiceKeysForSubmit =
+                            new List<string>(selectedA005ConditionDefenseLikePlaceChoiceKeysSnapshot);
+                        applyViewerAndActor();
+                        sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoices(selectedChoiceKeysForSubmit));
+                    }
+                }
+
+                GUI.enabled = canSend;
+            }
+
+            if (isA010RewardChooseTwoContext)
+            {
+                GUILayout.Space(6f);
+                GUILayout.Label("已选命运长夜奖励：");
+                foreach (var selectedChoiceKey in selectedA010RewardChoiceKeysSnapshot)
+                {
+                    GUILayout.Label($"- {buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey)}");
+                }
+
+                var selectedCountValid = selectedA010RewardChoiceKeysSnapshot.Count == 2;
+                GUI.enabled = canSend && selectedCountValid;
+                if (GUILayout.Button("命运长夜：提交已选2项奖励", GUILayout.Height(28f)))
+                {
+                    if (!selectedCountValid)
+                    {
+                        onLocalBlocked($"本地拦截：命运长夜必须恰好选择2项奖励，当前为 {selectedA010RewardChoiceKeysSnapshot.Count} 项。");
+                    }
+                    else
+                    {
+                        var selectedChoiceKeysForSubmit = new List<string>(selectedA010RewardChoiceKeysSnapshot);
+                        applyViewerAndActor();
+                        sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoices(selectedChoiceKeysForSubmit));
+                    }
+                }
+
+                GUI.enabled = canSend;
+            }
         }
 
         GUILayout.BeginHorizontal();
@@ -2858,6 +3806,10 @@ public sealed class SocketDebugPanel : MonoBehaviour
             {
                 onLocalBlocked("本地拦截：禁锢弃牌请使用上方点选4张并提交，不支持单张 manual choiceKey 提交。");
             }
+            else if (isA005ConditionDefenseLikePlaceContext && IsHandCardChoiceKey(inputChoiceKeyManualText))
+            {
+                onLocalBlocked("本地拦截：温泉异变需要恰好选择2张手牌，请使用上方点选并提交，不支持单张 manual choiceKey 提交。");
+            }
             else
             {
                 applyViewerAndActor();
@@ -2867,6 +3819,65 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.EndHorizontal();
 
         GUI.enabled = previousEnabled;
+    }
+
+    private void drawDeclareCardNameInputContextSection(ProjectionViewModel projectionSnapshot, bool canSend)
+    {
+        GUILayout.Label("圣骸布：请选择要宣告的牌名。");
+        if (projectionSnapshot.interaction.inputChoiceKeys.Count == 0)
+        {
+            GUILayout.Label("(当前没有可宣告牌名)");
+            return;
+        }
+
+        var inputContextNumericId = projectionSnapshot.interaction.inputContextNumericId ?? 0;
+        if (!selectedDeclareCardNameInputContextNumericId.HasValue ||
+            selectedDeclareCardNameInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedDeclareCardNameInputContextNumericId = inputContextNumericId;
+            selectedDeclareCardNameChoiceIndex = 0;
+            isDeclareCardNameChoiceListExpanded = false;
+        }
+
+        if (selectedDeclareCardNameChoiceIndex < 0 ||
+            selectedDeclareCardNameChoiceIndex >= projectionSnapshot.interaction.inputChoiceKeys.Count)
+        {
+            selectedDeclareCardNameChoiceIndex = 0;
+        }
+
+        var selectedChoiceKey = projectionSnapshot.interaction.inputChoiceKeys[selectedDeclareCardNameChoiceIndex];
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("当前宣告", GUILayout.Width(80f));
+        if (GUILayout.Button(buildInputChoiceDisplayLabel(projectionSnapshot, selectedChoiceKey), GUILayout.Height(28f)))
+        {
+            isDeclareCardNameChoiceListExpanded = !isDeclareCardNameChoiceListExpanded;
+        }
+        GUILayout.EndHorizontal();
+
+        if (isDeclareCardNameChoiceListExpanded)
+        {
+            GUILayout.Label("可宣告牌名：");
+            for (var index = 0; index < projectionSnapshot.interaction.inputChoiceKeys.Count; index++)
+            {
+                var choiceKey = projectionSnapshot.interaction.inputChoiceKeys[index];
+                var isSelected = index == selectedDeclareCardNameChoiceIndex;
+                var label = isSelected
+                    ? $"[已选] {buildInputChoiceDisplayLabel(projectionSnapshot, choiceKey)}"
+                    : buildInputChoiceDisplayLabel(projectionSnapshot, choiceKey);
+                if (GUILayout.Button(label, GUILayout.Height(24f)))
+                {
+                    selectedDeclareCardNameChoiceIndex = index;
+                    isDeclareCardNameChoiceListExpanded = false;
+                }
+            }
+        }
+
+        GUI.enabled = canSend;
+        if (GUILayout.Button("提交宣告牌名", GUILayout.Height(28f)))
+        {
+            applyViewerAndActor();
+            sendTrackedAction("submitInputChoice", () => bridge?.SendSubmitInputChoice(selectedChoiceKey));
+        }
     }
 
     private void syncShackleDiscardSelectionWithInputContextLocked(ProjectionViewModel projection)
@@ -2890,19 +3901,125 @@ public sealed class SocketDebugPanel : MonoBehaviour
         PruneSelectedChoiceKeysByAvailable(selectedShackleDiscardChoiceKeys, availableDiscardChoiceKeys);
     }
 
+    private void syncOverlaySelectionWithInputContextLocked(ProjectionViewModel projection)
+    {
+        if (!IsT021OverlayInputContext(projection))
+        {
+            selectedOverlayChoiceKeys.Clear();
+            selectedOverlayInputContextNumericId = null;
+            return;
+        }
+
+        var inputContextNumericId = projection.interaction.inputContextNumericId!.Value;
+        if (!selectedOverlayInputContextNumericId.HasValue ||
+            selectedOverlayInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedOverlayChoiceKeys.Clear();
+            selectedOverlayInputContextNumericId = inputContextNumericId;
+        }
+
+        var availableOverlayChoiceKeys = CollectOverlayCardChoiceKeys(projection.interaction.inputChoiceKeys);
+        PruneSelectedChoiceKeysByAvailable(selectedOverlayChoiceKeys, availableOverlayChoiceKeys);
+    }
+
+    private void syncT025ExtraDiscardSelectionWithInputContextLocked(ProjectionViewModel projection)
+    {
+        if (!IsT025ExtraDiscardInputContext(projection))
+        {
+            selectedT025ExtraDiscardChoiceKeys.Clear();
+            selectedT025ExtraDiscardInputContextNumericId = null;
+            return;
+        }
+
+        var inputContextNumericId = projection.interaction.inputContextNumericId!.Value;
+        if (!selectedT025ExtraDiscardInputContextNumericId.HasValue ||
+            selectedT025ExtraDiscardInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedT025ExtraDiscardChoiceKeys.Clear();
+            selectedT025ExtraDiscardInputContextNumericId = inputContextNumericId;
+        }
+
+        var availableDiscardChoiceKeys = CollectDiscardCardChoiceKeys(projection.interaction.inputChoiceKeys);
+        PruneSelectedChoiceKeysByAvailable(selectedT025ExtraDiscardChoiceKeys, availableDiscardChoiceKeys);
+    }
+
+    private void syncA001RewardShackleSelectionWithInputContextLocked(ProjectionViewModel projection)
+    {
+        if (!IsA001RewardOptionalShackleInputContext(projection))
+        {
+            selectedA001RewardShackleChoiceKeys.Clear();
+            selectedA001RewardShackleInputContextNumericId = null;
+            return;
+        }
+
+        var inputContextNumericId = projection.interaction.inputContextNumericId!.Value;
+        if (!selectedA001RewardShackleInputContextNumericId.HasValue ||
+            selectedA001RewardShackleInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedA001RewardShackleChoiceKeys.Clear();
+            selectedA001RewardShackleInputContextNumericId = inputContextNumericId;
+        }
+
+        var availableOpponentChoiceKeys = CollectOpponentPlayerChoiceKeys(projection.interaction.inputChoiceKeys);
+        PruneSelectedChoiceKeysByAvailable(selectedA001RewardShackleChoiceKeys, availableOpponentChoiceKeys);
+    }
+
+    private void syncA005ConditionDefenseLikePlaceSelectionWithInputContextLocked(ProjectionViewModel projection)
+    {
+        if (!IsA005ConditionDefenseLikePlaceInputContext(projection))
+        {
+            selectedA005ConditionDefenseLikePlaceChoiceKeys.Clear();
+            selectedA005ConditionDefenseLikePlaceInputContextNumericId = null;
+            return;
+        }
+
+        var inputContextNumericId = projection.interaction.inputContextNumericId!.Value;
+        if (!selectedA005ConditionDefenseLikePlaceInputContextNumericId.HasValue ||
+            selectedA005ConditionDefenseLikePlaceInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedA005ConditionDefenseLikePlaceChoiceKeys.Clear();
+            selectedA005ConditionDefenseLikePlaceInputContextNumericId = inputContextNumericId;
+        }
+
+        var availableHandCardChoiceKeys = CollectHandCardChoiceKeys(projection.interaction.inputChoiceKeys);
+        PruneSelectedChoiceKeysByAvailable(
+            selectedA005ConditionDefenseLikePlaceChoiceKeys,
+            availableHandCardChoiceKeys);
+    }
+
+    private void syncA010RewardSelectionWithInputContextLocked(ProjectionViewModel projection)
+    {
+        if (!IsA010RewardChooseTwoInputContext(projection))
+        {
+            selectedA010RewardChoiceKeys.Clear();
+            selectedA010RewardInputContextNumericId = null;
+            return;
+        }
+
+        var inputContextNumericId = projection.interaction.inputContextNumericId!.Value;
+        if (!selectedA010RewardInputContextNumericId.HasValue ||
+            selectedA010RewardInputContextNumericId.Value != inputContextNumericId)
+        {
+            selectedA010RewardChoiceKeys.Clear();
+            selectedA010RewardInputContextNumericId = inputContextNumericId;
+        }
+
+        PruneSelectedChoiceKeysByAvailable(
+            selectedA010RewardChoiceKeys,
+            projection.interaction.inputChoiceKeys);
+    }
+
     private void drawResponseWindowPopup()
     {
         ProjectionViewModel projectionSnapshot;
-        string actorTextSnapshot;
-        string viewerTextSnapshot;
+        string localPlayerTextSnapshot;
         string defenseTypeKeyTextSnapshot;
         string responseNoLocalBlockBannerSnapshot;
         long? selectedDefenseCardIdSnapshot;
         lock (stateLock)
         {
             projectionSnapshot = latestProjection.deepClone();
-            actorTextSnapshot = actorPlayerNumericIdText;
-            viewerTextSnapshot = viewerPlayerNumericIdText;
+            localPlayerTextSnapshot = viewerPlayerNumericIdText;
             defenseTypeKeyTextSnapshot = defenseTypeKeyText;
             responseNoLocalBlockBannerSnapshot = responseNoLocalBlockBanner;
             selectedDefenseCardIdSnapshot = selectedDefenseCardId;
@@ -2938,8 +4055,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
             GUILayout.Height(popupScrollHeight));
         GUILayout.Label($"响应窗口ID: {projectionSnapshot.interaction.responseWindowNumericId?.ToString() ?? "(空)"}");
         GUILayout.Label($"当前响应者ID: {projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId?.ToString() ?? "(空)"}");
-        GUILayout.Label($"观察者ID: {viewerTextSnapshot}");
-        GUILayout.Label($"操作者ID: {actorTextSnapshot}");
+        GUILayout.Label($"本机玩家ID: {localPlayerTextSnapshot}");
         GUILayout.Label($"响应者数量: {projectionSnapshot.interaction.responseResponderCount}");
         GUILayout.Label($"窗口来源: {(string.IsNullOrWhiteSpace(projectionSnapshot.interaction.responseWindowOriginType) ? "(空)" : projectionSnapshot.interaction.responseWindowOriginType)}");
         GUILayout.Label($"待结算阶段: {(string.IsNullOrWhiteSpace(projectionSnapshot.interaction.pendingDamageResponseStageKey) ? "(空)" : projectionSnapshot.interaction.pendingDamageResponseStageKey)}");
@@ -2947,20 +4063,15 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.Label($"待伤害类型: {(string.IsNullOrWhiteSpace(projectionSnapshot.interaction.pendingDamageTypeKey) ? "(空)" : projectionSnapshot.interaction.pendingDamageTypeKey)}");
         GUILayout.Label($"目标角色ID: {projectionSnapshot.interaction.pendingDamageTargetCharacterInstanceNumericId?.ToString() ?? "(空)"}");
         GUILayout.Label($"防守玩家ID: {projectionSnapshot.interaction.pendingDamageDefenderPlayerNumericId?.ToString() ?? "(空)"}");
-        var isActorParseSuccess = long.TryParse(actorTextSnapshot, out var parsedActorPlayerNumericId);
-        var isViewerParseSuccess = long.TryParse(viewerTextSnapshot, out var parsedViewerPlayerNumericId);
+        var isLocalPlayerParseSuccess = long.TryParse(localPlayerTextSnapshot, out var parsedLocalPlayerNumericId);
         var responderPlayerNumericId = projectionSnapshot.interaction.responseCurrentResponderPlayerNumericId;
         var isLocalResponder = IsLocalResponderForResponseWindow(projectionSnapshot);
         var isAwaitDefenseStage = IsAwaitDefenseStageForResponseWindow(projectionSnapshot);
         var isLegacyAwaitCounterStage = IsLegacyAwaitCounterStageForResponseWindow(projectionSnapshot);
-        var isActorResponderMatch = isActorParseSuccess &&
+        var isLocalResponderMatch = isLocalPlayerParseSuccess &&
                                     responderPlayerNumericId.HasValue &&
-                                    parsedActorPlayerNumericId == responderPlayerNumericId.Value;
-        var isActorViewerMatch = isActorParseSuccess &&
-                                 isViewerParseSuccess &&
-                                 parsedActorPlayerNumericId == parsedViewerPlayerNumericId;
-        GUILayout.Label($"操作者是否匹配当前响应者: {isActorResponderMatch}");
-        GUILayout.Label($"操作者是否匹配观察者: {isActorViewerMatch}");
+                                    parsedLocalPlayerNumericId == responderPlayerNumericId.Value;
+        GUILayout.Label($"本机是否匹配当前响应者: {isLocalResponderMatch}");
 
         if (!string.IsNullOrWhiteSpace(responseNoLocalBlockBannerSnapshot))
         {
@@ -3004,7 +4115,6 @@ public sealed class SocketDebugPanel : MonoBehaviour
             var responderText = responderPlayerNumericId?.ToString() ?? "(空)";
             GUILayout.Label($"等待 Player {responderText} 响应");
             GUILayout.Label("当前客户端不是响应者，只能观察。");
-            GUILayout.Label("多人模式下已禁用“切换操作者”引导按钮。");
         }
         else
         {
@@ -3040,7 +4150,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
             {
                 if (!TryValidateSubmitResponseNoActor(
                         projectionSnapshot,
-                        actorTextSnapshot,
+                        localPlayerTextSnapshot,
                         out _,
                         out var failureReason))
                 {
@@ -3065,7 +4175,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
             if (GUILayout.Button("使用选中手牌防御", GUILayout.Height(30f)))
             {
-                if (!TryValidateSubmitDefenseActor(projectionSnapshot, actorTextSnapshot, out var failureReason))
+                if (!TryValidateSubmitDefenseActor(projectionSnapshot, localPlayerTextSnapshot, out var failureReason))
                 {
                     onLocalBlocked(failureReason);
                 }
@@ -3130,14 +4240,10 @@ public sealed class SocketDebugPanel : MonoBehaviour
             return;
         }
 
-        if (long.TryParse(viewerPlayerNumericIdText, out var viewerPlayerId))
+        actorPlayerNumericIdText = viewerPlayerNumericIdText;
+        if (long.TryParse(viewerPlayerNumericIdText, out var localPlayerId))
         {
-            bridge.viewerPlayerNumericId = viewerPlayerId;
-        }
-
-        if (long.TryParse(actorPlayerNumericIdText, out var actorPlayerId))
-        {
-            bridge.actorPlayerNumericId = actorPlayerId;
+            bridge.localPlayerNumericId = localPlayerId;
         }
     }
 
@@ -3226,7 +4332,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
         builder.AppendLine($"执行成功: {summary.isSucceeded}");
         builder.AppendLine($"错误码: {summary.errorCode}");
         builder.AppendLine($"错误信息: {summary.errorMessage}");
-        builder.AppendLine($"观察者玩家ID: {summary.viewerPlayerNumericId?.ToString() ?? "(空)"}");
+        builder.AppendLine($"本机玩家ID: {summary.viewerPlayerNumericId?.ToString() ?? "(空)"}");
         builder.AppendLine($"当前阶段: {localizePhaseText(summary.currentPhase)}");
         builder.AppendLine($"当前玩家ID: {summary.currentPlayerNumericId?.ToString() ?? "(空)"}");
         builder.AppendLine($"我的手牌数: {summary.myHandCount}");
@@ -3273,6 +4379,10 @@ public sealed class SocketDebugPanel : MonoBehaviour
 
             latestProjection = projection.deepClone();
             syncShackleDiscardSelectionWithInputContextLocked(latestProjection);
+            syncOverlaySelectionWithInputContextLocked(latestProjection);
+            syncT025ExtraDiscardSelectionWithInputContextLocked(latestProjection);
+            syncA001RewardShackleSelectionWithInputContextLocked(latestProjection);
+            syncA005ConditionDefenseLikePlaceSelectionWithInputContextLocked(latestProjection);
             if (projection.isSucceeded)
             {
                 localInterceptionBanner = string.Empty;
@@ -3701,12 +4811,19 @@ public sealed class SocketDebugPanel : MonoBehaviour
             "submitInputChoice" => "提交输入选择",
             "submitResponse" => "提交响应",
             "submitDefense" => "提交防御",
+            "tryResolveAnomaly" => "尝试解决异变",
             "debugOpenDamageResponseWindow" => "调试：打开伤害响应窗",
             "debugResetMatch" => "调试：重开本局",
             "debugMoveTreasureToHandByDefinition" => "调试：按定义移入手牌",
             "debugPutTreasureOnTopByDefinition" => "调试：按定义置入牌堆顶部",
+            "debugPutAnomalyOnTopByDefinition" => "调试：按定义置入异变牌堆顶部",
             _ => actionType,
         };
+    }
+
+    private static string emptyToPlaceholder(string text)
+    {
+        return string.IsNullOrWhiteSpace(text) ? "（未提供）" : text;
     }
 
     private static bool containsCardInList(long cardId, List<ProjectionCardViewModel> cards)

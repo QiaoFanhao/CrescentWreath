@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
@@ -21,12 +22,21 @@ public sealed class AnomalyArrivalInputRuntime
     private const string A001ArrivalHumanDiscardContextKey = "anomaly:A001:arrivalHumanDiscardFlow";
     private const string A001ArrivalHumanDiscardChoiceKeyPrefix = "handCard:";
     private const string A001RemiliaDefinitionId = "C003";
+    private const string A002YuyukoDefinitionId = "C018";
+    private const string A002ArrivalInputTypeKey = "anomalyA002ArrivalParallelDirectSummonChoice";
+    private const string A002ArrivalContextKey = "anomaly:A002:arrivalParallelDirectSummonChoice";
+    private const string A002ArrivalChoiceKeySakuraAccept = "sakuraCake:accept";
+    private const string A002ArrivalChoiceKeySakuraDecline = "sakuraCake:decline";
+    private const string A002ArrivalChoiceKeySummonCardPrefix = "summonCard:";
+    private const string A002ArrivalSelectedChoiceLocalStatePrefix = "anomaly:A002:arrival:selectedChoice:";
+    private const int A002YuyukoSummonCostMax = 5;
     private const string A006ArrivalHumanDefenseDiscardInputTypeKey = "anomalyA006ArrivalHumanDefenseDiscardOne";
     private const string A006ArrivalHumanDefenseDiscardContextKey = "anomaly:A006:arrivalHumanDefenseDiscardFlow";
     private const string A006ArrivalHumanDefenseDiscardChoiceKeyPrefix = "fieldCard:";
     private const string A005ArrivalDirectSummonInputTypeKey = "anomalyA005ArrivalDirectSummonFromSummonZone";
     private const string A005ArrivalDirectSummonContextKey = "anomaly:A005:arrivalDirectSummonFromSummonZone";
     private const string A005ArrivalDirectSummonChoiceKeyPrefix = "summonCard:";
+    private const string A005ArrivalDirectSummonChoiceKeyDecline = "summon:decline";
     private const string A007RinDefinitionId = "C007";
     private const string A007ArrivalInputTypeKeyOptionalHandBanish = "anomalyA007ArrivalOptionalHandBanish";
     private const string A007ArrivalInputTypeKeyOptionalDiscardBanishDecision = "anomalyA007ArrivalOptionalDiscardBanishDecision";
@@ -164,6 +174,118 @@ public sealed class AnomalyArrivalInputRuntime
         return AnomalyArrivalInputAdvanceResult.createCompleted();
     }
 
+    public bool tryOpenA002ArrivalParallelDirectSummonInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        string pendingContinuationKey,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival input requires gameState.currentInputContext to be null before opening.");
+        }
+
+        var seatOrderPlayerIds = resolveA007ArrivalSeatOrderPlayerIds(gameState);
+        if (seatOrderPlayerIds.Count == 0)
+        {
+            return false;
+        }
+
+        var inputContextId = new InputContextId(nextInputContextIdSupplier());
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = null,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = A002ArrivalInputTypeKey,
+            contextKey = A002ArrivalContextKey,
+        };
+
+        foreach (var requiredPlayerId in seatOrderPlayerIds)
+        {
+            if (!gameState.players.ContainsKey(requiredPlayerId))
+            {
+                continue;
+            }
+
+            var choiceKeys = createA002ArrivalChoiceKeysForPlayer(gameState, requiredPlayerId);
+            inputContextState.requiredPlayerIds.Add(requiredPlayerId);
+            inputContextState.choiceKeysByRequiredPlayerNumericId[requiredPlayerId.Value] = choiceKeys;
+        }
+
+        if (inputContextState.requiredPlayerIds.Count == 0)
+        {
+            return false;
+        }
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = pendingContinuationKey;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = false;
+        return true;
+    }
+
+    public bool isA002ArrivalParallelInputContext(InputContextState? inputContextState)
+    {
+        return inputContextState is not null &&
+               string.Equals(inputContextState.contextKey, A002ArrivalContextKey, StringComparison.Ordinal) &&
+               inputContextState.requiredPlayerIds.Count > 0;
+    }
+
+    public void continueA002ArrivalParallelDirectSummonChoice(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest,
+        string pendingContinuationKey)
+    {
+        ensureValidA002ArrivalParallelDirectSummonChoiceForContinuation(
+            gameState,
+            inputContextState,
+            submitInputChoiceActionRequest);
+
+        var requiredPlayerId = submitInputChoiceActionRequest.actorPlayerId;
+        inputContextState.submittedPlayerIds.Add(requiredPlayerId);
+        actionChainState.localState[createA002ArrivalSelectedChoiceLocalStateKey(requiredPlayerId)] =
+            submitInputChoiceActionRequest.choiceKey;
+
+        if (inputContextState.submittedPlayerIds.Count < inputContextState.requiredPlayerIds.Count)
+        {
+            actionChainState.pendingContinuationKey = pendingContinuationKey;
+            actionChainState.isCompleted = false;
+            return;
+        }
+
+        executeA002ArrivalChoicesInTurnOrder(
+            gameState,
+            actionChainState,
+            inputContextState,
+            submitInputChoiceActionRequest.requestId);
+
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = submitInputChoiceActionRequest.requestId,
+            eventTypeKey = "inputContextClosed",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextState.inputContextId,
+            isOpened = false,
+        });
+        gameState.currentInputContext = null;
+        actionChainState.pendingContinuationKey = null;
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = true;
+    }
+
     public bool executeA006ArrivalMaybeOpenHumanDefenseDiscardInputContextAndMaybeDrawNonHuman(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
@@ -183,10 +305,356 @@ public sealed class AnomalyArrivalInputRuntime
         openA006ArrivalHumanDefenseDiscardInputContext(
             gameState,
             actionChainState,
-            humanDefenseDiscardPlayerIds[0],
+            humanDefenseDiscardPlayerIds,
             pendingContinuationKey,
             eventId);
         return true;
+    }
+
+    public bool isA006ArrivalParallelInputContext(InputContextState? inputContextState)
+    {
+        return inputContextState is not null &&
+               inputContextState.requiredPlayerIds.Count > 0 &&
+               string.Equals(
+                   inputContextState.contextKey,
+                   A006ArrivalHumanDefenseDiscardContextKey,
+                   StringComparison.Ordinal);
+    }
+
+    private List<string> createA002ArrivalChoiceKeysForPlayer(
+        RuleCore.GameState.GameState gameState,
+        PlayerId requiredPlayerId)
+    {
+        var choiceKeys = new List<string>
+        {
+            A002ArrivalChoiceKeySakuraDecline,
+            A002ArrivalChoiceKeySakuraAccept,
+        };
+
+        if (!isA002YuyukoPlayer(gameState, requiredPlayerId))
+        {
+            return choiceKeys;
+        }
+
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival input requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival input requires summonZone to exist.");
+        }
+
+        foreach (var summonZoneCardInstanceId in summonZoneState.cardInstanceIds)
+        {
+            if (!gameState.cardInstances.TryGetValue(summonZoneCardInstanceId, out var summonZoneCardInstance))
+            {
+                throw new InvalidOperationException("A002 anomaly arrival input requires summonZone cardInstanceIds to exist in gameState.cardInstances.");
+            }
+
+            var treasureDefinition = TreasureDefinitionRepository.resolveByDefinitionId(summonZoneCardInstance.definitionId);
+            if (treasureDefinition.summonSigilCost.HasValue &&
+                treasureDefinition.summonSigilCost.Value <= A002YuyukoSummonCostMax)
+            {
+                choiceKeys.Add(createA002ArrivalSummonCardChoiceKey(summonZoneCardInstanceId));
+            }
+        }
+
+        return choiceKeys;
+    }
+
+    private void ensureValidA002ArrivalParallelDirectSummonChoiceForContinuation(
+        RuleCore.GameState.GameState gameState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (!string.Equals(inputContextState.contextKey, A002ArrivalContextKey, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires currentInputContext.contextKey to be anomaly:A002:arrivalParallelDirectSummonChoice.");
+        }
+
+        var requiredPlayerId = submitInputChoiceActionRequest.actorPlayerId;
+        if (!inputContextState.requiredPlayerIds.Contains(requiredPlayerId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires actorPlayerId to be in currentInputContext.requiredPlayerIds.");
+        }
+
+        if (inputContextState.submittedPlayerIds.Contains(requiredPlayerId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires actorPlayerId to not have already submitted.");
+        }
+
+        if (!inputContextState.choiceKeysByRequiredPlayerNumericId.TryGetValue(
+                requiredPlayerId.Value,
+                out var choiceKeysForPlayer) ||
+            !choiceKeysForPlayer.Contains(submitInputChoiceActionRequest.choiceKey))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires choiceKey to be one of currentInputContext choices for actorPlayerId.");
+        }
+
+        if (submitInputChoiceActionRequest.choiceKey.StartsWith(
+                A002ArrivalChoiceKeySummonCardPrefix,
+                StringComparison.Ordinal))
+        {
+            ensureA002YuyukoSummonCardChoiceStillLegal(
+                gameState,
+                requiredPlayerId,
+                submitInputChoiceActionRequest.choiceKey);
+        }
+    }
+
+    private void executeA002ArrivalChoicesInTurnOrder(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        long eventId)
+    {
+        var seatOrderPlayerIds = resolveA007ArrivalSeatOrderPlayerIds(gameState);
+        foreach (var playerId in seatOrderPlayerIds)
+        {
+            if (!inputContextState.requiredPlayerIds.Contains(playerId))
+            {
+                continue;
+            }
+
+            if (!actionChainState.localState.TryGetValue(
+                    createA002ArrivalSelectedChoiceLocalStateKey(playerId),
+                    out var selectedChoiceKey))
+            {
+                throw new InvalidOperationException("A002 anomaly arrival continuation requires every required player selected choice to be recorded before resolving.");
+            }
+
+            if (string.Equals(selectedChoiceKey, A002ArrivalChoiceKeySakuraDecline, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(selectedChoiceKey, A002ArrivalChoiceKeySakuraAccept, StringComparison.Ordinal))
+            {
+                summonTopSakuraCakeToPlayerDiscardIfAvailable(
+                    gameState,
+                    actionChainState,
+                    playerId,
+                    eventId);
+                continue;
+            }
+
+            if (selectedChoiceKey.StartsWith(A002ArrivalChoiceKeySummonCardPrefix, StringComparison.Ordinal))
+            {
+                summonSelectedSummonZoneCardToPlayerDiscardAndRefillIfStillAvailable(
+                    gameState,
+                    actionChainState,
+                    playerId,
+                    selectedChoiceKey,
+                    eventId);
+                continue;
+            }
+
+            throw new InvalidOperationException("A002 anomaly arrival continuation selected choice is not supported.");
+        }
+    }
+
+    private void summonTopSakuraCakeToPlayerDiscardIfAvailable(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId playerId,
+        long eventId)
+    {
+        if (!gameState.players.TryGetValue(playerId, out var playerState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected player to exist.");
+        }
+
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.sakuraCakeDeckZoneId, out var sakuraCakeDeckZoneState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires sakuraCakeDeck to exist.");
+        }
+
+        if (!gameState.zones.ContainsKey(playerState.discardZoneId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires player discardZone to exist.");
+        }
+
+        if (sakuraCakeDeckZoneState.cardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        var topSakuraCakeCardInstanceId = sakuraCakeDeckZoneState.cardInstanceIds[0];
+        if (!gameState.cardInstances.TryGetValue(topSakuraCakeCardInstanceId, out var topSakuraCakeCardInstance))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires sakuraCakeDeck cardInstanceIds to exist in gameState.cardInstances.");
+        }
+
+        var movedEvent = zoneMovementService.moveCard(
+            gameState,
+            topSakuraCakeCardInstance,
+            playerState.discardZoneId,
+            CardMoveReason.summon,
+            actionChainState.actionChainId,
+            eventId);
+        actionChainState.producedEvents.Add(movedEvent);
+    }
+
+    private void summonSelectedSummonZoneCardToPlayerDiscardAndRefillIfStillAvailable(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId playerId,
+        string selectedChoiceKey,
+        long eventId)
+    {
+        if (!gameState.players.TryGetValue(playerId, out var playerState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected player to exist.");
+        }
+
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires summonZone to exist.");
+        }
+
+        if (!gameState.zones.ContainsKey(playerState.discardZoneId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires player discardZone to exist.");
+        }
+
+        var selectedCardInstanceId = parseA002ArrivalSummonCardChoiceKey(selectedChoiceKey);
+        if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected summonZone cardInstanceId to exist.");
+        }
+
+        if (selectedCardInstance.zoneId != gameState.publicState.summonZoneId ||
+            !summonZoneState.cardInstanceIds.Contains(selectedCardInstanceId))
+        {
+            return;
+        }
+
+        var movedEvent = zoneMovementService.moveCard(
+            gameState,
+            selectedCardInstance,
+            playerState.discardZoneId,
+            CardMoveReason.summon,
+            actionChainState.actionChainId,
+            eventId);
+        actionChainState.producedEvents.Add(movedEvent);
+
+        refillSummonZoneFromPublicTreasureDeckIfAvailable(
+            gameState,
+            actionChainState,
+            eventId);
+    }
+
+    private void refillSummonZoneFromPublicTreasureDeckIfAvailable(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.publicTreasureDeckZoneId, out var publicTreasureDeckZoneState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires publicTreasureDeck to exist.");
+        }
+
+        if (!gameState.zones.ContainsKey(gameState.publicState.summonZoneId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires summonZone to exist.");
+        }
+
+        if (publicTreasureDeckZoneState.cardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
+        if (!gameState.cardInstances.TryGetValue(topPublicTreasureCardInstanceId, out var topPublicTreasureCardInstance))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires publicTreasureDeck cardInstanceIds to exist in gameState.cardInstances.");
+        }
+
+        var refillEvent = zoneMovementService.moveCard(
+            gameState,
+            topPublicTreasureCardInstance,
+            gameState.publicState.summonZoneId,
+            CardMoveReason.reveal,
+            actionChainState.actionChainId,
+            eventId);
+        actionChainState.producedEvents.Add(refillEvent);
+    }
+
+    private void ensureA002YuyukoSummonCardChoiceStillLegal(
+        RuleCore.GameState.GameState gameState,
+        PlayerId playerId,
+        string choiceKey)
+    {
+        if (!isA002YuyukoPlayer(gameState, playerId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires summonCard choice to be submitted by C018 Yuyuko player.");
+        }
+
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires summonZone to exist.");
+        }
+
+        var selectedCardInstanceId = parseA002ArrivalSummonCardChoiceKey(choiceKey);
+        if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected summonZone cardInstanceId to exist.");
+        }
+
+        if (selectedCardInstance.zoneId != gameState.publicState.summonZoneId ||
+            !summonZoneState.cardInstanceIds.Contains(selectedCardInstanceId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected card to still be in summonZone.");
+        }
+
+        var treasureDefinition = TreasureDefinitionRepository.resolveByDefinitionId(selectedCardInstance.definitionId);
+        if (!treasureDefinition.summonSigilCost.HasValue ||
+            treasureDefinition.summonSigilCost.Value > A002YuyukoSummonCostMax)
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation requires selected summonZone card summonSigilCost to be no more than 5.");
+        }
+    }
+
+    private static bool isA002YuyukoPlayer(
+        RuleCore.GameState.GameState gameState,
+        PlayerId playerId)
+    {
+        if (!gameState.players.TryGetValue(playerId, out var playerState) ||
+            !playerState.activeCharacterInstanceId.HasValue)
+        {
+            return false;
+        }
+
+        if (!gameState.characterInstances.TryGetValue(
+                playerState.activeCharacterInstanceId.Value,
+                out var activeCharacterInstance))
+        {
+            return false;
+        }
+
+        return string.Equals(activeCharacterInstance.definitionId, A002YuyukoDefinitionId, StringComparison.Ordinal);
     }
 
     public void ensureValidA006ArrivalHumanDefenseDiscardChoiceForContinuation(
@@ -199,12 +667,17 @@ public sealed class AnomalyArrivalInputRuntime
             throw new InvalidOperationException("A006 anomaly arrival continuation requires currentInputContext.contextKey to be anomaly:A006:arrivalHumanDefenseDiscardFlow.");
         }
 
-        if (!inputContextState.requiredPlayerId.HasValue)
+        if (!inputContextState.requiredPlayerIds.Contains(submitInputChoiceActionRequest.actorPlayerId))
         {
-            throw new InvalidOperationException("A006 anomaly arrival continuation requires currentInputContext.requiredPlayerId.");
+            throw new InvalidOperationException("A006 anomaly arrival continuation requires actorPlayerId to be a required player.");
         }
 
-        var requiredPlayerId = inputContextState.requiredPlayerId.Value;
+        if (inputContextState.submittedPlayerIds.Contains(submitInputChoiceActionRequest.actorPlayerId))
+        {
+            throw new InvalidOperationException("A006 anomaly arrival continuation does not accept duplicate player submissions.");
+        }
+
+        var requiredPlayerId = submitInputChoiceActionRequest.actorPlayerId;
         if (!gameState.players.TryGetValue(requiredPlayerId, out var requiredPlayerState))
         {
             throw new InvalidOperationException("A006 anomaly arrival continuation requires requiredPlayerId to exist in gameState.players.");
@@ -215,7 +688,17 @@ public sealed class AnomalyArrivalInputRuntime
             throw new InvalidOperationException("A006 anomaly arrival continuation requires required player fieldZoneId to exist in gameState.zones.");
         }
 
-        var selectedCardInstanceId = parseA006ArrivalHumanDefenseDiscardChoiceKey(submitInputChoiceActionRequest.choiceKey);
+        if (submitInputChoiceActionRequest.choiceKeys.Count != 0 ||
+            !inputContextState.choiceKeysByRequiredPlayerNumericId.TryGetValue(
+                requiredPlayerId.Value,
+                out var allowedChoiceKeys) ||
+            !allowedChoiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+        {
+            throw new InvalidOperationException("A006 anomaly arrival continuation requires one allowed fieldCard choice.");
+        }
+
+        var selectedCardInstanceId = parseA006ArrivalHumanDefenseDiscardChoiceKey(
+            submitInputChoiceActionRequest.choiceKey);
         if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance))
         {
             throw new InvalidOperationException("A006 anomaly arrival continuation requires selected cardInstanceId to exist in gameState.cardInstances.");
@@ -250,36 +733,48 @@ public sealed class AnomalyArrivalInputRuntime
             inputContextState,
             submitInputChoiceActionRequest);
 
-        var requiredPlayerId = inputContextState.requiredPlayerId!.Value;
-        var requiredPlayerState = gameState.players[requiredPlayerId];
-        var selectedCardInstanceId = parseA006ArrivalHumanDefenseDiscardChoiceKey(submitInputChoiceActionRequest.choiceKey);
-        var selectedCardInstance = gameState.cardInstances[selectedCardInstanceId];
-        var movedEvent = zoneMovementService.moveCard(
-            gameState,
-            selectedCardInstance,
-            requiredPlayerState.discardZoneId,
-            CardMoveReason.discard,
-            actionChainState.actionChainId,
-            submitInputChoiceActionRequest.requestId);
-        actionChainState.producedEvents.Add(movedEvent);
+        inputContextState.submittedPlayerIds.Add(submitInputChoiceActionRequest.actorPlayerId);
+        actionChainState.localState[
+            A006ArrivalHumanDefenseDiscardContextKey + ":selected:" +
+            submitInputChoiceActionRequest.actorPlayerId.Value] = submitInputChoiceActionRequest.choiceKey;
 
-        var humanDefenseDiscardPlayerIds = resolveA006HumanDefenseDiscardPlayerIds(gameState);
-        var requiredPlayerIndex = indexOfPlayerId(humanDefenseDiscardPlayerIds, requiredPlayerId);
-        if (requiredPlayerIndex < 0)
+        if (inputContextState.submittedPlayerIds.Count < inputContextState.requiredPlayerIds.Count)
         {
-            throw new InvalidOperationException("A006 anomaly arrival continuation requires requiredPlayerId to exist in current human defense discard player list.");
-        }
-
-        if (requiredPlayerIndex + 1 < humanDefenseDiscardPlayerIds.Count)
-        {
-            openA006ArrivalHumanDefenseDiscardInputContext(
-                gameState,
-                actionChainState,
-                humanDefenseDiscardPlayerIds[requiredPlayerIndex + 1],
-                pendingContinuationKey,
-                submitInputChoiceActionRequest.requestId);
             return AnomalyArrivalInputAdvanceResult.createPending();
         }
+
+        foreach (var requiredPlayerId in inputContextState.requiredPlayerIds.OrderBy(playerId => playerId.Value))
+        {
+            if (!actionChainState.localState.TryGetValue(
+                    A006ArrivalHumanDefenseDiscardContextKey + ":selected:" + requiredPlayerId.Value,
+                    out var selectedChoiceKey))
+            {
+                throw new InvalidOperationException("A006 anomaly arrival requires every required player's choice.");
+            }
+
+            var requiredPlayerState = gameState.players[requiredPlayerId];
+            var selectedCardInstanceId = parseA006ArrivalHumanDefenseDiscardChoiceKey(selectedChoiceKey);
+            var selectedCardInstance = gameState.cardInstances[selectedCardInstanceId];
+            actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                gameState,
+                selectedCardInstance,
+                requiredPlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                submitInputChoiceActionRequest.requestId));
+        }
+
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = submitInputChoiceActionRequest.requestId,
+            eventTypeKey = "inputContextClosed",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextState.inputContextId,
+            isOpened = false,
+        });
+        gameState.currentInputContext = null;
+        actionChainState.pendingContinuationKey = null;
 
         executeDrawOneForNonHumanActiveCharacterPlayers(
             gameState,
@@ -471,7 +966,10 @@ public sealed class AnomalyArrivalInputRuntime
             throw new InvalidOperationException("A005 anomaly arrival input requires gameState.publicState.summonZoneId to exist in gameState.zones.");
         }
 
-        var choiceKeys = new List<string>(summonZoneState.cardInstanceIds.Count);
+        var choiceKeys = new List<string>(summonZoneState.cardInstanceIds.Count + 1)
+        {
+            A005ArrivalDirectSummonChoiceKeyDecline,
+        };
         foreach (var summonCardInstanceId in summonZoneState.cardInstanceIds)
         {
             if (!gameState.cardInstances.ContainsKey(summonCardInstanceId))
@@ -493,11 +991,6 @@ public sealed class AnomalyArrivalInputRuntime
         long eventId)
     {
         var choiceKeys = createA005ArrivalDirectSummonChoiceKeys(gameState);
-        if (choiceKeys.Count == 0)
-        {
-            return false;
-        }
-
         if (gameState.currentInputContext is not null)
         {
             throw new InvalidOperationException("A005 anomaly arrival input requires gameState.currentInputContext to be null before opening.");
@@ -555,6 +1048,14 @@ public sealed class AnomalyArrivalInputRuntime
             throw new InvalidOperationException("A005 anomaly arrival continuation requires gameState.publicState.summonZoneId to exist in gameState.zones.");
         }
 
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                A005ArrivalDirectSummonChoiceKeyDecline,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
         var selectedCardInstanceId = parseA005ArrivalDirectSummonChoiceKey(submitInputChoiceActionRequest.choiceKey);
         if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance))
         {
@@ -596,6 +1097,14 @@ public sealed class AnomalyArrivalInputRuntime
         if (!gameState.zones.ContainsKey(gameState.publicState.summonZoneId))
         {
             throw new InvalidOperationException("A005 anomaly arrival continuation requires gameState.publicState.summonZoneId to exist in gameState.zones.");
+        }
+
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                A005ArrivalDirectSummonChoiceKeyDecline,
+                StringComparison.Ordinal))
+        {
+            return;
         }
 
         var selectedCardInstanceId = parseA005ArrivalDirectSummonChoiceKey(submitInputChoiceActionRequest.choiceKey);
@@ -1174,38 +1683,51 @@ public sealed class AnomalyArrivalInputRuntime
     private void openA006ArrivalHumanDefenseDiscardInputContext(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
-        PlayerId requiredPlayerId,
+        IReadOnlyList<PlayerId> requiredPlayerIds,
         string pendingContinuationKey,
         long eventId)
     {
-        if (!gameState.players.TryGetValue(requiredPlayerId, out var requiredPlayerState))
+        if (gameState.currentInputContext is not null)
         {
-            throw new InvalidOperationException("A006 anomaly arrival input requires requiredPlayerId to exist in gameState.players.");
+            throw new InvalidOperationException("A006 anomaly arrival input requires no active inputContext.");
         }
 
-        if (!gameState.zones.TryGetValue(requiredPlayerState.fieldZoneId, out var requiredPlayerFieldZoneState))
+        var inputContextState = new InputContextState
         {
-            throw new InvalidOperationException("A006 anomaly arrival input requires required player fieldZoneId to exist in gameState.zones.");
+            inputContextId = new InputContextId(nextInputContextIdSupplier()),
+            requiredPlayerId = null,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = A006ArrivalHumanDefenseDiscardInputTypeKey,
+            contextKey = A006ArrivalHumanDefenseDiscardContextKey,
+        };
+        foreach (var requiredPlayerId in requiredPlayerIds)
+        {
+            var requiredPlayerState = gameState.players[requiredPlayerId];
+            var requiredPlayerFieldZoneState = gameState.zones[requiredPlayerState.fieldZoneId];
+            var choiceKeys = createA006ArrivalHumanDefenseDiscardChoiceKeys(
+                gameState,
+                requiredPlayerFieldZoneState.cardInstanceIds);
+            if (choiceKeys.Count == 0)
+            {
+                throw new InvalidOperationException("A006 anomaly arrival input requires a defense card for every required player.");
+            }
+
+            inputContextState.requiredPlayerIds.Add(requiredPlayerId);
+            inputContextState.choiceKeysByRequiredPlayerNumericId[requiredPlayerId.Value] = choiceKeys;
         }
 
-        var choiceKeys = createA006ArrivalHumanDefenseDiscardChoiceKeys(
-            gameState,
-            requiredPlayerFieldZoneState.cardInstanceIds);
-        if (choiceKeys.Count == 0)
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = pendingContinuationKey;
+        actionChainState.isCompleted = false;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
         {
-            throw new InvalidOperationException("A006 anomaly arrival input requires at least one defense-placed field card choice for required player.");
-        }
-
-        openArrivalInputContext(
-            gameState,
-            actionChainState,
-            requiredPlayerId,
-            A006ArrivalHumanDefenseDiscardInputTypeKey,
-            A006ArrivalHumanDefenseDiscardContextKey,
-            choiceKeys,
-            pendingContinuationKey,
-            eventId,
-            "A006");
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextState.inputContextId,
+            isOpened = true,
+        });
     }
 
     private void openArrivalInputContext(
@@ -1398,7 +1920,7 @@ public sealed class AnomalyArrivalInputRuntime
 
         if (deckZoneState.cardInstanceIds.Count == 0 && discardZoneState.cardInstanceIds.Count > 0)
         {
-            var discardCardInstanceIds = new List<CardInstanceId>(discardZoneState.cardInstanceIds);
+            var discardCardInstanceIds = PlayerDeckRuntime.createShuffledCardInstanceIds(discardZoneState.cardInstanceIds);
             foreach (var discardCardInstanceId in discardCardInstanceIds)
             {
                 if (!gameState.cardInstances.TryGetValue(discardCardInstanceId, out var discardedCardInstance))
@@ -1531,6 +2053,16 @@ public sealed class AnomalyArrivalInputRuntime
         return A005ArrivalDirectSummonChoiceKeyPrefix + cardInstanceId.Value;
     }
 
+    private static string createA002ArrivalSummonCardChoiceKey(CardInstanceId cardInstanceId)
+    {
+        return A002ArrivalChoiceKeySummonCardPrefix + cardInstanceId.Value;
+    }
+
+    private static string createA002ArrivalSelectedChoiceLocalStateKey(PlayerId playerId)
+    {
+        return A002ArrivalSelectedChoiceLocalStatePrefix + playerId.Value;
+    }
+
     private static string createA001ArrivalHumanDiscardChoiceKey(CardInstanceId cardInstanceId)
     {
         return A001ArrivalHumanDiscardChoiceKeyPrefix + cardInstanceId.Value;
@@ -1583,6 +2115,22 @@ public sealed class AnomalyArrivalInputRuntime
         if (!long.TryParse(cardIdSegment, out var cardNumericId))
         {
             throw new InvalidOperationException("A005 anomaly arrival continuation choiceKey must encode a valid CardInstanceId numeric value.");
+        }
+
+        return new CardInstanceId(cardNumericId);
+    }
+
+    private static CardInstanceId parseA002ArrivalSummonCardChoiceKey(string choiceKey)
+    {
+        if (!choiceKey.StartsWith(A002ArrivalChoiceKeySummonCardPrefix, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation choiceKey must start with summonCard: prefix.");
+        }
+
+        var cardIdSegment = choiceKey.Substring(A002ArrivalChoiceKeySummonCardPrefix.Length);
+        if (!long.TryParse(cardIdSegment, out var cardNumericId))
+        {
+            throw new InvalidOperationException("A002 anomaly arrival continuation choiceKey must encode a valid CardInstanceId numeric value.");
         }
 
         return new CardInstanceId(cardNumericId);
