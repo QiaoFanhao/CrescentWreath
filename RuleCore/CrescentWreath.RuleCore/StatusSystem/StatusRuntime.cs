@@ -8,11 +8,16 @@ namespace CrescentWreath.RuleCore.StatusSystem;
 public static class StatusRuntime
 {
     public const string DurationTypeKeyNextDamageAttempt = "nextDamageAttempt";
+    public const string DurationTypeKeyNextMatchingDamageAttempt = "nextMatchingDamageAttempt";
+    public const string StatusKeyPhysicalDamageBoostNext = "PhysicalDamageBoostNext";
+    public const string StatusKeySpellDamageBoostNext = "SpellDamageBoostNext";
     private static readonly HashSet<string> ShortStatusKeysClearedAtTurnEnd = new(StringComparer.Ordinal)
     {
         "Silence",
         "Charm",
         "Penetrate",
+        StatusKeyPhysicalDamageBoostNext,
+        StatusKeySpellDamageBoostNext,
     };
 
     public static StatusInstance applyStatus(
@@ -205,6 +210,45 @@ public static class StatusRuntime
 
         consumedStatusKeys.Reverse();
         return consumedStatusKeys;
+    }
+
+    public static List<StatusInstance> consumeMatchingDamageBoostsOnAttempt(
+        GameState.GameState gameState,
+        PlayerId sourcePlayerId,
+        string damageTypeKey)
+    {
+        var matchingStatusKey = damageTypeKey switch
+        {
+            "physical" => StatusKeyPhysicalDamageBoostNext,
+            "spell" => StatusKeySpellDamageBoostNext,
+            _ => null,
+        };
+        var consumedStatuses = new List<StatusInstance>();
+        if (matchingStatusKey is null)
+        {
+            return consumedStatuses;
+        }
+
+        for (var index = gameState.statusInstances.Count - 1; index >= 0; index--)
+        {
+            var statusInstance = gameState.statusInstances[index];
+            statusInstance.statusKey = StatusPolicyTable.normalizeStatusKey(statusInstance.statusKey);
+            if (statusInstance.targetPlayerId != sourcePlayerId ||
+                !string.Equals(statusInstance.statusKey, matchingStatusKey, StringComparison.Ordinal) ||
+                !string.Equals(
+                    statusInstance.durationTypeKey,
+                    DurationTypeKeyNextMatchingDamageAttempt,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            consumedStatuses.Add(cloneStatusInstance(statusInstance));
+            gameState.statusInstances.RemoveAt(index);
+        }
+
+        consumedStatuses.Reverse();
+        return consumedStatuses;
     }
 
     public static List<StatusInstance> clearShortStatusesAtTurnEnd(

@@ -12,6 +12,11 @@ public static class TreasureResourceValueResolver
         return TemporaryTreasureDefinitionResolver.resolveSigilPreviewGainOnEnterField(definitionId);
     }
 
+    public static int resolveSkillPointGainOnPlay(string definitionId)
+    {
+        return TemporaryTreasureDefinitionResolver.resolveSkillPointGainOnPlay(definitionId);
+    }
+
     public static int resolveSummonSigilCost(string definitionId)
     {
         return TemporaryTreasureDefinitionResolver.resolveSummonSigilCost(definitionId);

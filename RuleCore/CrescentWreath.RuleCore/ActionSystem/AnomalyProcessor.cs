@@ -551,11 +551,29 @@ public sealed class AnomalyProcessor
         {
             return;
         }
+
+        if (gameState.turnState is null)
+        {
+            throw new InvalidOperationException("External anomaly resolve effect requires turnState to be initialized.");
+        }
+
+        if (gameState.turnState.hasResolvedAnomalyThisTurn)
+        {
+            // A010's kill continuation does not call this external resolve path and is the only
+            // same-turn exception after another anomaly has already completed its lifecycle.
+            return;
+        }
+
         if (string.Equals(
                 gameState.currentAnomalyState.currentAnomalyDefinitionId,
                 A010DefinitionId,
                 StringComparison.Ordinal))
         {
+            anomalyA010Runtime.tryForceResolveFromExternalEffect(
+                gameState,
+                actionChainState,
+                requestId,
+                actorPlayerId);
             return;
         }
 

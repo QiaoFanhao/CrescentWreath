@@ -1,0 +1,21 @@
+{
+  "name": "CrescentWreath.Client.UI.Editor",
+  "rootNamespace": "CrescentWreath.Client.UI.Editor",
+  "references": [
+    "CrescentWreath.Client.Net",
+    "CrescentWreath.Client.Presentation",
+    "CrescentWreath.Client.UI",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -72,6 +72,18 @@ public sealed class ServerSocketActionRouter
 
         return actionType switch
         {
+            "submitCharacterSelection" => routeByPayload<ServerSubmitCharacterSelectionRequestDto>(
+                envelope,
+                actionType,
+                resolvedViewerPlayerNumericId,
+                requiredActorPlayerNumericId,
+                dto => dto.actorPlayerNumericId > 0 &&
+                       !string.IsNullOrWhiteSpace(dto.characterDefinitionId),
+                dto =>
+                {
+                    dto.requestId = envelope.requestId;
+                    return session.processSubmitCharacterSelection(dto);
+                }),
             "drawOneCard" => routeByPayload<ServerDrawOneCardRequestDto>(
                 envelope,
                 actionType,
@@ -159,7 +171,13 @@ public sealed class ServerSocketActionRouter
                 requiredActorPlayerNumericId,
                 dto => dto.actorPlayerNumericId > 0 &&
                        dto.characterInstanceNumericId > 0 &&
-                       !string.IsNullOrWhiteSpace(dto.skillKey),
+                       !string.IsNullOrWhiteSpace(dto.skillKey) &&
+                       (!dto.targetCharacterInstanceNumericId.HasValue ||
+                        dto.targetCharacterInstanceNumericId.Value > 0) &&
+                       (!dto.targetAllyCharacterInstanceNumericId.HasValue ||
+                        dto.targetAllyCharacterInstanceNumericId.Value > 0) &&
+                       (!dto.targetPlayerNumericId.HasValue ||
+                        dto.targetPlayerNumericId.Value > 0),
                 dto =>
                 {
                     dto.requestId = envelope.requestId;
@@ -402,6 +420,9 @@ public sealed class ServerSocketActionRouter
         actorPlayerNumericId = 0;
         switch (payload)
         {
+            case ServerSubmitCharacterSelectionRequestDto submitCharacterSelectionRequestDto:
+                actorPlayerNumericId = submitCharacterSelectionRequestDto.actorPlayerNumericId;
+                return true;
             case ServerDrawOneCardRequestDto drawOneCardRequestDto:
                 actorPlayerNumericId = drawOneCardRequestDto.actorPlayerNumericId;
                 return true;

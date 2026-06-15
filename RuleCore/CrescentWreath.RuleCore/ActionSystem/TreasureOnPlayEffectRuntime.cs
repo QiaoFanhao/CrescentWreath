@@ -380,21 +380,11 @@ public sealed class TreasureOnPlayEffectRuntime
 
         if (effectKind == OnPlayEffectKind.t018SkillPointPlus1ThenBanish1)
         {
-            gameState.players[playTreasureCardActionRequest.actorPlayerId].skillPoint += 1;
             openT018BanishInputContextIfPossible(
                 gameState,
                 actionChainState,
                 playTreasureCardActionRequest);
             return true;
-        }
-
-        if (effectKind == OnPlayEffectKind.t011SkillPointPlus1ThenTargetOpponentSpellDamage3)
-        {
-            gameState.players[playTreasureCardActionRequest.actorPlayerId].skillPoint += 1;
-        }
-        else if (effectKind == OnPlayEffectKind.t005TargetOpponentDiscard1AndGainSkillPoint1)
-        {
-            gameState.players[playTreasureCardActionRequest.actorPlayerId].skillPoint += 1;
         }
 
         var choiceKeys = createChoiceKeysForEffect(gameState, playTreasureCardActionRequest.actorPlayerId, effectKind);

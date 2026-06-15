@@ -1,0 +1,100 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64fb16e288e72154a8d60431ed205e1b, type: 3}
+  m_Name: CardArtCatalog
+  m_EditorClassIdentifier: CrescentWreath.Client.Presentation::CrescentWreath.Client.Presentation.CardArtCatalog
+  cardBack: {fileID: 21300000, guid: 5a7751a22b39e574aacb1272dd73e99f, type: 3}
+  entries:
+  - definitionId: T001
+    sprite: {fileID: 21300000, guid: 04d0f114ba523f8479e1f3648b55fdea, type: 3}
+  - definitionId: T002
+    sprite: {fileID: 21300000, guid: 785a7c55f6ad58d49be5e0c0fa53cddb, type: 3}
+  - definitionId: T003
+    sprite: {fileID: 21300000, guid: b53abd9cf2a93324493b8280530e77b1, type: 3}
+  - definitionId: T004
+    sprite: {fileID: 21300000, guid: 23416fc2f9c328c4c94d2dc47c405308, type: 3}
+  - definitionId: T005
+    sprite: {fileID: 21300000, guid: 32bbb34a619e6bf4a96a73e69b20a3bb, type: 3}
+  - definitionId: T006
+    sprite: {fileID: 21300000, guid: f5e555dc7388146429b7f7221130cbc9, type: 3}
+  - definitionId: T007
+    sprite: {fileID: 21300000, guid: fb4d5d928564d6d4e9d4334e4c8f3a7e, type: 3}
+  - definitionId: T008
+    sprite: {fileID: 21300000, guid: 7928610353df3c346b84e1badb958019, type: 3}
+  - definitionId: T009
+    sprite: {fileID: 21300000, guid: 701505d4df8218e4aa53ff23d72428c3, type: 3}
+  - definitionId: T010
+    sprite: {fileID: 21300000, guid: eff78a66ba0085f4cb671cb40ae890be, type: 3}
+  - definitionId: T011
+    sprite: {fileID: 21300000, guid: 44b62d453e97abd43b240d2a0e77c6bd, type: 3}
+  - definitionId: T012
+    sprite: {fileID: 21300000, guid: 752ae01498aae66489f2c3f83d3ed940, type: 3}
+  - definitionId: T013
+    sprite: {fileID: 21300000, guid: 03c3dde806daf954c91c44c6011a9ce0, type: 3}
+  - definitionId: T014
+    sprite: {fileID: 21300000, guid: ebd60f0dc175e624392c106f67aef6bc, type: 3}
+  - definitionId: T015
+    sprite: {fileID: 21300000, guid: 1c5395bad61126049ac87d7149e94539, type: 3}
+  - definitionId: T016
+    sprite: {fileID: 21300000, guid: 816dfd51f5d2258438b03cd7aea90ce8, type: 3}
+  - definitionId: T017
+    sprite: {fileID: 21300000, guid: cb151b0bd03c15f429850c05cafc59d3, type: 3}
+  - definitionId: T018
+    sprite: {fileID: 21300000, guid: e9f4cf3979564ba4a9498f37ac050fc0, type: 3}
+  - definitionId: T019
+    sprite: {fileID: 21300000, guid: e9b1c6b4bd261b0489f876f757abdec5, type: 3}
+  - definitionId: T020
+    sprite: {fileID: 21300000, guid: 43ed6e4f13e03b34eb3313fe20c83016, type: 3}
+  - definitionId: T021
+    sprite: {fileID: 21300000, guid: 77bdcdf43a715b74d964b3fccbff9c74, type: 3}
+  - definitionId: T022
+    sprite: {fileID: 21300000, guid: 212e78491445f5b4280697be4dc338b7, type: 3}
+  - definitionId: T023
+    sprite: {fileID: 21300000, guid: a92a6d6def090784aae9c6440c157f94, type: 3}
+  - definitionId: T024
+    sprite: {fileID: 21300000, guid: c2d464268f4c0374cbea5659c41443eb, type: 3}
+  - definitionId: T025
+    sprite: {fileID: 21300000, guid: b34bd8fe94dc3ca4abb1104ce1604d78, type: 3}
+  - definitionId: T026
+    sprite: {fileID: 21300000, guid: 0d016834ce49a2f4991f11cb729bd152, type: 3}
+  - definitionId: T027
+    sprite: {fileID: 21300000, guid: 4628fbbea50c03940a6fb1f31f9083f8, type: 3}
+  - definitionId: T028
+    sprite: {fileID: 21300000, guid: 065e47df50359a7459bbb4e3efe8882e, type: 3}
+  - definitionId: T029
+    sprite: {fileID: 21300000, guid: f14ef632f1d28d5429b4caf4da3d3398, type: 3}
+  - definitionId: T001B
+    sprite: {fileID: 21300000, guid: f7e3b4a6692324f4b8cfe33f03b9c91b, type: 3}
+  - definitionId: T002B
+    sprite: {fileID: 21300000, guid: 749f6bd8d94935f4c8025fac80e7b0c5, type: 3}
+  - definitionId: S001
+    sprite: {fileID: 21300000, guid: d86fb968a2e736d47828060fa9802cd3, type: 3}
+  - definitionId: A001
+    sprite: {fileID: 21300000, guid: c0bf86c0e630db34c9af6dd00a4945e4, type: 3}
+  - definitionId: A002
+    sprite: {fileID: 21300000, guid: 37f5a3dc878489d42878a4f49d5add4b, type: 3}
+  - definitionId: A003
+    sprite: {fileID: 21300000, guid: 415a38583e5ef5c488d24d2b822802f3, type: 3}
+  - definitionId: A004
+    sprite: {fileID: 21300000, guid: 71d3d5eac7842cd40aa2bd9089947e92, type: 3}
+  - definitionId: A005
+    sprite: {fileID: 21300000, guid: 10956f2a2c8fefd48beee68a283e2014, type: 3}
+  - definitionId: A006
+    sprite: {fileID: 21300000, guid: 14e7efb4d6e846d4b99b81faf2b0f53b, type: 3}
+  - definitionId: A007
+    sprite: {fileID: 21300000, guid: 5044174db2db1014e80037442cc66687, type: 3}
+  - definitionId: A008
+    sprite: {fileID: 21300000, guid: 644b6006d4540914c98e0d6e2af6f844, type: 3}
+  - definitionId: A009
+    sprite: {fileID: 21300000, guid: 672567da083b8e34585b6f2d4200fc1e, type: 3}
+  - definitionId: A010
+    sprite: {fileID: 21300000, guid: 03cfb97e3eac2a24281d347019a8ec07, type: 3}

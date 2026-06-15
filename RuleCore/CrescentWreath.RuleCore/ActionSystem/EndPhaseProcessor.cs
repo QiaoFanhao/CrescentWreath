@@ -404,6 +404,7 @@ public sealed class EndPhaseProcessor
         actorPlayerState.mana = 0;
         actorPlayerState.lockedSigil = null;
         actorPlayerState.isSigilLocked = false;
+        actorPlayerState.summonSigilDiscount = 0;
         gameState.turnState!.currentPhase = TurnPhase.end;
         gameState.turnState.phaseStepIndex = 0;
 

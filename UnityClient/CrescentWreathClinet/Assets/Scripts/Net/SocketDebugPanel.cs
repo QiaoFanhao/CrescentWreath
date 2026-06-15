@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using CrescentWreath.Client.Presentation;
 using UnityEngine;
 
 namespace CrescentWreath.Client.Net
@@ -24,6 +25,7 @@ public sealed class SocketDebugPanel : MonoBehaviour
     [SerializeField] private string debugTreasureDefinitionIdText = "T004";
     [SerializeField] private string debugAnomalyDefinitionIdText = "A001";
     [SerializeField] private string anomalyTargetPlayerNumericIdText = string.Empty;
+    [SerializeField] private string skillTargetPlayerNumericIdText = "2";
     [SerializeField] private string inputChoiceKeyManualText = string.Empty;
     [SerializeField] private string traceExportCountText = "20";
 
@@ -867,6 +869,17 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.Space(8f);
         drawLatestServerFailureBanner();
         GUILayout.Space(8f);
+        drawCharacterSelectionSection();
+        GUILayout.Space(8f);
+        if (isCharacterSelectionActive())
+        {
+            drawSummarySection();
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+            return;
+        }
+        drawCharacterSkillSection();
+        GUILayout.Space(8f);
         drawPhaseActionSection();
         GUILayout.Space(8f);
         drawAnomalySection();
@@ -889,6 +902,14 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.EndArea();
 
         drawResponseWindowPopup();
+    }
+
+    private bool isCharacterSelectionActive()
+    {
+        lock (stateLock)
+        {
+            return latestProjection.characterSelection.isActive;
+        }
     }
 
     private void drawConnectionSection()
@@ -1210,6 +1231,169 @@ public sealed class SocketDebugPanel : MonoBehaviour
         GUILayout.EndVertical();
 
         GUI.enabled = previousEnabled;
+    }
+
+    private void drawCharacterSelectionSection()
+    {
+        ProjectionViewModel projectionSnapshot;
+        lock (stateLock)
+        {
+            projectionSnapshot = latestProjection.deepClone();
+        }
+
+        if (!projectionSnapshot.characterSelection.isActive)
+        {
+            return;
+        }
+
+        var currentSelectingPlayerId =
+            projectionSnapshot.characterSelection.currentSelectingPlayerNumericId;
+        var isLocalTurn = currentSelectingPlayerId.HasValue &&
+                          currentSelectingPlayerId.Value == projectionSnapshot.viewerPlayerNumericId;
+        var selectedDefinitionIds = new HashSet<string>(
+            projectionSnapshot.characterSelection.selections.Select(
+                selection => selection.characterDefinitionId),
+            StringComparer.Ordinal);
+
+        GUILayout.BeginVertical("box");
+        GUILayout.Label("开局角色选择");
+        GUILayout.Label(
+            $"选择顺序：Player 1 → 2 → 3 → 4；当前由 Player {currentSelectingPlayerId?.ToString() ?? "(空)"} 选择。");
+        GUILayout.Label(isLocalTurn
+            ? "轮到你选择角色。已被选择的角色不能重复选择。"
+            : "当前为观察状态，请等待当前玩家完成角色选择。");
+
+        foreach (var selection in projectionSnapshot.characterSelection.selections)
+        {
+            var selectedDefinition = projectionSnapshot.characterDefinitions.FirstOrDefault(
+                definition => string.Equals(
+                    definition.definitionId,
+                    selection.characterDefinitionId,
+                    StringComparison.Ordinal));
+            GUILayout.Label(
+                $"Player {selection.playerNumericId}：{selection.characterDefinitionId} " +
+                $"{selectedDefinition?.characterName ?? string.Empty}");
+        }
+
+        foreach (var definition in projectionSnapshot.characterDefinitions)
+        {
+            var alreadySelected = selectedDefinitionIds.Contains(definition.definitionId);
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = canSendRequest() &&
+                          isLocalTurn &&
+                          definition.isImplemented &&
+                          !alreadySelected;
+
+            var stateText = alreadySelected
+                ? "（已被选择）"
+                : definition.isImplemented
+                    ? string.Empty
+                    : "（占位，尚未落地）";
+            var buttonText =
+                $"{definition.definitionId} {definition.characterName} {stateText} | " +
+                $"HP {definition.baseMaxHp} | {localizeFactionKey(definition.factionKey)} | " +
+                $"{buildLocalizedRaceText(definition.raceTags)}";
+            if (GUILayout.Button(buttonText, GUILayout.MinHeight(32f)))
+            {
+                applyViewerAndActor();
+                sendTrackedAction(
+                    "submitCharacterSelection",
+                    () => bridge?.SendSubmitCharacterSelection(definition.definitionId));
+            }
+
+            GUI.enabled = previousEnabled;
+        }
+
+        GUILayout.EndVertical();
+    }
+
+    private void drawCharacterSkillSection()
+    {
+        ProjectionViewModel projectionSnapshot;
+        lock (stateLock)
+        {
+            projectionSnapshot = latestProjection.deepClone();
+        }
+
+        if (projectionSnapshot.characterSelection.isActive ||
+            string.IsNullOrWhiteSpace(projectionSnapshot.activeCharacterDefinitionId))
+        {
+            return;
+        }
+
+        var localPlayer = projectionSnapshot.playerSummaries.FirstOrDefault(
+            summary => summary.playerNumericId == projectionSnapshot.viewerPlayerNumericId);
+        var characterDefinition = projectionSnapshot.characterDefinitions.FirstOrDefault(
+            definition => string.Equals(
+                definition.definitionId,
+                projectionSnapshot.activeCharacterDefinitionId,
+                StringComparison.Ordinal));
+        if (localPlayer is null || characterDefinition is null)
+        {
+            return;
+        }
+
+        GUILayout.BeginVertical("box");
+        GUILayout.Label(
+            $"角色技能：{characterDefinition.definitionId} {characterDefinition.characterName}");
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("即时目标玩家ID", GUILayout.Width(110f));
+        skillTargetPlayerNumericIdText = GUILayout.TextField(
+            skillTargetPlayerNumericIdText,
+            GUILayout.Width(90f));
+        GUILayout.Label("仅供需要在 useSkill 请求中立即指定目标的技能使用；其他技能会打开选择上下文。");
+        GUILayout.EndHorizontal();
+
+        foreach (var skill in characterDefinition.skills.OrderBy(skill => skill.skillOrder))
+        {
+            GUILayout.BeginVertical("box");
+            GUILayout.Label(
+                $"{skill.skillOrder}. 【{skill.skillTypeRaw}】{skill.skillName} " +
+                $"（{emptyToPlaceholder(skill.skillCostRaw)}）");
+            GUILayout.Label(emptyToPlaceholder(skill.effectText));
+
+            var isResponseSkill = string.Equals(
+                skill.skillTypeRaw,
+                "响应",
+                StringComparison.Ordinal);
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = canSendRequest() && !isResponseSkill;
+            if (isResponseSkill)
+            {
+                GUILayout.Label("响应技能由对应规则时点自动询问或结算，不能作为普通主动技能随时发动。");
+            }
+            else if (GUILayout.Button($"尝试发动：{skill.skillName}", GUILayout.MinHeight(30f)))
+            {
+                long? targetPlayerNumericId = null;
+                var usesServerTargetChoice =
+                    string.Equals(skill.skillKey, "C001:1", StringComparison.Ordinal);
+                if (!usesServerTargetChoice &&
+                    long.TryParse(skillTargetPlayerNumericIdText, out var parsedTargetPlayerId) &&
+                    parsedTargetPlayerId > 0)
+                {
+                    targetPlayerNumericId = parsedTargetPlayerId;
+                }
+
+                if (!localPlayer.activeCharacterInstanceNumericId.HasValue)
+                {
+                    onLocalBlocked("本地拦截：当前玩家没有有效的角色实例。");
+                }
+                else
+                {
+                    applyViewerAndActor();
+                    sendTrackedAction(
+                        "useSkill",
+                        () => bridge?.SendUseSkill(
+                            localPlayer.activeCharacterInstanceNumericId.Value,
+                            skill.skillKey,
+                            targetPlayerNumericId: targetPlayerNumericId));
+                }
+            }
+            GUI.enabled = previousEnabled;
+            GUILayout.EndVertical();
+        }
+
+        GUILayout.EndVertical();
     }
 
     private void drawAnomalySection()
@@ -4865,9 +5049,6 @@ public static class DebugCardTextureResolver
     private const string SakuraRelicFolderPath = "Assets/Art/Cards/Illustrations/Relics/Sakuracake";
     private const string AnomalyFolderPath = "Assets/Art/Cards/Illustrations/Anomaly";
 
-    private static readonly Dictionary<string, Texture2D> textureCache = new Dictionary<string, Texture2D>();
-    private static readonly HashSet<string> missingTextureKeys = new HashSet<string>();
-
     public static string ResolveAssetPathForDefinition(string definitionId)
     {
         var normalizedDefinitionId = normalizeDefinitionId(definitionId);
@@ -4906,38 +5087,12 @@ public static class DebugCardTextureResolver
 
     public static Texture2D GetTextureForDefinition(string definitionId)
     {
-        var normalizedDefinitionId = normalizeDefinitionId(definitionId);
-        if (textureCache.TryGetValue(normalizedDefinitionId, out var cachedTexture))
-        {
-            return cachedTexture;
-        }
-
-        if (missingTextureKeys.Contains(normalizedDefinitionId))
-        {
-            return null;
-        }
-
-        var resolvedAssetPath = ResolveAssetPathForDefinition(normalizedDefinitionId);
-        var resolvedTexture = loadTextureAtPath(resolvedAssetPath);
-        if (resolvedTexture == null && !string.Equals(resolvedAssetPath, CardBackAssetPath, StringComparison.Ordinal))
-        {
-            resolvedTexture = loadTextureAtPath(CardBackAssetPath);
-        }
-
-        if (resolvedTexture == null)
-        {
-            missingTextureKeys.Add(normalizedDefinitionId);
-            return null;
-        }
-
-        textureCache[normalizedDefinitionId] = resolvedTexture;
-        return resolvedTexture;
+        return CardArtService.GetTextureForDefinition(definitionId);
     }
 
     public static void ClearCacheForTests()
     {
-        textureCache.Clear();
-        missingTextureKeys.Clear();
+        CardArtService.ClearCacheForTests();
     }
 
     private static string normalizeDefinitionId(string definitionId)
@@ -4983,14 +5138,5 @@ public static class DebugCardTextureResolver
                char.IsDigit(definitionId[3]);
     }
 
-    private static Texture2D loadTextureAtPath(string assetPath)
-    {
-#if UNITY_EDITOR
-        return UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
-#else
-        _ = assetPath;
-        return null;
-#endif
-    }
 }
 }

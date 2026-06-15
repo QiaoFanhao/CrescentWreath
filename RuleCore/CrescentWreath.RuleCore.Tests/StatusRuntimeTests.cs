@@ -393,7 +393,7 @@ public sealed class StatusRuntimeTests
     }
 
     [Fact]
-    public void ClearShortStatusesAtTurnEnd_ShouldRemoveSilenceCharmPenetrateAndKeepLongTermStatuses()
+    public void ClearShortStatusesAtTurnEnd_ShouldRemoveShortEffectsAndKeepLongTermStatuses()
     {
         var gameState = new RuleCore.GameState.GameState();
         var playerId = new PlayerId(41);
@@ -428,6 +428,22 @@ public sealed class StatusRuntimeTests
             gameState,
             new StatusInstance
             {
+                statusKey = StatusRuntime.StatusKeyPhysicalDamageBoostNext,
+                targetPlayerId = playerId,
+                durationTypeKey = StatusRuntime.DurationTypeKeyNextMatchingDamageAttempt,
+            });
+        StatusRuntime.applyStatus(
+            gameState,
+            new StatusInstance
+            {
+                statusKey = StatusRuntime.StatusKeySpellDamageBoostNext,
+                targetPlayerId = playerId,
+                durationTypeKey = StatusRuntime.DurationTypeKeyNextMatchingDamageAttempt,
+            });
+        StatusRuntime.applyStatus(
+            gameState,
+            new StatusInstance
+            {
                 statusKey = "Seal",
                 targetCharacterInstanceId = characterInstanceId,
                 durationTypeKey = "untilNextTurnStart",
@@ -443,13 +459,21 @@ public sealed class StatusRuntimeTests
 
         var removedStatuses = StatusRuntime.clearShortStatusesAtTurnEnd(gameState);
 
-        Assert.Equal(3, removedStatuses.Count);
+        Assert.Equal(5, removedStatuses.Count);
         Assert.Equal("Silence", removedStatuses[0].statusKey);
         Assert.Equal("Charm", removedStatuses[1].statusKey);
         Assert.Equal("Penetrate", removedStatuses[2].statusKey);
+        Assert.Equal(StatusRuntime.StatusKeyPhysicalDamageBoostNext, removedStatuses[3].statusKey);
+        Assert.Equal(StatusRuntime.StatusKeySpellDamageBoostNext, removedStatuses[4].statusKey);
         Assert.DoesNotContain(gameState.statusInstances, status => status.statusKey == "Silence");
         Assert.DoesNotContain(gameState.statusInstances, status => status.statusKey == "Charm");
         Assert.DoesNotContain(gameState.statusInstances, status => status.statusKey == "Penetrate");
+        Assert.DoesNotContain(
+            gameState.statusInstances,
+            status => status.statusKey == StatusRuntime.StatusKeyPhysicalDamageBoostNext);
+        Assert.DoesNotContain(
+            gameState.statusInstances,
+            status => status.statusKey == StatusRuntime.StatusKeySpellDamageBoostNext);
         Assert.Contains(gameState.statusInstances, status => status.statusKey == "Seal");
         Assert.Contains(gameState.statusInstances, status => status.statusKey == "Barrier");
     }

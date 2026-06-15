@@ -139,6 +139,32 @@ public class ActionRequestProcessorPlayTreasureCardPlayModeTests
     }
 
     [Fact]
+    public void ProcessPlayTreasureCardActionRequest_WhenSakuraCakeIsPlayed_ShouldGainOneSkillPoint()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 2320);
+        actorPlayerState.skillPoint = 2;
+        var cardInstanceId = new CardInstanceId(23201);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        addStandardPlayerZones(gameState, actorPlayerState);
+        setRunningTurnForActor(gameState, actorPlayerId, actorPlayerState.teamId);
+        createCardInPlayerHand(gameState, actorPlayerState, cardInstanceId, "S001");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new PlayTreasureCardActionRequest
+        {
+            requestId = 23202,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = cardInstanceId,
+            playMode = "normal",
+        });
+
+        Assert.Equal(3, actorPlayerState.skillPoint);
+    }
+
+    [Fact]
     public void ProcessPlayTreasureCardActionRequest_WhenRealTreasureIsPlayed_ShouldApplyDefinitionResourceValues()
     {
         var actorPlayerId = new PlayerId(1);

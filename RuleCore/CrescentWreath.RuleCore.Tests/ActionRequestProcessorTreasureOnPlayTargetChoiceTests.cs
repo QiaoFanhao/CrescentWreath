@@ -1372,6 +1372,8 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         addPlayer(gameState, actorPlayerState, activeCharacterNumericId: 6201, currentHp: 4, maxHp: 4);
         addPlayer(gameState, enemyPlayerState, activeCharacterNumericId: 6202, currentHp: 4, maxHp: 4);
         createCardInPlayerHand(gameState, actorPlayerState, new CardInstanceId(9019), "T004");
+        var defenseCardInstanceId = new CardInstanceId(9029);
+        createCardInPlayerHand(gameState, enemyPlayerState, defenseCardInstanceId, "test:defensePhysical2");
 
         var enemyCharacterInstanceId = enemyPlayerState.activeCharacterInstanceId!.Value;
         StatusRuntime.applyStatus(gameState, new StatusInstance
@@ -1436,6 +1438,17 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
             gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
                          interactionWindowEvent.eventTypeKey == "responseWindowOpened" &&
                          interactionWindowEvent.windowKindKey == "responseWindow");
+
+        processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 9224,
+            actorPlayerId = enemyPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "physical",
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.Equal(hpBefore - 1, gameState.characterInstances[enemyCharacterInstanceId].currentHp);
     }
 
     [Fact]
@@ -2395,10 +2408,12 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         addTeam(gameState, actorPlayerState.teamId);
         addTeam(gameState, targetPlayerState.teamId);
         var t016CardInstanceId = new CardInstanceId(9140);
+        var secondT016CardInstanceId = new CardInstanceId(9144);
         var t008CardInstanceId = new CardInstanceId(9141);
         var overlayCandidateCardInstanceId = new CardInstanceId(9142);
         var gapCandidateCardInstanceId = new CardInstanceId(9143);
         createCardInPlayerField(gameState, actorPlayerState, t016CardInstanceId, "T016");
+        createCardInPlayerField(gameState, actorPlayerState, secondT016CardInstanceId, "T016");
         createCardInPlayerHand(gameState, actorPlayerState, t008CardInstanceId, "T008");
         createCardInPlayerDiscard(gameState, actorPlayerState, overlayCandidateCardInstanceId, "T001");
         createOwnedCardInPublicZone(
@@ -2441,12 +2456,29 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
             choiceKey = $"{TreasureOnPlayEffectRuntime.ChoiceKeyOverlayCardPrefix}{overlayCandidateCardInstanceId.Value}",
         });
 
-        Assert.Null(gameState.currentInputContext);
-        Assert.Null(gameState.currentActionChain!.pendingContinuationKey);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(MechanicalJadeRuntime.ContextKeyOverlayAfterKill, gameState.currentInputContext!.contextKey);
         Assert.Equal(1, OverlayRuntime.getOverlayCardCount(gameState, t016CardInstanceId));
         Assert.Equal(t016CardInstanceId, gameState.cardInstances[overlayCandidateCardInstanceId].overlayContainerCardInstanceId);
         Assert.Equal(manaBeforeOverlay + 2, actorPlayerState.mana);
         Assert.Equal(sigilBeforeOverlay + 2, actorPlayerState.sigilPreview);
+
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 9474,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = $"{TreasureOnPlayEffectRuntime.ChoiceKeyOverlayCardPrefix}{gapCandidateCardInstanceId.Value}",
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Equal(1, OverlayRuntime.getOverlayCardCount(gameState, secondT016CardInstanceId));
+        Assert.Equal(
+            secondT016CardInstanceId,
+            gameState.cardInstances[gapCandidateCardInstanceId].overlayContainerCardInstanceId);
+        Assert.Equal(manaBeforeOverlay + 4, actorPlayerState.mana);
+        Assert.Equal(sigilBeforeOverlay + 4, actorPlayerState.sigilPreview);
     }
 
     [Fact]
@@ -2630,6 +2662,87 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
                                              cardMovedEvent.cardInstanceId == t020CardInstanceId &&
                                              cardMovedEvent.toZoneKey == ZoneKey.gapZone &&
                                              cardMovedEvent.moveReason == CardMoveReason.banish);
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCardActionRequest_T020_WhenA010IsCurrent_ShouldOpenChooseTwoRewardAndResolveAfterSubmission()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 4450);
+        var gameState = createRunningActionPhaseState(actorPlayerId, actorPlayerState.teamId);
+        ensurePublicZones(gameState, gapZoneNumericId: 9986);
+        addPlayer(gameState, actorPlayerState, activeCharacterNumericId: 8111, currentHp: 4, maxHp: 4);
+        addTeam(gameState, actorPlayerState.teamId);
+        gameState.currentAnomalyState = new CurrentAnomalyState
+        {
+            currentAnomalyDefinitionId = "A010",
+        };
+        var t020CardInstanceId = new CardInstanceId(9171);
+        createCardInPlayerHand(gameState, actorPlayerState, t020CardInstanceId, "T020");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new PlayTreasureCardActionRequest
+        {
+            requestId = 9502,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = t020CardInstanceId,
+            playMode = "normal",
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(AnomalyA010Runtime.ContextKeyRewardChooseTwo, gameState.currentInputContext!.contextKey);
+        Assert.Equal(actorPlayerId, gameState.currentInputContext.requiredPlayerId);
+        Assert.Contains(t020CardInstanceId, gameState.zones[gameState.publicState!.gapZoneId].cardInstanceIds);
+        Assert.False(gameState.turnState!.hasResolvedAnomalyThisTurn);
+
+        var rewardRequest = new SubmitInputChoiceActionRequest
+        {
+            requestId = 9503,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+        };
+        rewardRequest.choiceKeys.Add(AnomalyA010Runtime.ChoiceRewardLeyline);
+        rewardRequest.choiceKeys.Add(AnomalyA010Runtime.ChoiceRewardKillScore);
+        var rewardEvents = processor.processActionRequest(gameState, rewardRequest);
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.True(gameState.turnState.hasResolvedAnomalyThisTurn);
+        Assert.Contains("A010", gameState.resolvedAnomalyDefinitionIds);
+        Assert.Contains(rewardEvents, gameEvent =>
+            gameEvent is AnomalyResolvedEvent anomalyResolvedEvent &&
+            anomalyResolvedEvent.anomalyDefinitionId == "A010");
+    }
+
+    [Fact]
+    public void ProcessPlayTreasureCardActionRequest_T020_WhenAnomalyAlreadyResolvedThisTurn_ShouldOnlyBanishSelf()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 4460);
+        var gameState = createRunningActionPhaseState(actorPlayerId, actorPlayerState.teamId);
+        ensurePublicZones(gameState, gapZoneNumericId: 9987);
+        addPlayer(gameState, actorPlayerState, activeCharacterNumericId: 8121, currentHp: 4, maxHp: 4);
+        addTeam(gameState, actorPlayerState.teamId);
+        gameState.turnState!.hasResolvedAnomalyThisTurn = true;
+        gameState.currentAnomalyState = new CurrentAnomalyState
+        {
+            currentAnomalyDefinitionId = "A010",
+        };
+        var t020CardInstanceId = new CardInstanceId(9172);
+        createCardInPlayerHand(gameState, actorPlayerState, t020CardInstanceId, "T020");
+
+        var processor = new ActionRequestProcessor();
+        var events = processor.processActionRequest(gameState, new PlayTreasureCardActionRequest
+        {
+            requestId = 9504,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = t020CardInstanceId,
+            playMode = "normal",
+        });
+
+        Assert.Equal("A010", gameState.currentAnomalyState.currentAnomalyDefinitionId);
+        Assert.Null(gameState.currentInputContext);
+        Assert.Contains(t020CardInstanceId, gameState.zones[gameState.publicState!.gapZoneId].cardInstanceIds);
+        Assert.DoesNotContain(events, gameEvent => gameEvent is AnomalyResolvedEvent);
     }
 
     [Fact]

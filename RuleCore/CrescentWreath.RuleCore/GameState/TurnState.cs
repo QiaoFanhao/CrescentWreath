@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CrescentWreath.RuleCore.Ids;
 
 namespace CrescentWreath.RuleCore.GameState;
@@ -11,4 +12,5 @@ public sealed class TurnState
     public int phaseStepIndex { get; set; }
     public bool hasResolvedAnomalyThisTurn { get; set; }
     public ExtraTurnFlags extraTurnFlags { get; set; } = new();
+    public HashSet<string> usedOncePerTurnSkillKeys { get; set; } = new();
 }

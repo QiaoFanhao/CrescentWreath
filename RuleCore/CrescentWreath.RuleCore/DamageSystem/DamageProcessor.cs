@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using CrescentWreath.RuleCore.ActionSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.EffectSystem;
@@ -26,12 +27,14 @@ public sealed class DamageProcessor
     public const string LocalStateKeyT029BaseDamageValue = "damage:T029:baseDamageValue";
     public const string LocalStateKeyT029DamageType = "damage:T029:damageType";
     public const string LocalStateKeyT029DefenseDeclarationKey = "damage:T029:defenseDeclarationKey";
+    public const string LocalStateKeyT029HasAppliedSourceDamageBonuses = "damage:T029:hasAppliedSourceDamageBonuses";
 
     private const string ResponseKeyCommitKill = "commitKill";
     private const string ResponseKeyReplaceKill = "replaceKill";
     private const string EndedExternalResolutionRejectedMessage = "DamageProcessor cannot accept external resolution calls when gameState.matchState is ended.";
     private const string DamageTypeKeyDirect = "direct";
     private const string DefinitionIdT029 = "T029";
+    private const string DefinitionIdC019 = "C019";
     private const string StatusKeyBarrier = "Barrier";
     private const string StatusKeyBarrierLegacy = "status:barrier";
     private const string StatusKeyCharm = "Charm";
@@ -45,6 +48,16 @@ public sealed class DamageProcessor
 
         var targetCharacterInstanceId = damageContext.targetCharacterInstanceId!.Value;
         var targetCharacter = gameState.characterInstances[targetCharacterInstanceId];
+        var producedEvents = applySourceMatchingDamageBonuses(gameState, damageContext);
+
+        if (tryResolveBarrierPrevention(
+                gameState,
+                damageContext,
+                targetCharacter,
+                producedEvents))
+        {
+            return producedEvents;
+        }
 
         if (tryOpenT029DamageImmunityInputContext(
                 gameState,
@@ -52,7 +65,8 @@ public sealed class DamageProcessor
                 targetCharacter,
                 out var t029ImmunityEvents))
         {
-            return t029ImmunityEvents;
+            producedEvents.AddRange(t029ImmunityEvents);
+            return producedEvents;
         }
 
         var consumedShortEffectKeys = consumeSourceShortEffects(gameState, damageContext.sourcePlayerId);
@@ -63,9 +77,6 @@ public sealed class DamageProcessor
 
         var hasPenetrate = containsPenetrateEffect(consumedShortEffectKeys);
         var consumedCharmStatusKey = consumeCharmOnTargetPlayer(gameState, targetCharacter.ownerPlayerId);
-        var consumedBarrierStatusKey = consumeBarrierOnTargetCharacter(gameState, targetCharacterInstanceId);
-        var isBarrierPrevented = consumedBarrierStatusKey is not null;
-        damageContext.isPrevented = damageContext.isPrevented || isBarrierPrevented;
 
         var hpBefore = targetCharacter.currentHp;
         var finalDamageValue = damageContext.baseDamageValue;
@@ -106,7 +117,8 @@ public sealed class DamageProcessor
             delta = hpAfter - hpBefore,
         };
 
-        var producedEvents = new List<GameEvent> { damageResolvedEvent, hpChangedEvent };
+        producedEvents.Add(damageResolvedEvent);
+        producedEvents.Add(hpChangedEvent);
         applyLeylineRewardIfDamageDealt(gameState, damageContext);
         tryEnterLethalAdjudicationFromDamage(
             gameState,
@@ -124,7 +136,69 @@ public sealed class DamageProcessor
             targetCharacter.ownerPlayerId,
             consumedShortEffectKeys,
             consumedCharmStatusKey,
-            consumedBarrierStatusKey);
+            consumedBarrierStatusKey: null);
+        return producedEvents;
+    }
+
+    public bool tryResolveBarrierBeforeDefense(
+        GameState.GameState gameState,
+        DamageContext damageContext,
+        out List<GameEvent> producedEvents)
+    {
+        ensureCanAcceptExternalResolution(gameState);
+        producedEvents = applySourceMatchingDamageBonuses(gameState, damageContext);
+
+        if (!damageContext.targetCharacterInstanceId.HasValue ||
+            !gameState.characterInstances.TryGetValue(
+                damageContext.targetCharacterInstanceId.Value,
+                out var targetCharacter))
+        {
+            throw new InvalidOperationException("Barrier pre-defense resolution requires a valid target character.");
+        }
+
+        return tryResolveBarrierPrevention(
+            gameState,
+            damageContext,
+            targetCharacter,
+            producedEvents);
+    }
+
+    public List<GameEvent> applySourceMatchingDamageBonuses(
+        GameState.GameState gameState,
+        DamageContext damageContext)
+    {
+        var producedEvents = new List<GameEvent>();
+        if (damageContext.hasAppliedSourceDamageBonuses)
+        {
+            return producedEvents;
+        }
+
+        damageContext.hasAppliedSourceDamageBonuses = true;
+        if (!damageContext.sourcePlayerId.HasValue)
+        {
+            return producedEvents;
+        }
+
+        var consumedStatuses = StatusRuntime.consumeMatchingDamageBoostsOnAttempt(
+            gameState,
+            damageContext.sourcePlayerId.Value,
+            damageContext.damageType);
+        var damageBonus = 0;
+        foreach (var consumedStatus in consumedStatuses)
+        {
+            damageBonus += Math.Max(1, consumedStatus.stackCount);
+            producedEvents.Add(new StatusChangedEvent
+            {
+                eventId = damageContext.damageContextId.Value,
+                eventTypeKey = "statusChanged",
+                sourceActionChainId = gameState.currentActionChain?.actionChainId,
+                statusKey = consumedStatus.statusKey,
+                targetPlayerId = consumedStatus.targetPlayerId,
+                isApplied = false,
+            });
+        }
+
+        damageContext.baseDamageValue += damageBonus;
         return producedEvents;
     }
 
@@ -219,7 +293,9 @@ public sealed class DamageProcessor
         KillContext killContext)
     {
         var targetCharacter = gameState.characterInstances[killContext.killedCharacterInstanceId!.Value];
-        return targetCharacter.hasPendingOnKilledReplacement
+        return targetCharacter.hasPendingOnKilledReplacement ||
+               (string.Equals(targetCharacter.definitionId, DefinitionIdC019, StringComparison.Ordinal) &&
+                targetCharacter.isActivated)
             ? ResponseKeyReplaceKill
             : ResponseKeyCommitKill;
     }
@@ -262,6 +338,17 @@ public sealed class DamageProcessor
     {
         var targetCharacter = gameState.characterInstances[killedCharacterInstanceId];
         targetCharacter.hasPendingOnKilledReplacement = false;
+        if (string.Equals(targetCharacter.definitionId, DefinitionIdC019, StringComparison.Ordinal) &&
+            targetCharacter.isActivated)
+        {
+            producedEvents.Add(CharacterActivationRuntime.setActivated(
+                gameState,
+                killedCharacterInstanceId,
+                false,
+                gameState.currentActionChain?.actionChainId,
+                eventId));
+        }
+
         var hpBeforeRestoreWhenReplaced = targetCharacter.currentHp;
         targetCharacter.currentHp = targetCharacter.maxHp;
 
@@ -519,6 +606,63 @@ public sealed class DamageProcessor
                StatusRuntime.hasStatusOnCharacter(gameState, targetCharacterInstanceId, StatusKeyBarrierLegacy);
     }
 
+    private static bool tryResolveBarrierPrevention(
+        GameState.GameState gameState,
+        DamageContext damageContext,
+        CharacterInstance targetCharacter,
+        List<GameEvent> producedEvents)
+    {
+        var targetCharacterInstanceId = targetCharacter.characterInstanceId;
+        if (!hasBarrierStatusOnTarget(gameState, targetCharacterInstanceId))
+        {
+            return false;
+        }
+
+        var consumedShortEffectKeys = consumeSourceShortEffects(gameState, damageContext.sourcePlayerId);
+        foreach (var shortEffectKey in consumedShortEffectKeys)
+        {
+            damageContext.appliedShortEffectKeys.Add(shortEffectKey);
+        }
+
+        var consumedCharmStatusKey = consumeCharmOnTargetPlayer(
+            gameState,
+            targetCharacter.ownerPlayerId);
+        var consumedBarrierStatusKey = consumeBarrierOnTargetCharacter(
+            gameState,
+            targetCharacterInstanceId);
+        damageContext.isPrevented = true;
+        damageContext.finalDamageValue = 0;
+        damageContext.didDealDamage = false;
+
+        producedEvents.Add(new DamageResolvedEvent
+        {
+            eventId = damageContext.damageContextId.Value,
+            eventTypeKey = "damageResolved",
+            damageContextId = damageContext.damageContextId,
+            finalDamageValue = 0,
+            didDealDamage = false,
+        });
+        producedEvents.Add(new HpChangedEvent
+        {
+            eventId = damageContext.damageContextId.Value,
+            eventTypeKey = "hpChanged",
+            targetPlayerId = targetCharacter.ownerPlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            hpBefore = targetCharacter.currentHp,
+            hpAfter = targetCharacter.currentHp,
+            delta = 0,
+        });
+        appendStatusChangedEventsForConsumedStatuses(
+            producedEvents,
+            damageContext,
+            targetCharacterInstanceId,
+            targetCharacter.ownerPlayerId,
+            consumedShortEffectKeys,
+            consumedCharmStatusKey,
+            consumedBarrierStatusKey);
+        return true;
+    }
+
     private static void saveT029DamageContext(
         ActionChainState actionChainState,
         DamageContext damageContext)
@@ -543,6 +687,8 @@ public sealed class DamageProcessor
             damageContext.targetCharacterInstanceId!.Value.Value.ToString();
         actionChainState.localState[LocalStateKeyT029BaseDamageValue] = damageContext.baseDamageValue.ToString();
         actionChainState.localState[LocalStateKeyT029DamageType] = damageContext.damageType;
+        actionChainState.localState[LocalStateKeyT029HasAppliedSourceDamageBonuses] =
+            damageContext.hasAppliedSourceDamageBonuses.ToString();
         if (!string.IsNullOrWhiteSpace(damageContext.defenseDeclarationKey))
         {
             actionChainState.localState[LocalStateKeyT029DefenseDeclarationKey] = damageContext.defenseDeclarationKey;
@@ -727,19 +873,6 @@ public sealed class DamageProcessor
         string? consumedBarrierStatusKey)
     {
         var eventId = damageContext.damageContextId.Value;
-        if (consumedBarrierStatusKey is not null)
-        {
-            producedEvents.Add(new StatusChangedEvent
-            {
-                eventId = eventId,
-                eventTypeKey = "statusChanged",
-                sourceActionChainId = null,
-                statusKey = normalizeConsumedStatusKey(consumedBarrierStatusKey),
-                targetCharacterInstanceId = targetCharacterInstanceId,
-                isApplied = false,
-            });
-        }
-
         if (consumedCharmStatusKey is not null)
         {
             producedEvents.Add(new StatusChangedEvent
@@ -749,6 +882,19 @@ public sealed class DamageProcessor
                 sourceActionChainId = null,
                 statusKey = normalizeConsumedStatusKey(consumedCharmStatusKey),
                 targetPlayerId = targetPlayerId,
+                isApplied = false,
+            });
+        }
+
+        if (consumedBarrierStatusKey is not null)
+        {
+            producedEvents.Add(new StatusChangedEvent
+            {
+                eventId = eventId,
+                eventTypeKey = "statusChanged",
+                sourceActionChainId = null,
+                statusKey = normalizeConsumedStatusKey(consumedBarrierStatusKey),
+                targetCharacterInstanceId = targetCharacterInstanceId,
                 isApplied = false,
             });
         }

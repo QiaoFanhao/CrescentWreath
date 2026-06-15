@@ -6,6 +6,23 @@ namespace CrescentWreath.RuleCore.Tests;
 public class CharacterDefinitionRepositoryTests
 {
     [Fact]
+    public void GetAllDefinitions_ShouldExposeImplementedCharactersAndSkillDescriptions()
+    {
+        var definitions = CharacterDefinitionRepository.getAllDefinitions();
+
+        Assert.Equal(31, definitions.Count);
+        Assert.Equal(
+            new[] { "C001", "C007", "C008", "C018" },
+            definitions.Where(definition => definition.isImplemented)
+                .Select(definition => definition.definitionId)
+                .ToArray());
+        Assert.All(
+            definitions.Where(definition => definition.isImplemented)
+                .SelectMany(definition => definition.skills.Values),
+            skill => Assert.False(string.IsNullOrWhiteSpace(skill.effectText)));
+    }
+
+    [Fact]
     public void ResolveByDefinitionId_WhenDefinitionIdIsKnown_ShouldReturnExpectedBaseFieldsAndSkills()
     {
         var definition = CharacterDefinitionRepository.resolveByDefinitionId("C004");
@@ -22,7 +39,7 @@ public class CharacterDefinitionRepositoryTests
         Assert.Equal("通常", skill.skillTypeRaw);
         Assert.Equal("active", skill.skillType);
         Assert.Equal(5, skill.manaCost);
-        Assert.Equal(0, skill.skillPointCost);
+        Assert.Equal(0, skill.leylineCost);
     }
 
     [Fact]
@@ -102,51 +119,50 @@ public class CharacterDefinitionRepositoryTests
     [Fact]
     public void TryResolveSkillCost_WhenDefinitionIdAndSkillKeyAreKnown_ShouldReturnExpectedCosts()
     {
-        var found = CharacterDefinitionRepository.tryResolveSkillCost("C001", "C001:3", out var manaCost, out var skillPointCost);
+        var found = CharacterDefinitionRepository.tryResolveSkillCost("C001", "C001:3", out var manaCost, out var leylineCost);
 
         Assert.True(found);
         Assert.Equal(6, manaCost);
-        Assert.Equal(2, skillPointCost);
+        Assert.Equal(2, leylineCost);
     }
 
     [Fact]
     public void TryResolveSkillCost_WhenSkillCostColumnIsEmpty_ShouldFallbackToEffectAndReturnExpectedCosts()
     {
-        var found = CharacterDefinitionRepository.tryResolveSkillCost("C002", "C002:3", out var manaCost, out var skillPointCost);
+        var found = CharacterDefinitionRepository.tryResolveSkillCost("C002", "C002:3", out var manaCost, out var leylineCost);
 
         Assert.True(found);
         Assert.Equal(6, manaCost);
-        Assert.Equal(2, skillPointCost);
+        Assert.Equal(2, leylineCost);
     }
 
     [Fact]
     public void TryResolveSkillCost_WhenCostIsComplexAndManaCannotBeParsed_ShouldDegradeToManaZero()
     {
-        var found = CharacterDefinitionRepository.tryResolveSkillCost("C017", "C017:4", out var manaCost, out var skillPointCost);
+        var found = CharacterDefinitionRepository.tryResolveSkillCost("C017", "C017:4", out var manaCost, out var leylineCost);
 
         Assert.True(found);
         Assert.Equal(0, manaCost);
-        Assert.Equal(4, skillPointCost);
+        Assert.Equal(4, leylineCost);
     }
 
     [Fact]
     public void TryResolveSkillCost_WhenDefinitionIdIsUnknown_ShouldReturnFalse()
     {
-        var found = CharacterDefinitionRepository.tryResolveSkillCost("C999", "C999:1", out var manaCost, out var skillPointCost);
+        var found = CharacterDefinitionRepository.tryResolveSkillCost("C999", "C999:1", out var manaCost, out var leylineCost);
 
         Assert.False(found);
         Assert.Equal(0, manaCost);
-        Assert.Equal(0, skillPointCost);
+        Assert.Equal(0, leylineCost);
     }
 
     [Fact]
     public void TryResolveSkillCost_WhenSkillKeyIsUnknownForKnownCharacter_ShouldReturnFalse()
     {
-        var found = CharacterDefinitionRepository.tryResolveSkillCost("C004", "C004:999", out var manaCost, out var skillPointCost);
+        var found = CharacterDefinitionRepository.tryResolveSkillCost("C004", "C004:999", out var manaCost, out var leylineCost);
 
         Assert.False(found);
         Assert.Equal(0, manaCost);
-        Assert.Equal(0, skillPointCost);
+        Assert.Equal(0, leylineCost);
     }
 }
-

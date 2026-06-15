@@ -143,6 +143,81 @@ public sealed class AnomalyA010RuntimeTests
             player => Assert.Empty(gameState.zones[player.characterSetAsideZoneId].cardInstanceIds));
     }
 
+    [Fact]
+    public void KillBanishFlow_WhenAnotherAnomalyWasResolvedThisTurn_ShouldStillAllowA010SelfResolution()
+    {
+        var gameState = createA010GameState();
+        gameState.turnState!.hasResolvedAnomalyThisTurn = true;
+        var runtime = new AnomalyA010Runtime(new ZoneMovementService(), nextInputId);
+        var actionChainState = createActionChain(new PlayerId(1));
+        runtime.tryOpenArrivalSetAsideInput(gameState, actionChainState, 30);
+        while (gameState.currentInputContext is not null)
+        {
+            var inputContext = gameState.currentInputContext;
+            var request = new SubmitInputChoiceActionRequest
+            {
+                requestId = 30 + inputContext.requiredPlayerId!.Value.Value,
+                actorPlayerId = inputContext.requiredPlayerId.Value,
+                inputContextId = inputContext.inputContextId,
+                choiceKey = inputContext.choiceKeys[0],
+            };
+            runtime.ensureValidArrivalSetAsideChoice(gameState, inputContext, request);
+            gameState.currentInputContext = null;
+            runtime.continueArrivalSetAside(gameState, actionChainState, inputContext, request);
+        }
+
+        actionChainState.producedEvents.Add(new KillRecordedEvent
+        {
+            eventId = 40,
+            eventTypeKey = "killRecorded",
+            killerPlayerId = new PlayerId(1),
+        });
+
+        Assert.True(runtime.tryOpenKillBanishSetAsideInputFromProducedEvents(
+            gameState,
+            actionChainState,
+            40,
+            actionChainState.producedEvents.Count - 1));
+    }
+
+    [Fact]
+    public void ForceResolveFromExternalEffect_ShouldBanishAllSetAsideCardsAndOpenChooseTwoReward()
+    {
+        var gameState = createA010GameState();
+        var runtime = new AnomalyA010Runtime(new ZoneMovementService(), nextInputId);
+        var actionChainState = createActionChain(new PlayerId(1));
+        runtime.tryOpenArrivalSetAsideInput(gameState, actionChainState, 50);
+        while (gameState.currentInputContext is not null)
+        {
+            var inputContext = gameState.currentInputContext;
+            var request = new SubmitInputChoiceActionRequest
+            {
+                requestId = 50 + inputContext.requiredPlayerId!.Value.Value,
+                actorPlayerId = inputContext.requiredPlayerId.Value,
+                inputContextId = inputContext.inputContextId,
+                choiceKey = inputContext.choiceKeys[0],
+            };
+            runtime.ensureValidArrivalSetAsideChoice(gameState, inputContext, request);
+            gameState.currentInputContext = null;
+            runtime.continueArrivalSetAside(gameState, actionChainState, inputContext, request);
+        }
+
+        var opened = runtime.tryForceResolveFromExternalEffect(
+            gameState,
+            actionChainState,
+            60,
+            new PlayerId(1));
+
+        Assert.True(opened);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(AnomalyA010Runtime.ContextKeyRewardChooseTwo, gameState.currentInputContext!.contextKey);
+        Assert.Equal(new PlayerId(1), gameState.currentInputContext.requiredPlayerId);
+        Assert.Equal(4, gameState.zones[gameState.publicState!.gapZoneId].cardInstanceIds.Count);
+        Assert.All(
+            gameState.players.Values,
+            player => Assert.Empty(gameState.zones[player.characterSetAsideZoneId].cardInstanceIds));
+    }
+
     private static void submitCurrentSingleChoice(
         RuleCore.GameState.GameState gameState,
         AnomalyA010Runtime runtime,

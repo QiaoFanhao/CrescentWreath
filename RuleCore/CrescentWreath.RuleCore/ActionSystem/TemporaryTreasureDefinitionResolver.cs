@@ -25,6 +25,11 @@ public static class TemporaryTreasureDefinitionResolver
         return TreasureDefinitionRepository.resolveByDefinitionId(definitionId).sigilPreviewGainOnEnterField;
     }
 
+    public static int resolveSkillPointGainOnPlay(string definitionId)
+    {
+        return TreasureDefinitionRepository.resolveByDefinitionId(definitionId).skillPointGainOnPlay;
+    }
+
     public static int resolveSummonSigilCost(string definitionId)
     {
         var summonSigilCost = TreasureDefinitionRepository.resolveByDefinitionId(definitionId).summonSigilCost;

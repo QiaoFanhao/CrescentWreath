@@ -38,7 +38,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C001:2"] = new CharacterSkillDefinition
@@ -49,7 +49,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "任意玩家回合开始时，弃1张防御为3或更高牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C001:3"] = new CharacterSkillDefinition
@@ -60,7 +60,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C001:4"] = new CharacterSkillDefinition
@@ -71,7 +71,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑦，III，每回合一次",
                     manaCost = 7,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -95,7 +95,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C002:2"] = new CharacterSkillDefinition
@@ -106,7 +106,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C002:3"] = new CharacterSkillDefinition
@@ -117,7 +117,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C002:4"] = new CharacterSkillDefinition
@@ -128,7 +128,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④，II",
                     manaCost = 4,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -152,7 +152,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C003:2"] = new CharacterSkillDefinition
@@ -163,7 +163,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "每回合1次，你或操控芙兰朵露的队友给予对手伤害时，你弃1张召唤费用为3或更高的牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C003:3"] = new CharacterSkillDefinition
@@ -174,7 +174,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "",
                     manaCost = 6,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "active",
                 },
                 ["C003:4"] = new CharacterSkillDefinition
@@ -185,7 +185,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥III",
                     manaCost = 6,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -209,7 +209,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C004:2"] = new CharacterSkillDefinition
@@ -220,7 +220,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "每回合一次，若你在防御后未被击杀，弃1张手牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C004:3"] = new CharacterSkillDefinition
@@ -231,7 +231,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C004:4"] = new CharacterSkillDefinition
@@ -242,7 +242,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑦II",
                     manaCost = 7,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -275,7 +275,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "你给予对手体术伤害时",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C005:2"] = new CharacterSkillDefinition
@@ -286,7 +286,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，X剑气",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C005:3"] = new CharacterSkillDefinition
@@ -297,7 +297,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你完全防御对手一次伤害后，移除1剑气指示物",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C005:4"] = new CharacterSkillDefinition
@@ -308,7 +308,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④II，移除X剑气指示物",
                     manaCost = 4,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -332,7 +332,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C006:2"] = new CharacterSkillDefinition
@@ -343,7 +343,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "启动状态下，每回合1次，任意玩家防御前，I",
                     manaCost = 0,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "response",
                 },
                 ["C006:3"] = new CharacterSkillDefinition
@@ -354,7 +354,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C006:4"] = new CharacterSkillDefinition
@@ -365,7 +365,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑧，V",
                     manaCost = 8,
-                    skillPointCost = 5,
+                    leylineCost =5,
                     skillType = "ultimate",
                 },
             },
@@ -397,7 +397,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "②",
                     manaCost = 2,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C007:2"] = new CharacterSkillDefinition
@@ -408,7 +408,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C007:3"] = new CharacterSkillDefinition
@@ -419,7 +419,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，移除3梦境指示物",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C007:4"] = new CharacterSkillDefinition
@@ -430,7 +430,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑤II",
                     manaCost = 5,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -454,7 +454,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C008:2"] = new CharacterSkillDefinition
@@ -465,7 +465,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C008:3"] = new CharacterSkillDefinition
@@ -476,7 +476,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥I",
                     manaCost = 6,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C008:4"] = new CharacterSkillDefinition
@@ -487,7 +487,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑦，III",
                     manaCost = 7,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -511,7 +511,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，减少自己1生命",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C009:2"] = new CharacterSkillDefinition
@@ -522,7 +522,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当对手防御你的伤害时，弃2张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C009:3"] = new CharacterSkillDefinition
@@ -533,7 +533,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C009:4"] = new CharacterSkillDefinition
@@ -544,7 +544,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "弃2张手牌，③，III",
                     manaCost = 3,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -569,7 +569,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C010:2"] = new CharacterSkillDefinition
@@ -580,7 +580,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "受到1伤害时",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C010:3"] = new CharacterSkillDefinition
@@ -591,7 +591,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C010:4"] = new CharacterSkillDefinition
@@ -602,7 +602,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "启动状态下，④，III",
                     manaCost = 4,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -626,7 +626,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤，I",
                     manaCost = 5,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C011:2"] = new CharacterSkillDefinition
@@ -637,7 +637,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "每回合1次，⑤",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C011:3"] = new CharacterSkillDefinition
@@ -648,7 +648,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C011:4"] = new CharacterSkillDefinition
@@ -659,7 +659,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑩，V",
                     manaCost = 10,
-                    skillPointCost = 5,
+                    leylineCost =5,
                     skillType = "ultimate",
                 },
             },
@@ -683,7 +683,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C012:2"] = new CharacterSkillDefinition
@@ -694,7 +694,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C012:3"] = new CharacterSkillDefinition
@@ -705,7 +705,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C012:4"] = new CharacterSkillDefinition
@@ -716,7 +716,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥，III",
                     manaCost = 6,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -740,7 +740,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "在任意玩家的回合开始时，弃2张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C013:2"] = new CharacterSkillDefinition
@@ -751,7 +751,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "目标对手防御时，弃1张牌，II",
                     manaCost = 0,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "response",
                 },
                 ["C013:3"] = new CharacterSkillDefinition
@@ -762,7 +762,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C013:4"] = new CharacterSkillDefinition
@@ -773,7 +773,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑤，II",
                     manaCost = 5,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -805,7 +805,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C014:2"] = new CharacterSkillDefinition
@@ -816,7 +816,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "你给予任意数量对手体术或咒术伤害时，减少X生命并弃X张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C014:3"] = new CharacterSkillDefinition
@@ -827,7 +827,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③，弃1张牌",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C014:4"] = new CharacterSkillDefinition
@@ -838,7 +838,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "IV，弃1张牌，移除X个毁灭指示物",
                     manaCost = 0,
-                    skillPointCost = 4,
+                    leylineCost =4,
                     skillType = "ultimate",
                 },
             },
@@ -862,7 +862,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "每回合一次，你的召唤阶段中",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C015:2"] = new CharacterSkillDefinition
@@ -873,7 +873,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤，放逐X张手牌",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C015:3"] = new CharacterSkillDefinition
@@ -884,7 +884,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③，从手牌中放逐2张牌",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C015:4"] = new CharacterSkillDefinition
@@ -895,7 +895,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑤II",
                     manaCost = 5,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -919,7 +919,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你使用一次通常技时，移除你的【结界】效果",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C016:2"] = new CharacterSkillDefinition
@@ -930,7 +930,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "任意玩家回合开始时，弃1张召唤费用为3或更高的牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C016:3"] = new CharacterSkillDefinition
@@ -941,7 +941,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C016:4"] = new CharacterSkillDefinition
@@ -952,7 +952,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④，II",
                     manaCost = 4,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -992,7 +992,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C017:2"] = new CharacterSkillDefinition
@@ -1003,7 +1003,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当目标对手使用通常技并支付完其费用后，弃一张牌并移除5种元素指示物",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C017:3"] = new CharacterSkillDefinition
@@ -1014,7 +1014,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "在你有5种元素指示物时，⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C017:4"] = new CharacterSkillDefinition
@@ -1025,7 +1025,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "x,IV",
                     manaCost = 0,
-                    skillPointCost = 4,
+                    leylineCost =4,
                     skillType = "ultimate",
                 },
             },
@@ -1049,7 +1049,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "你的召唤阶段中",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C018:2"] = new CharacterSkillDefinition
@@ -1060,7 +1060,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥，每回合一次",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C018:3"] = new CharacterSkillDefinition
@@ -1071,7 +1071,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C018:4"] = new CharacterSkillDefinition
@@ -1082,7 +1082,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥，III",
                     manaCost = 6,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -1106,7 +1106,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "启动状态下被击杀时",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C019:2"] = new CharacterSkillDefinition
@@ -1117,7 +1117,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤，I",
                     manaCost = 5,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C019:3"] = new CharacterSkillDefinition
@@ -1128,7 +1128,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "III",
                     manaCost = 0,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "active",
                 },
                 ["C019:4"] = new CharacterSkillDefinition
@@ -1139,7 +1139,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥，I",
                     manaCost = 6,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "ultimate",
                 },
             },
@@ -1163,7 +1163,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C020:2"] = new CharacterSkillDefinition
@@ -1174,7 +1174,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "②",
                     manaCost = 2,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C020:3"] = new CharacterSkillDefinition
@@ -1185,7 +1185,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "当你的生命值低于4时，②",
                     manaCost = 2,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C020:4"] = new CharacterSkillDefinition
@@ -1196,7 +1196,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -1221,7 +1221,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "每回合1次，弃一张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C021:2"] = new CharacterSkillDefinition
@@ -1232,7 +1232,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，弃一张牌",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C021:3"] = new CharacterSkillDefinition
@@ -1243,7 +1243,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "使用黑键投射时，额外消耗④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "response",
                 },
                 ["C021:4"] = new CharacterSkillDefinition
@@ -1254,7 +1254,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④，II",
                     manaCost = 4,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -1286,7 +1286,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "②",
                     manaCost = 2,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C022:2"] = new CharacterSkillDefinition
@@ -1297,7 +1297,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，1人形指示物",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C022:3"] = new CharacterSkillDefinition
@@ -1308,7 +1308,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，2人形指示物",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C022:4"] = new CharacterSkillDefinition
@@ -1319,7 +1319,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④，III，移除X人形",
                     manaCost = 4,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "ultimate",
                 },
             },
@@ -1343,7 +1343,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你发动带体术或咒术伤害的技能时，弃1张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C023:2"] = new CharacterSkillDefinition
@@ -1354,7 +1354,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥，每回合1次",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C023:3"] = new CharacterSkillDefinition
@@ -1365,7 +1365,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥，I，弃X张牌",
                     manaCost = 6,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C023:4"] = new CharacterSkillDefinition
@@ -1376,7 +1376,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑦，II",
                     manaCost = 7,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -1400,7 +1400,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "⑥，III",
                     manaCost = 6,
-                    skillPointCost = 3,
+                    leylineCost =3,
                     skillType = "active",
                 },
                 ["C024:2"] = new CharacterSkillDefinition
@@ -1411,7 +1411,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C024:3"] = new CharacterSkillDefinition
@@ -1422,7 +1422,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你受到一次不致命的伤害时，减少1点生命",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C024:4"] = new CharacterSkillDefinition
@@ -1433,7 +1433,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "启动状态下，弃4张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "ultimate",
                 },
             },
@@ -1465,7 +1465,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "目标对手用宝具牌给予友方玩家伤害时，移除1神灵",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C025:2"] = new CharacterSkillDefinition
@@ -1476,7 +1476,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "对手防御伤害时，你移除1神灵并弃1张召唤费用大于1的牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C025:3"] = new CharacterSkillDefinition
@@ -1487,7 +1487,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "目标队友发动通常技时，移除2神灵并弃1张带技能值的牌，I",
                     manaCost = 0,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "response",
                 },
                 ["C025:4"] = new CharacterSkillDefinition
@@ -1498,7 +1498,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑤，I",
                     manaCost = 5,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "ultimate",
                 },
             },
@@ -1522,7 +1522,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C026:2"] = new CharacterSkillDefinition
@@ -1533,7 +1533,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③，I",
                     manaCost = 3,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C026:3"] = new CharacterSkillDefinition
@@ -1544,7 +1544,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "存在天气时，若友方玩家防御对手给予的伤害后未被击杀，I",
                     manaCost = 0,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "response",
                 },
                 ["C026:4"] = new CharacterSkillDefinition
@@ -1555,7 +1555,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "存在天气时，⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -1579,7 +1579,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥，II",
                     manaCost = 6,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C027:2"] = new CharacterSkillDefinition
@@ -1590,7 +1590,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "II",
                     manaCost = 0,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "active",
                 },
                 ["C027:3"] = new CharacterSkillDefinition
@@ -1601,7 +1601,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C027:4"] = new CharacterSkillDefinition
@@ -1612,7 +1612,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑥，I",
                     manaCost = 6,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "ultimate",
                 },
             },
@@ -1644,7 +1644,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C028:2"] = new CharacterSkillDefinition
@@ -1655,7 +1655,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C028:3"] = new CharacterSkillDefinition
@@ -1666,7 +1666,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C028:4"] = new CharacterSkillDefinition
@@ -1677,7 +1677,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "移除3个宝石指示物，④，IV",
                     manaCost = 4,
-                    skillPointCost = 4,
+                    leylineCost =4,
                     skillType = "ultimate",
                 },
             },
@@ -1701,7 +1701,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你防御时，弃3张牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C029:2"] = new CharacterSkillDefinition
@@ -1712,7 +1712,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑤",
                     manaCost = 5,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C029:3"] = new CharacterSkillDefinition
@@ -1723,7 +1723,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C029:4"] = new CharacterSkillDefinition
@@ -1734,7 +1734,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "④，IV",
                     manaCost = 4,
-                    skillPointCost = 4,
+                    leylineCost =4,
                     skillType = "ultimate",
                 },
             },
@@ -1758,7 +1758,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "每回合1次，任意玩家回合开始时，弃4张召唤费用大于1的牌",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C030:2"] = new CharacterSkillDefinition
@@ -1769,7 +1769,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "⑥",
                     manaCost = 6,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C030:3"] = new CharacterSkillDefinition
@@ -1780,7 +1780,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
                     manaCost = 4,
-                    skillPointCost = 1,
+                    leylineCost =1,
                     skillType = "active",
                 },
                 ["C030:4"] = new CharacterSkillDefinition
@@ -1791,7 +1791,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "⑦，II",
                     manaCost = 7,
-                    skillPointCost = 2,
+                    leylineCost =2,
                     skillType = "ultimate",
                 },
             },
@@ -1815,7 +1815,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你的生命值为1时，任意回合结束时",
                     manaCost = 0,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "response",
                 },
                 ["C031:2"] = new CharacterSkillDefinition
@@ -1826,7 +1826,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "④，X",
                     manaCost = 4,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C031:3"] = new CharacterSkillDefinition
@@ -1837,7 +1837,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "通常",
                     skillCostRaw = "③",
                     manaCost = 3,
-                    skillPointCost = 0,
+                    leylineCost =0,
                     skillType = "active",
                 },
                 ["C031:4"] = new CharacterSkillDefinition
@@ -1848,7 +1848,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillTypeRaw = "终结",
                     skillCostRaw = "V",
                     manaCost = 0,
-                    skillPointCost = 5,
+                    leylineCost =5,
                     skillType = "ultimate",
                 },
             },
@@ -1882,6 +1882,9 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
         foreach (var characterDefinition in CharacterDefinitions)
         {
             characterDefinition.factionKey = resolveFactionKey(characterDefinition.definitionId);
+            characterDefinition.isImplemented =
+                characterDefinition.definitionId is "C001" or "C007" or "C008" or "C018";
+            applyImplementedSkillEffectText(characterDefinition);
         }
     }
 
@@ -1903,6 +1906,37 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
         }
 
         return string.Empty;
+    }
+
+    private static void applyImplementedSkillEffectText(CharacterDefinition definition)
+    {
+        var effectTextBySkillKey = new Dictionary<string, string>
+        {
+            ["C001:1"] = "封印目标玩家；启动状态下，再给予该玩家3点咒术伤害。",
+            ["C001:2"] = "任意玩家回合开始时，你可以弃1张防御值3或更高的牌，令当前回合玩家获得【结界】。",
+            ["C001:3"] = "进入启动状态并直接解决当前异变，仍受每回合只能解决一次异变的限制。",
+            ["C001:4"] = "你获得【结界】，并将牌库顶至多3张牌如同防御牌般放在阵地区。",
+            ["C007:1"] = "获得1个梦境指示物，最多存在3个。",
+            ["C007:2"] = "队友抓1张牌；若你的梦境指示物为3，你再抓1张牌。",
+            ["C007:3"] = "移除3个梦境指示物，魅惑目标对手；对C011爱尔奎特无效。",
+            ["C007:4"] = "回复目标友方玩家4生命，然后给予目标对手4点咒术伤害。",
+            ["C008:1"] = "给予目标对手3点伤害，并选择该伤害为体术或咒术。",
+            ["C008:2"] = "你获得【结界】；本回合你下次给予的体术伤害+1，可叠加。",
+            ["C008:3"] = "抓2张牌；本回合你下次给予的咒术伤害+1，可叠加。",
+            ["C008:4"] = "给予所有对手6点咒术伤害。",
+            ["C018:1"] = "你的召唤阶段中，召唤宝具实际支付的灵符-1，但至少支付1。",
+            ["C018:2"] = "给予除你以外所有玩家1点直接伤害。",
+            ["C018:3"] = "直接击杀所有生命值为1的对手。",
+            ["C018:4"] = "所有生命值高于2的对手将当前生命值强行降为2；这不是伤害。",
+        };
+
+        foreach (var skill in definition.skills.Values)
+        {
+            if (effectTextBySkillKey.TryGetValue(skill.skillKey, out var effectText))
+            {
+                skill.effectText = effectText;
+            }
+        }
     }
 }
 

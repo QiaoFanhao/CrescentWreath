@@ -27,22 +27,38 @@ public static class CharacterDefinitionRepository
         };
     }
 
+    public static IReadOnlyList<CharacterDefinition> getAllDefinitions()
+    {
+        var definitions = new List<CharacterDefinition>();
+        foreach (var definition in DefinitionsById.Values)
+        {
+            if (definition.definitionId.StartsWith("C", System.StringComparison.Ordinal))
+            {
+                definitions.Add(definition);
+            }
+        }
+
+        definitions.Sort((left, right) =>
+            System.StringComparer.Ordinal.Compare(left.definitionId, right.definitionId));
+        return definitions;
+    }
+
     public static bool tryResolveSkillCost(
         string characterDefinitionId,
         string skillKey,
         out int manaCost,
-        out int skillPointCost)
+        out int leylineCost)
     {
         var characterDefinition = resolveByDefinitionId(characterDefinitionId);
         if (characterDefinition.skills.TryGetValue(skillKey, out var characterSkillDefinition))
         {
             manaCost = characterSkillDefinition.manaCost;
-            skillPointCost = characterSkillDefinition.skillPointCost;
+            leylineCost = characterSkillDefinition.leylineCost;
             return true;
         }
 
         manaCost = 0;
-        skillPointCost = 0;
+        leylineCost = 0;
         return false;
     }
 
@@ -57,4 +73,3 @@ public static class CharacterDefinitionRepository
         return definitionsById;
     }
 }
-

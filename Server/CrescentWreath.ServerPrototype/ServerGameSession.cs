@@ -17,26 +17,61 @@ public sealed class ServerGameSession
     private readonly ActionRequestProcessor actionRequestProcessor;
     private readonly TurnFlowAutoAdvanceService turnFlowAutoAdvanceService;
     private readonly ZoneMovementService debugZoneMovementService;
+    private readonly bool requiresCharacterSelection;
 
     public RuleCore.GameState.GameState gameState { get; private set; }
 
-    public ServerGameSession(RuleCore.GameState.GameState gameState, ActionRequestProcessor actionRequestProcessor)
+    public ServerGameSession(
+        RuleCore.GameState.GameState gameState,
+        ActionRequestProcessor actionRequestProcessor,
+        bool requiresCharacterSelection = false)
     {
         this.gameState = gameState;
         this.actionRequestProcessor = actionRequestProcessor;
+        this.requiresCharacterSelection = requiresCharacterSelection;
         turnFlowAutoAdvanceService = new TurnFlowAutoAdvanceService();
         debugZoneMovementService = new ZoneMovementService();
     }
 
     public static ServerGameSession createStandard2v2(
         int? publicDeckShuffleSeed = null,
-        int? starterDeckShuffleSeed = null)
+        int? starterDeckShuffleSeed = null,
+        bool requireCharacterSelection = false)
     {
         var gameInitializer = new GameInitializer();
         var initializedGameState = gameInitializer.createStandard2v2MatchState(
             publicDeckShuffleSeed,
-            starterDeckShuffleSeed);
-        return new ServerGameSession(initializedGameState, new ActionRequestProcessor());
+            starterDeckShuffleSeed,
+            requireCharacterSelection: requireCharacterSelection);
+        return new ServerGameSession(
+            initializedGameState,
+            new ActionRequestProcessor(),
+            requireCharacterSelection);
+    }
+
+    public ServerActionProcessResult processSubmitCharacterSelection(
+        ServerSubmitCharacterSelectionRequestDto requestDto)
+    {
+        try
+        {
+            var request = new SubmitCharacterSelectionActionRequest
+            {
+                requestId = requestDto.requestId,
+                actorPlayerId = new PlayerId(requestDto.actorPlayerNumericId),
+                characterDefinitionId = requestDto.characterDefinitionId,
+                sourceKey = "server:characterSelection",
+            };
+            var producedEvents = actionRequestProcessor.processActionRequest(gameState, request);
+            if (gameState.characterSelectionState?.isCompleted == true)
+            {
+                producedEvents = appendAutoAdvanceEventsIfAny(requestDto.requestId, producedEvents);
+            }
+            return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
+        }
+        catch (Exception exception)
+        {
+            return buildFailureResult(requestDto.requestId, requestDto.actorPlayerNumericId, exception.Message);
+        }
     }
 
     public ServerActionProcessResult processDrawOneCard(ServerDrawOneCardRequestDto requestDto)
@@ -139,6 +174,21 @@ public sealed class ServerGameSession
                 actorPlayerId = new PlayerId(requestDto.actorPlayerNumericId),
                 characterInstanceId = new CharacterInstanceId(requestDto.characterInstanceNumericId),
                 skillKey = requestDto.skillKey,
+                targetCharacterInstanceId =
+                    requestDto.targetCharacterInstanceNumericId.HasValue &&
+                    requestDto.targetCharacterInstanceNumericId.Value > 0
+                        ? new CharacterInstanceId(requestDto.targetCharacterInstanceNumericId.Value)
+                        : null,
+                targetAllyCharacterInstanceId =
+                    requestDto.targetAllyCharacterInstanceNumericId.HasValue &&
+                    requestDto.targetAllyCharacterInstanceNumericId.Value > 0
+                        ? new CharacterInstanceId(requestDto.targetAllyCharacterInstanceNumericId.Value)
+                        : null,
+                targetPlayerId =
+                    requestDto.targetPlayerNumericId.HasValue &&
+                    requestDto.targetPlayerNumericId.Value > 0
+                        ? new PlayerId(requestDto.targetPlayerNumericId.Value)
+                        : null,
                 sourceKey = "server:d1-m7",
             };
 
@@ -256,7 +306,9 @@ public sealed class ServerGameSession
         try
         {
             var gameInitializer = new GameInitializer();
-            gameState = gameInitializer.createStandard2v2MatchState(requestDto.publicDeckShuffleSeed);
+            gameState = gameInitializer.createStandard2v2MatchState(
+                requestDto.publicDeckShuffleSeed,
+                requireCharacterSelection: requiresCharacterSelection);
             return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, new List<GameEvent>());
         }
         catch (Exception exception)

@@ -42,6 +42,10 @@ public static class StatusPolicyTable
             ["status:charm"] = "Charm",
             ["Penetrate"] = "Penetrate",
             ["status:penetrate"] = "Penetrate",
+            ["PhysicalDamageBoostNext"] = "PhysicalDamageBoostNext",
+            ["status:physicalDamageBoostNext"] = "PhysicalDamageBoostNext",
+            ["SpellDamageBoostNext"] = "SpellDamageBoostNext",
+            ["status:spellDamageBoostNext"] = "SpellDamageBoostNext",
         };
 
     private static readonly Dictionary<string, StatusPolicy> PolicyByCanonicalKey =
@@ -82,6 +86,18 @@ public static class StatusPolicyTable
                 canonicalStatusKey = "Penetrate",
                 identityScope = StatusIdentityScope.player,
                 stackPolicy = StatusStackPolicy.refresh,
+            },
+            ["PhysicalDamageBoostNext"] = new StatusPolicy
+            {
+                canonicalStatusKey = "PhysicalDamageBoostNext",
+                identityScope = StatusIdentityScope.player,
+                stackPolicy = StatusStackPolicy.stack,
+            },
+            ["SpellDamageBoostNext"] = new StatusPolicy
+            {
+                canonicalStatusKey = "SpellDamageBoostNext",
+                identityScope = StatusIdentityScope.player,
+                stackPolicy = StatusStackPolicy.stack,
             },
         };
 

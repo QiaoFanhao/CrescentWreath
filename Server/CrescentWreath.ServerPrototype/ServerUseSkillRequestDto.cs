@@ -6,4 +6,7 @@ public sealed class ServerUseSkillRequestDto
     public long actorPlayerNumericId { get; set; }
     public long characterInstanceNumericId { get; set; }
     public string skillKey { get; set; } = string.Empty;
+    public long? targetCharacterInstanceNumericId { get; set; }
+    public long? targetAllyCharacterInstanceNumericId { get; set; }
+    public long? targetPlayerNumericId { get; set; }
 }

@@ -14,8 +14,10 @@ public sealed class CharacterSkillDefinition
 
     public int manaCost { get; set; }
 
-    public int skillPointCost { get; set; }
+    public int leylineCost { get; set; }
 
     public string? skillType { get; set; }
+
+    public string effectText { get; set; } = string.Empty;
 }
 

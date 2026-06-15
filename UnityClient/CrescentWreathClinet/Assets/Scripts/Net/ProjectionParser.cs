@@ -28,6 +28,7 @@ public static class ProjectionParser
             projection.viewerPlayerNumericId = resolvedViewerPlayerNumericId;
             projection.isSucceeded = response.isSucceeded;
             projection.hasStateProjection = response.stateProjection is not null;
+            projection.matchState = response.stateProjection?.matchState ?? string.Empty;
 
             if (response.error is not null)
             {
@@ -48,6 +49,8 @@ public static class ProjectionParser
             fillTeamSummaries(projection, response.stateProjection?.teams);
             fillPlayerSummaries(projection, response.stateProjection?.players, response.stateProjection?.characters);
             fillCurrentAnomaly(projection, response.stateProjection?.currentAnomaly);
+            fillCharacterDefinitions(projection, response.stateProjection?.characterDefinitions);
+            fillCharacterSelection(projection, response.stateProjection?.characterSelection);
 
             var viewerPlayer = response.stateProjection?.players?
                 .FirstOrDefault(player => player is not null && player.playerNumericId == resolvedViewerPlayerNumericId);
@@ -77,6 +80,7 @@ public static class ProjectionParser
                     {
                         projection.activeCharacterCurrentHp = activeCharacter.currentHp;
                         projection.activeCharacterMaxHp = activeCharacter.maxHp;
+                        projection.activeCharacterDefinitionId = activeCharacter.definitionId ?? string.Empty;
                         projection.activeCharacterFactionKey = activeCharacter.factionKey ?? string.Empty;
                         projection.activeCharacterIsActivated = activeCharacter.isActivated;
                         if (activeCharacter.raceTags is not null)
@@ -228,6 +232,7 @@ public static class ProjectionParser
                 {
                     summary.activeCharacterCurrentHp = activeCharacter.currentHp;
                     summary.activeCharacterMaxHp = activeCharacter.maxHp;
+                    summary.activeCharacterDefinitionId = activeCharacter.definitionId ?? string.Empty;
                     summary.activeCharacterFactionKey = activeCharacter.factionKey ?? string.Empty;
                     summary.activeCharacterIsActivated = activeCharacter.isActivated;
                     if (activeCharacter.raceTags is not null)
@@ -289,6 +294,99 @@ public static class ProjectionParser
                 maxCount = marker.maxCount,
                 displayNameKey = marker.displayNameKey ?? marker.markerTypeKey ?? string.Empty,
             });
+        }
+    }
+
+    private static void fillCharacterDefinitions(
+        ProjectionViewModel projection,
+        CharacterDefinitionProjectionDto[]? definitions)
+    {
+        if (definitions is null)
+        {
+            return;
+        }
+
+        foreach (var definition in definitions)
+        {
+            if (definition is null || string.IsNullOrWhiteSpace(definition.definitionId))
+            {
+                continue;
+            }
+
+            var viewModel = new ProjectionCharacterDefinitionViewModel
+            {
+                definitionId = definition.definitionId ?? string.Empty,
+                characterName = definition.characterName ?? string.Empty,
+                factionKey = definition.factionKey ?? string.Empty,
+                baseMaxHp = definition.baseMaxHp,
+                isImplemented = definition.isImplemented,
+            };
+            if (definition.raceTags is not null)
+            {
+                viewModel.raceTags.AddRange(
+                    definition.raceTags.Where(value => !string.IsNullOrWhiteSpace(value)));
+            }
+
+            if (definition.skills is not null)
+            {
+                foreach (var skill in definition.skills.OrderBy(value => value.skillOrder))
+                {
+                    if (skill is null || string.IsNullOrWhiteSpace(skill.skillKey))
+                    {
+                        continue;
+                    }
+
+                    viewModel.skills.Add(new ProjectionCharacterSkillDefinitionViewModel
+                    {
+                        skillKey = skill.skillKey ?? string.Empty,
+                        skillName = skill.skillName ?? string.Empty,
+                        skillOrder = skill.skillOrder,
+                        skillTypeRaw = skill.skillTypeRaw ?? string.Empty,
+                        skillCostRaw = skill.skillCostRaw ?? string.Empty,
+                        effectText = skill.effectText ?? string.Empty,
+                    });
+                }
+            }
+
+            projection.characterDefinitions.Add(viewModel);
+        }
+    }
+
+    private static void fillCharacterSelection(
+        ProjectionViewModel projection,
+        CharacterSelectionProjectionDto? selection)
+    {
+        if (selection is null)
+        {
+            return;
+        }
+
+        projection.characterSelection.isActive = selection.isActive;
+        projection.characterSelection.isCompleted = selection.isCompleted;
+        if (selection.currentSelectingPlayerNumericId > 0)
+        {
+            projection.characterSelection.currentSelectingPlayerNumericId =
+                selection.currentSelectingPlayerNumericId;
+        }
+
+        if (selection.selections is null)
+        {
+            return;
+        }
+
+        foreach (var entry in selection.selections)
+        {
+            if (entry is null || entry.playerNumericId <= 0)
+            {
+                continue;
+            }
+
+            projection.characterSelection.selections.Add(
+                new ProjectionCharacterSelectionEntryViewModel
+                {
+                    playerNumericId = entry.playerNumericId,
+                    characterDefinitionId = entry.characterDefinitionId ?? string.Empty,
+                });
         }
     }
 
@@ -502,12 +600,54 @@ public static class ProjectionParser
     [Serializable]
     private sealed class StateProjectionDto
     {
+        public string? matchState;
         public TurnDto? turn;
         public TeamProjectionDto[]? teams;
         public PlayerProjectionDto[]? players;
         public PublicZonesProjectionDto? publicZones;
         public AnomalyProjectionDto? currentAnomaly;
         public CharacterProjectionDto[]? characters;
+        public CharacterSelectionProjectionDto? characterSelection;
+        public CharacterDefinitionProjectionDto[]? characterDefinitions;
+    }
+
+    [Serializable]
+    private sealed class CharacterSelectionProjectionDto
+    {
+        public bool isActive;
+        public bool isCompleted;
+        public long currentSelectingPlayerNumericId;
+        public SelectedCharacterProjectionDto[]? selections;
+    }
+
+    [Serializable]
+    private sealed class SelectedCharacterProjectionDto
+    {
+        public long playerNumericId;
+        public string? characterDefinitionId;
+    }
+
+    [Serializable]
+    private sealed class CharacterDefinitionProjectionDto
+    {
+        public string? definitionId;
+        public string? characterName;
+        public string? factionKey;
+        public int baseMaxHp;
+        public bool isImplemented;
+        public string[]? raceTags;
+        public CharacterSkillDefinitionProjectionDto[]? skills;
+    }
+
+    [Serializable]
+    private sealed class CharacterSkillDefinitionProjectionDto
+    {
+        public string? skillKey;
+        public string? skillName;
+        public int skillOrder;
+        public string? skillTypeRaw;
+        public string? skillCostRaw;
+        public string? effectText;
     }
 
     [Serializable]
@@ -570,6 +710,7 @@ public static class ProjectionParser
     private sealed class CharacterProjectionDto
     {
         public long characterInstanceNumericId;
+        public string? definitionId;
         public string? factionKey;
         public int currentHp;
         public int maxHp;

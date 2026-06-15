@@ -857,7 +857,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
     }
 
     [Fact]
-    public void SubmitResponse_NoDefense_WhenBarrierPresent_ShouldConsumeBarrierWithoutOpeningT029Input()
+    public void OpenDamage_WhenBarrierPresent_ShouldConsumeBarrierWithoutOpeningDefenseOrT029Input()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -879,23 +879,13 @@ public class ActionRequestProcessorResponseWindowDamageTests
         applyCharacterBarrierStatus(gameState, targetCharacterInstanceId);
 
         var processor = new ActionRequestProcessor();
-        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        var finalEvents = processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
         {
             requestId = 72493,
             actorPlayerId = sourcePlayerId,
             targetCharacterInstanceId = targetCharacterInstanceId,
             baseDamageValue = 3,
             damageTypeKey = "physical",
-        });
-        var responseWindowId = gameState.currentResponseWindow!.responseWindowId;
-
-        var finalEvents = processor.processActionRequest(gameState, new SubmitResponseActionRequest
-        {
-            requestId = 72494,
-            actorPlayerId = targetPlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
         });
 
         Assert.Null(gameState.currentInputContext);
@@ -1914,7 +1904,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
     }
 
     [Fact]
-    public void SubmitResponse_DefenderNoResponse_WhenBarrierAndCharmPresentAndDamageBecomesZero_ShouldConsumeBothStatuses()
+    public void OpenDamage_WhenBarrierAndCharmPresent_ShouldConsumeCharmThenBarrierBeforeDefense()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -1943,19 +1933,8 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         var eventsAfterOpen = processor.processActionRequest(gameState, openRequest);
-        var responseWindowId = Assert.IsType<InteractionWindowEvent>(eventsAfterOpen[0]).responseWindowId!.Value;
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72492,
-            actorPlayerId = targetPlayerId,
-            responseWindowId = responseWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
-
-        var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
+        Assert.Null(gameState.currentResponseWindow);
+        var damageResolvedEvent = Assert.Single(eventsAfterOpen.OfType<DamageResolvedEvent>());
         Assert.Equal(0, damageResolvedEvent.finalDamageValue);
         Assert.False(damageResolvedEvent.didDealDamage);
         Assert.Equal(10, targetCharacter.currentHp);
@@ -1966,23 +1945,33 @@ public class ActionRequestProcessorResponseWindowDamageTests
         Assert.DoesNotContain(
             gameState.statusInstances,
             status => status.targetPlayerId == targetPlayerId &&
-                      string.Equals(status.statusKey, "Charm", StringComparison.OrdinalIgnoreCase));
+                       string.Equals(status.statusKey, "Charm", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(
-            finalEvents,
+            eventsAfterOpen,
             gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
                          string.Equals(statusChangedEvent.statusKey, "Barrier", StringComparison.Ordinal) &&
                          statusChangedEvent.targetCharacterInstanceId == targetCharacterInstanceId &&
                          !statusChangedEvent.isApplied);
         Assert.Contains(
-            finalEvents,
+            eventsAfterOpen,
             gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
-                         string.Equals(statusChangedEvent.statusKey, "Charm", StringComparison.Ordinal) &&
-                         statusChangedEvent.targetPlayerId == targetPlayerId &&
-                         !statusChangedEvent.isApplied);
+                          string.Equals(statusChangedEvent.statusKey, "Charm", StringComparison.Ordinal) &&
+                          statusChangedEvent.targetPlayerId == targetPlayerId &&
+                          !statusChangedEvent.isApplied);
+        var consumedStatusEvents = eventsAfterOpen
+            .OfType<StatusChangedEvent>()
+            .Where(statusChangedEvent => !statusChangedEvent.isApplied)
+            .ToList();
+        var charmEventIndex = consumedStatusEvents.FindIndex(
+            statusChangedEvent => string.Equals(statusChangedEvent.statusKey, "Charm", StringComparison.Ordinal));
+        var barrierEventIndex = consumedStatusEvents.FindIndex(
+            statusChangedEvent => string.Equals(statusChangedEvent.statusKey, "Barrier", StringComparison.Ordinal));
+        Assert.True(charmEventIndex >= 0);
+        Assert.True(barrierEventIndex > charmEventIndex);
     }
 
     [Fact]
-    public void SubmitResponse_DefenderNoResponse_WhenBarrierPresent_ShouldPreventDamageAndConsumeBarrier()
+    public void OpenDamage_WhenBarrierPresent_ShouldPreventDamageWithoutOpeningResponseWindow()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -2010,19 +1999,7 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
 
-        var eventsAfterOpen = processor.processActionRequest(gameState, openRequest);
-        var openedEvent = Assert.IsType<InteractionWindowEvent>(eventsAfterOpen[0]);
-
-        var submitNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72494,
-            actorPlayerId = targetPlayerId,
-            responseWindowId = openedEvent.responseWindowId!.Value,
-            shouldRespond = false,
-            responseKey = null,
-        };
-
-        var finalEvents = processor.processActionRequest(gameState, submitNoResponseRequest);
+        var finalEvents = processor.processActionRequest(gameState, openRequest);
 
         Assert.True(gameState.currentActionChain!.isCompleted);
         Assert.Null(gameState.currentActionChain.pendingContinuationKey);
@@ -2033,24 +2010,22 @@ public class ActionRequestProcessorResponseWindowDamageTests
             status => status.targetCharacterInstanceId == targetCharacterInstanceId &&
                       string.Equals(status.statusKey, "Barrier", StringComparison.OrdinalIgnoreCase));
 
-        Assert.Equal(5, finalEvents.Count);
-        Assert.IsType<InteractionWindowEvent>(finalEvents[0]);
-        Assert.IsType<InteractionWindowEvent>(finalEvents[1]);
-        var damageResolvedEvent = Assert.IsType<DamageResolvedEvent>(finalEvents[2]);
+        Assert.DoesNotContain(finalEvents, gameEvent => gameEvent is InteractionWindowEvent);
+        var damageResolvedEvent = Assert.Single(finalEvents.OfType<DamageResolvedEvent>());
         Assert.Equal(0, damageResolvedEvent.finalDamageValue);
         Assert.False(damageResolvedEvent.didDealDamage);
-        var hpChangedEvent = Assert.IsType<HpChangedEvent>(finalEvents[3]);
+        var hpChangedEvent = Assert.Single(finalEvents.OfType<HpChangedEvent>());
         Assert.Equal(10, hpChangedEvent.hpBefore);
         Assert.Equal(10, hpChangedEvent.hpAfter);
         Assert.Equal(0, hpChangedEvent.delta);
-        var statusChangedEvent = Assert.IsType<StatusChangedEvent>(finalEvents[4]);
+        var statusChangedEvent = Assert.Single(finalEvents.OfType<StatusChangedEvent>());
         Assert.Equal("Barrier", statusChangedEvent.statusKey);
         Assert.False(statusChangedEvent.isApplied);
         Assert.Equal(targetCharacterInstanceId, statusChangedEvent.targetCharacterInstanceId);
     }
 
     [Fact]
-    public void SubmitResponse_DefenderNoResponse_WhenBarrierConsumedOnce_ShouldNotPreventNextDamage()
+    public void OpenDamage_WhenBarrierConsumedOnce_ShouldOpenDefenseWindowForNextDamage()
     {
         var sourcePlayerId = new PlayerId(1);
         var targetPlayerId = new PlayerId(2);
@@ -2078,17 +2053,8 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         var firstOpenEvents = processor.processActionRequest(gameState, firstOpenRequest);
-        var firstWindowId = Assert.IsType<InteractionWindowEvent>(firstOpenEvents[0]).responseWindowId!.Value;
-        var firstSubmitRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72498,
-            actorPlayerId = targetPlayerId,
-            responseWindowId = firstWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var firstFinalEvents = processor.processActionRequest(gameState, firstSubmitRequest);
-        var firstDamageResolved = Assert.IsType<DamageResolvedEvent>(firstFinalEvents[2]);
+        Assert.Null(gameState.currentResponseWindow);
+        var firstDamageResolved = Assert.Single(firstOpenEvents.OfType<DamageResolvedEvent>());
         Assert.Equal(0, firstDamageResolved.finalDamageValue);
         Assert.Equal(10, targetCharacter.currentHp);
 
@@ -2250,21 +2216,20 @@ public class ActionRequestProcessorResponseWindowDamageTests
             damageTypeKey = "physical",
         };
         var firstOpenEvents = processor.processActionRequest(gameState, firstOpenRequest);
-        var firstWindowId = Assert.IsType<InteractionWindowEvent>(firstOpenEvents[0]).responseWindowId!.Value;
-        var firstNoResponseRequest = new SubmitResponseActionRequest
-        {
-            requestId = 72525,
-            actorPlayerId = targetPlayerId,
-            responseWindowId = firstWindowId,
-            shouldRespond = false,
-            responseKey = null,
-        };
-        var firstFinalEvents = processor.processActionRequest(gameState, firstNoResponseRequest);
-        var firstDamageResolved = Assert.IsType<DamageResolvedEvent>(firstFinalEvents[2]);
+        Assert.Null(gameState.currentResponseWindow);
+        var firstDamageResolved = Assert.Single(firstOpenEvents.OfType<DamageResolvedEvent>());
         Assert.Equal(0, firstDamageResolved.finalDamageValue);
         Assert.Equal(10, targetCharacter.currentHp);
-        Assert.IsType<StatusChangedEvent>(firstFinalEvents[4]);
-        Assert.IsType<StatusChangedEvent>(firstFinalEvents[5]);
+        Assert.Contains(
+            firstOpenEvents,
+            gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
+                         statusChangedEvent.statusKey == "Barrier" &&
+                         !statusChangedEvent.isApplied);
+        Assert.Contains(
+            firstOpenEvents,
+            gameEvent => gameEvent is StatusChangedEvent statusChangedEvent &&
+                         statusChangedEvent.statusKey == "Penetrate" &&
+                         !statusChangedEvent.isApplied);
 
         var secondOpenRequest = new OpenDamageResponseWindowActionRequest
         {

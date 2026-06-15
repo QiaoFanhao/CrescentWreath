@@ -47,6 +47,41 @@ public sealed class ProjectionMarkerViewModel
     public string displayNameKey = string.Empty;
 }
 
+public sealed class ProjectionCharacterSkillDefinitionViewModel
+{
+    public string skillKey = string.Empty;
+    public string skillName = string.Empty;
+    public int skillOrder;
+    public string skillTypeRaw = string.Empty;
+    public string skillCostRaw = string.Empty;
+    public string effectText = string.Empty;
+}
+
+public sealed class ProjectionCharacterDefinitionViewModel
+{
+    public string definitionId = string.Empty;
+    public string characterName = string.Empty;
+    public string factionKey = string.Empty;
+    public int baseMaxHp;
+    public bool isImplemented;
+    public readonly List<string> raceTags = new();
+    public readonly List<ProjectionCharacterSkillDefinitionViewModel> skills = new();
+}
+
+public sealed class ProjectionCharacterSelectionEntryViewModel
+{
+    public long playerNumericId;
+    public string characterDefinitionId = string.Empty;
+}
+
+public sealed class ProjectionCharacterSelectionViewModel
+{
+    public bool isActive;
+    public bool isCompleted;
+    public long? currentSelectingPlayerNumericId;
+    public readonly List<ProjectionCharacterSelectionEntryViewModel> selections = new();
+}
+
 public sealed class ProjectionPlayerSummaryViewModel
 {
     public long playerNumericId;
@@ -62,6 +97,7 @@ public sealed class ProjectionPlayerSummaryViewModel
     public int fieldCount;
     public int discardCount;
     public long? activeCharacterInstanceNumericId;
+    public string activeCharacterDefinitionId = string.Empty;
     public int? activeCharacterCurrentHp;
     public int? activeCharacterMaxHp;
     public readonly List<string> playerStatusKeys = new();
@@ -100,6 +136,7 @@ public sealed class ProjectionViewModel
     public string errorMessage = string.Empty;
     public long viewerPlayerNumericId;
     public bool hasStateProjection;
+    public string matchState = string.Empty;
 
     public int turnNumber;
     public string currentPhase = string.Empty;
@@ -114,6 +151,7 @@ public sealed class ProjectionViewModel
 
     public int? activeCharacterCurrentHp;
     public int? activeCharacterMaxHp;
+    public string activeCharacterDefinitionId = string.Empty;
     public readonly List<string> activeCharacterStatusKeys = new();
     public readonly List<string> activeCharacterRaceTags = new();
     public readonly List<ProjectionMarkerViewModel> activeCharacterMarkers = new();
@@ -128,6 +166,8 @@ public sealed class ProjectionViewModel
     public readonly List<ProjectionCardViewModel> gapZoneCards = new();
     public readonly List<ProjectionTeamSummaryViewModel> teamSummaries = new();
     public readonly List<ProjectionPlayerSummaryViewModel> playerSummaries = new();
+    public readonly List<ProjectionCharacterDefinitionViewModel> characterDefinitions = new();
+    public readonly ProjectionCharacterSelectionViewModel characterSelection = new();
 
     public readonly List<string> eventLog = new();
     public string recentEventTypeKey = string.Empty;
@@ -154,6 +194,7 @@ public sealed class ProjectionViewModel
             errorMessage = errorMessage,
             viewerPlayerNumericId = viewerPlayerNumericId,
             hasStateProjection = hasStateProjection,
+            matchState = matchState,
             turnNumber = turnNumber,
             currentPhase = currentPhase,
             currentPlayerNumericId = currentPlayerNumericId,
@@ -166,6 +207,7 @@ public sealed class ProjectionViewModel
             activeCharacterCurrentHp = activeCharacterCurrentHp,
             activeCharacterMaxHp = activeCharacterMaxHp,
             activeCharacterFactionKey = activeCharacterFactionKey,
+            activeCharacterDefinitionId = activeCharacterDefinitionId,
             activeCharacterIsActivated = activeCharacterIsActivated,
             recentEventTypeKey = recentEventTypeKey,
         };
@@ -294,6 +336,7 @@ public sealed class ProjectionViewModel
                 fieldCount = playerSummary.fieldCount,
                 discardCount = playerSummary.discardCount,
                 activeCharacterInstanceNumericId = playerSummary.activeCharacterInstanceNumericId,
+                activeCharacterDefinitionId = playerSummary.activeCharacterDefinitionId,
                 activeCharacterCurrentHp = playerSummary.activeCharacterCurrentHp,
                 activeCharacterMaxHp = playerSummary.activeCharacterMaxHp,
                 activeCharacterFactionKey = playerSummary.activeCharacterFactionKey,
@@ -323,6 +366,45 @@ public sealed class ProjectionViewModel
             }
 
             cloned.playerSummaries.Add(clonedPlayerSummary);
+        }
+
+        foreach (var definition in characterDefinitions)
+        {
+            var clonedDefinition = new ProjectionCharacterDefinitionViewModel
+            {
+                definitionId = definition.definitionId,
+                characterName = definition.characterName,
+                factionKey = definition.factionKey,
+                baseMaxHp = definition.baseMaxHp,
+                isImplemented = definition.isImplemented,
+            };
+            clonedDefinition.raceTags.AddRange(definition.raceTags);
+            foreach (var skill in definition.skills)
+            {
+                clonedDefinition.skills.Add(new ProjectionCharacterSkillDefinitionViewModel
+                {
+                    skillKey = skill.skillKey,
+                    skillName = skill.skillName,
+                    skillOrder = skill.skillOrder,
+                    skillTypeRaw = skill.skillTypeRaw,
+                    skillCostRaw = skill.skillCostRaw,
+                    effectText = skill.effectText,
+                });
+            }
+            cloned.characterDefinitions.Add(clonedDefinition);
+        }
+
+        cloned.characterSelection.isActive = characterSelection.isActive;
+        cloned.characterSelection.isCompleted = characterSelection.isCompleted;
+        cloned.characterSelection.currentSelectingPlayerNumericId =
+            characterSelection.currentSelectingPlayerNumericId;
+        foreach (var selection in characterSelection.selections)
+        {
+            cloned.characterSelection.selections.Add(new ProjectionCharacterSelectionEntryViewModel
+            {
+                playerNumericId = selection.playerNumericId,
+                characterDefinitionId = selection.characterDefinitionId,
+            });
         }
 
         foreach (var eventLine in eventLog)

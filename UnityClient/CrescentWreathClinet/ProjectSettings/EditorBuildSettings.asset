@@ -8,6 +8,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SocketDebug.unity
     guid: e8d7548fc19b4c07b35e350bd8e801dd
+  - enabled: 1
+    path: Assets/Scenes/GameClient.unity
+    guid: f32737ddad1e485c90e48a0185e9ca6e
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

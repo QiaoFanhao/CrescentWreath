@@ -11,6 +11,28 @@ namespace CrescentWreath.RuleCore.Tests;
 public class ServerSocketActionRouterTests
 {
     [Fact]
+    public void RouteMessage_SubmitCharacterSelection_ShouldUseExistingEnvelopeAndReturnProjection()
+    {
+        var session = ServerGameSession.createStandard2v2(requireCharacterSelection: true);
+        var router = new ServerSocketActionRouter(session);
+        var response = router.routeMessage(serializeEnvelope(new
+        {
+            requestId = 88001,
+            viewerPlayerNumericId = 1,
+            actionType = "submitCharacterSelection",
+            payload = new
+            {
+                actorPlayerNumericId = 1,
+                characterDefinitionId = "C001",
+            },
+        }));
+
+        Assert.True(response.isSucceeded);
+        Assert.Equal(1, response.stateProjection!.characterSelection!.selections.Count);
+        Assert.Equal(2, response.stateProjection.characterSelection.currentSelectingPlayerNumericId);
+    }
+
+    [Fact]
     public void RouteMessage_WhenRequestEnvelopeIsInvalidJson_ShouldReturnInvalidRequestEnvelope()
     {
         var session = ServerGameSession.createStandard2v2();

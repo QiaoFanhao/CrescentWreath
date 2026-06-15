@@ -3,7 +3,9 @@
   "rootNamespace": "CrescentWreath.Client.Tests.EditMode",
   "testAssemblies": true,
   "references": [
-    "CrescentWreath.Client.Net"
+    "CrescentWreath.Client.Net",
+    "CrescentWreath.Client.Presentation",
+    "CrescentWreath.Client.UI"
   ],
   "includePlatforms": [
     "Editor"

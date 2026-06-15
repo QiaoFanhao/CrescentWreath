@@ -32,7 +32,8 @@ public sealed class GameInitializer
     public GameState.GameState createStandard2v2MatchState(
         int? publicDeckShuffleSeed = null,
         int? starterDeckShuffleSeed = null,
-        int? anomalyDeckShuffleSeed = null)
+        int? anomalyDeckShuffleSeed = null,
+        bool requireCharacterSelection = false)
     {
         var gameState = new GameState.GameState();
 
@@ -55,7 +56,18 @@ public sealed class GameInitializer
         var playerB2State = createPlayerWithZones(gameState, playerB2Id, teamBId, 4000);
 
         gameState.publicState = createPublicZones(gameState);
-        createInitialActiveCharacters(gameState, playerA1State, playerB1State, playerA2State, playerB2State);
+        if (requireCharacterSelection)
+        {
+            gameState.characterSelectionState = new CharacterSelectionState
+            {
+                currentSelectingPlayerId = gameState.matchMeta!.seatOrder[0],
+                isCompleted = false,
+            };
+        }
+        else
+        {
+            createInitialActiveCharacters(gameState, playerA1State, playerB1State, playerA2State, playerB2State);
+        }
 
         var nextCardInstanceId = 100000L;
         var effectiveStarterDeckShuffleSeed = starterDeckShuffleSeed ?? publicDeckShuffleSeed;
@@ -66,7 +78,9 @@ public sealed class GameInitializer
         initializePublicTreasureDeckAndSummonZone(gameState, ref nextCardInstanceId, publicDeckShuffleSeed);
         initializeSakuraCakeDeck(gameState, ref nextCardInstanceId);
 
-        gameState.matchState = MatchState.running;
+        gameState.matchState = requireCharacterSelection
+            ? MatchState.initializing
+            : MatchState.running;
 
         return gameState;
     }

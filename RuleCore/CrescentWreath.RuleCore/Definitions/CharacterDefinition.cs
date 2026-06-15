@@ -19,5 +19,7 @@ public sealed class CharacterDefinition
     public Dictionary<string, int> markerCaps { get; set; } = new();
 
     public Dictionary<string, CharacterSkillDefinition> skills { get; set; } = new();
+
+    public bool isImplemented { get; set; }
 }
 

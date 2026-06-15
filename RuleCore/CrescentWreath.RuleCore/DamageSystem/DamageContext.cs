@@ -18,6 +18,7 @@ public sealed class DamageContext
     public int baseDamageValue { get; set; }
     public string damageType { get; set; } = "physical";
     public string? defenseDeclarationKey { get; set; }
+    public bool hasAppliedSourceDamageBonuses { get; set; }
     public bool suppressT029DamageImmunityPrompt { get; set; }
     public bool isReplaced { get; set; }
     public bool isImmune { get; set; }

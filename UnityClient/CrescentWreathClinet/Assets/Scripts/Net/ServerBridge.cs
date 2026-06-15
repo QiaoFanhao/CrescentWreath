@@ -97,6 +97,19 @@ public sealed class ServerBridge : IDisposable
             () => buildActorOnlyPayload());
     }
 
+    public void SendSubmitCharacterSelection(string characterDefinitionId)
+    {
+        if (string.IsNullOrWhiteSpace(characterDefinitionId))
+        {
+            OnError?.Invoke("SubmitCharacterSelection requires a non-empty characterDefinitionId.");
+            return;
+        }
+
+        sendEnvelope(
+            "submitCharacterSelection",
+            () => buildSubmitCharacterSelectionPayload(characterDefinitionId));
+    }
+
     public void SendPlayTreasureCard(long cardInstanceId)
     {
         sendEnvelope(
@@ -137,6 +150,43 @@ public sealed class ServerBridge : IDisposable
         sendEnvelope(
             "startNextTurn",
             () => buildActorOnlyPayload());
+    }
+
+    public void SendUseSkill(
+        long characterInstanceNumericId,
+        string skillKey,
+        long? targetCharacterInstanceNumericId = null,
+        long? targetAllyCharacterInstanceNumericId = null,
+        long? targetPlayerNumericId = null)
+    {
+        if (characterInstanceNumericId <= 0)
+        {
+            OnError?.Invoke("UseSkill requires characterInstanceNumericId to be positive.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(skillKey))
+        {
+            OnError?.Invoke("UseSkill requires a non-empty skillKey.");
+            return;
+        }
+
+        if ((targetCharacterInstanceNumericId.HasValue && targetCharacterInstanceNumericId.Value <= 0) ||
+            (targetAllyCharacterInstanceNumericId.HasValue && targetAllyCharacterInstanceNumericId.Value <= 0) ||
+            (targetPlayerNumericId.HasValue && targetPlayerNumericId.Value <= 0))
+        {
+            OnError?.Invoke("UseSkill target numeric ids must be positive when provided.");
+            return;
+        }
+
+        sendEnvelope(
+            "useSkill",
+            () => buildUseSkillPayload(
+                characterInstanceNumericId,
+                skillKey,
+                targetCharacterInstanceNumericId,
+                targetAllyCharacterInstanceNumericId,
+                targetPlayerNumericId));
     }
 
     public void SendTryResolveAnomaly(long? targetPlayerNumericId)
@@ -408,6 +458,15 @@ public sealed class ServerBridge : IDisposable
         return "{\"actorPlayerNumericId\":" + localPlayerNumericId + "}";
     }
 
+    private string buildSubmitCharacterSelectionPayload(string characterDefinitionId)
+    {
+        return
+            "{"
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
+            + ",\"characterDefinitionId\":\"" + escapeJsonString(characterDefinitionId.Trim()) + "\""
+            + "}";
+    }
+
     private string buildPlayTreasureCardPayload(long cardInstanceId)
     {
         return
@@ -432,6 +491,37 @@ public sealed class ServerBridge : IDisposable
         var payload =
             "{"
             + "\"actorPlayerNumericId\":" + localPlayerNumericId;
+        if (targetPlayerNumericId.HasValue)
+        {
+            payload += ",\"targetPlayerNumericId\":" + targetPlayerNumericId.Value;
+        }
+
+        return payload + "}";
+    }
+
+    private string buildUseSkillPayload(
+        long characterInstanceNumericId,
+        string skillKey,
+        long? targetCharacterInstanceNumericId,
+        long? targetAllyCharacterInstanceNumericId,
+        long? targetPlayerNumericId)
+    {
+        var payload =
+            "{"
+            + "\"actorPlayerNumericId\":" + localPlayerNumericId
+            + ",\"characterInstanceNumericId\":" + characterInstanceNumericId
+            + ",\"skillKey\":\"" + escapeJsonString(skillKey.Trim()) + "\"";
+
+        if (targetCharacterInstanceNumericId.HasValue)
+        {
+            payload += ",\"targetCharacterInstanceNumericId\":" + targetCharacterInstanceNumericId.Value;
+        }
+
+        if (targetAllyCharacterInstanceNumericId.HasValue)
+        {
+            payload += ",\"targetAllyCharacterInstanceNumericId\":" + targetAllyCharacterInstanceNumericId.Value;
+        }
+
         if (targetPlayerNumericId.HasValue)
         {
             payload += ",\"targetPlayerNumericId\":" + targetPlayerNumericId.Value;

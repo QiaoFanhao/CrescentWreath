@@ -129,6 +129,55 @@ public class ActionRequestProcessorTurnFlowSkeletonTests
     }
 
     [Fact]
+    public void EnterSummonPhase_WhenActorIsC018_ShouldApplyPaymentDiscountWithoutChangingCardDefinitions()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorTeamId = new TeamId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, actorTeamId, 7250);
+        var actorCharacterInstanceId = new CharacterInstanceId(72501);
+
+        var gameState = new RuleCore.GameState.GameState
+        {
+            matchState = MatchState.running,
+            turnState = new TurnState
+            {
+                turnNumber = 1,
+                currentPlayerId = actorPlayerId,
+                currentTeamId = actorTeamId,
+                currentPhase = TurnPhase.action,
+            },
+        };
+        gameState.players[actorPlayerId] = actorPlayerState;
+        gameState.characterInstances[actorCharacterInstanceId] = new CharacterInstance
+        {
+            characterInstanceId = actorCharacterInstanceId,
+            definitionId = "C018",
+            ownerPlayerId = actorPlayerId,
+            currentHp = 4,
+            maxHp = 4,
+            isAlive = true,
+            isInPlay = true,
+        };
+        addFieldZone(gameState, actorPlayerState);
+        addDiscardZone(gameState, actorPlayerState);
+        addDeckZone(gameState, actorPlayerState);
+        addHandZone(gameState, actorPlayerState);
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(72511), "T003");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new EnterSummonPhaseActionRequest
+        {
+            requestId = 81105,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.Equal(TurnPhase.summon, gameState.turnState.currentPhase);
+        Assert.Equal(2, actorPlayerState.lockedSigil);
+        Assert.Equal(1, actorPlayerState.summonSigilDiscount);
+        Assert.Equal(6, TreasureResourceValueResolver.resolveSummonSigilCost("T003"));
+    }
+
+    [Fact]
     public void EnterAction_WhenPhaseIsNotStart_ShouldThrowAndKeepStateUnchanged()
     {
         var actorPlayerId = new PlayerId(1);
@@ -690,6 +739,7 @@ public class ActionRequestProcessorTurnFlowSkeletonTests
                 phaseStepIndex = 11,
             },
         };
+        gameState.turnState.usedOncePerTurnSkillKeys.Add("C018:2");
         gameState.matchMeta.seatOrder.Add(currentPlayerId);
         gameState.matchMeta.seatOrder.Add(nextPlayerId);
         gameState.matchMeta.teamAssignments[currentPlayerId] = currentTeamId;
@@ -718,6 +768,7 @@ public class ActionRequestProcessorTurnFlowSkeletonTests
         Assert.Equal(nextTeamId, gameState.turnState.currentTeamId);
         Assert.Equal(TurnPhase.start, gameState.turnState.currentPhase);
         Assert.Equal(0, gameState.turnState.phaseStepIndex);
+        Assert.Empty(gameState.turnState.usedOncePerTurnSkillKeys);
         Assert.NotNull(gameState.currentActionChain);
         Assert.IsType<StartNextTurnActionRequest>(gameState.currentActionChain!.rootActionRequest);
         Assert.True(gameState.currentActionChain.isCompleted);
@@ -810,6 +861,84 @@ public class ActionRequestProcessorTurnFlowSkeletonTests
         Assert.Equal(20, gameState.turnState!.turnNumber);
         Assert.Equal(nextPlayerId, gameState.turnState.currentPlayerId);
         Assert.Equal(TurnPhase.start, gameState.turnState.currentPhase);
+    }
+
+    [Fact]
+    public void StartNextTurn_WhenC001DiscardsDefenseThreeCard_ShouldGiveBarrierToCurrentTurnCharacter()
+    {
+        var c001PlayerId = new PlayerId(1);
+        var nextPlayerId = new PlayerId(2);
+        var c001TeamId = new TeamId(1);
+        var nextTeamId = new TeamId(2);
+        var c001PlayerState = createPlayerState(c001PlayerId, c001TeamId, 7970);
+        var nextPlayerState = createPlayerState(nextPlayerId, nextTeamId, 7980);
+        var c001CharacterInstanceId = new CharacterInstanceId(79701);
+        var nextCharacterInstanceId = new CharacterInstanceId(79801);
+        var defenseCardInstanceId = new CardInstanceId(79711);
+
+        var gameState = createStartNextTurnReadyGameState(
+            c001PlayerId,
+            nextPlayerId,
+            c001TeamId,
+            nextTeamId,
+            c001PlayerState,
+            nextPlayerState,
+            turnNumber: 20);
+        c001PlayerState.activeCharacterInstanceId = c001CharacterInstanceId;
+        nextPlayerState.activeCharacterInstanceId = nextCharacterInstanceId;
+        gameState.characterInstances[c001CharacterInstanceId] = new CharacterInstance
+        {
+            characterInstanceId = c001CharacterInstanceId,
+            definitionId = "C001",
+            ownerPlayerId = c001PlayerId,
+            currentHp = 4,
+            maxHp = 4,
+            isAlive = true,
+            isInPlay = true,
+        };
+        gameState.characterInstances[nextCharacterInstanceId] = new CharacterInstance
+        {
+            characterInstanceId = nextCharacterInstanceId,
+            definitionId = "C002",
+            ownerPlayerId = nextPlayerId,
+            currentHp = 4,
+            maxHp = 4,
+            isAlive = true,
+            isInPlay = true,
+        };
+        addCardInZone(
+            gameState,
+            c001PlayerState,
+            defenseCardInstanceId,
+            c001PlayerState.handZoneId,
+            ZoneKey.hand,
+            "T002");
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new StartNextTurnActionRequest
+        {
+            requestId = 81311,
+            actorPlayerId = c001PlayerId,
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal(c001PlayerId, gameState.currentInputContext!.requiredPlayerId);
+        Assert.Contains(
+            "barrierCard:" + defenseCardInstanceId.Value,
+            gameState.currentInputContext.choiceKeys);
+
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 81312,
+            actorPlayerId = c001PlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = "barrierCard:" + defenseCardInstanceId.Value,
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Equal(c001PlayerState.discardZoneId, gameState.cardInstances[defenseCardInstanceId].zoneId);
+        Assert.True(StatusRuntime.hasStatusOnCharacter(gameState, nextCharacterInstanceId, "Barrier"));
+        Assert.True(gameState.currentActionChain!.isCompleted);
     }
 
     [Fact]

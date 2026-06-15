@@ -14,14 +14,22 @@ namespace CrescentWreath.RuleCore.ActionSystem;
 public sealed class TurnTransitionProcessor
 {
     public const string ContinuationKeyTurnStartShackleDiscard = "continuation:turnStartShackleDiscard";
+    public const string ContinuationKeyTurnStartC001Barrier = "continuation:turnStartC001Barrier";
 
     private const int TurnStartSkillPointBaseline = 1;
     private const int ShackleDiscardRequiredCount = 4;
     private const string StatusKeyShackle = "Shackle";
+    private const string StatusKeyBarrier = "Barrier";
+    private const string CharacterDefinitionIdC001 = "C001";
+    private const int C001BarrierMinDefenseValue = 3;
     private const string TurnStartShackleDiscardInputTypeKey = "turnStartShackleDiscardChoice";
     private const string TurnStartShackleDiscardContextKey = "turnStart:shackleDiscard";
     private const string TurnStartShackleDeclineChoiceKey = "shackle:decline";
     private const string TurnStartShackleDiscardChoiceKeyPrefix = "discardCard:";
+    private const string TurnStartC001BarrierInputTypeKey = "turnStartC001BarrierChoice";
+    private const string TurnStartC001BarrierContextKey = "turnStart:c001Barrier";
+    private const string TurnStartC001BarrierDeclineChoiceKey = "c001Barrier:decline";
+    private const string TurnStartC001BarrierCardChoiceKeyPrefix = "barrierCard:";
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly EndPhaseProcessor endPhaseProcessor;
@@ -138,6 +146,9 @@ public sealed class TurnTransitionProcessor
         actorPlayerState.sigilPreview = 0;
         gameState.turnState.currentPhase = TurnPhase.summon;
         gameState.turnState.phaseStepIndex = 0;
+        C018SkillRuntime.applySummonPhasePaymentDiscount(
+            gameState,
+            enterSummonPhaseActionRequest.actorPlayerId);
 
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
@@ -275,6 +286,7 @@ public sealed class TurnTransitionProcessor
         gameState.turnState.currentPhase = TurnPhase.start;
         gameState.turnState.phaseStepIndex = 0;
         gameState.turnState.hasResolvedAnomalyThisTurn = false;
+        gameState.turnState.usedOncePerTurnSkillKeys.Clear();
         var removedSealStatuses = removeSealOnActiveCharacterAtTurnStart(gameState, nextPlayerState);
         appendReturnDefensePlacedCardsToHand(
             gameState,
@@ -292,9 +304,254 @@ public sealed class TurnTransitionProcessor
             return actionChainState.producedEvents;
         }
 
+        if (tryHandleC001BarrierAtTurnStart(
+                gameState,
+                actionChainState,
+                startNextTurnActionRequest.requestId))
+        {
+            return actionChainState.producedEvents;
+        }
+
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
         return actionChainState.producedEvents;
+    }
+
+    private bool tryHandleC001BarrierAtTurnStart(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!tryFindAliveInPlayC001(gameState, out var c001Instance, out var c001PlayerState))
+        {
+            return false;
+        }
+
+        var handZoneState = gameState.zones[c001PlayerState.handZoneId];
+        var qualifyingCardIds = new List<CardInstanceId>();
+        foreach (var cardInstanceId in handZoneState.cardInstanceIds)
+        {
+            var cardInstance = gameState.cardInstances[cardInstanceId];
+            var defenseValue = TreasureResourceValueResolver.resolveDefenseValue(cardInstance.definitionId);
+            if (defenseValue.HasValue && defenseValue.Value >= C001BarrierMinDefenseValue)
+            {
+                qualifyingCardIds.Add(cardInstanceId);
+            }
+        }
+
+        if (qualifyingCardIds.Count == 0)
+        {
+            return false;
+        }
+
+        openTurnStartC001BarrierInputContext(
+            gameState,
+            actionChainState,
+            c001PlayerState,
+            qualifyingCardIds,
+            c001Instance,
+            eventId);
+        return true;
+    }
+
+    public void continueTurnStartC001BarrierContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (inputContextState.contextKey != TurnStartC001BarrierContextKey)
+        {
+            throw new InvalidOperationException("Turn-start C001 barrier continuation requires currentInputContext.contextKey to be turnStart:c001Barrier.");
+        }
+
+        if (!inputContextState.requiredPlayerId.HasValue)
+        {
+            throw new InvalidOperationException("Turn-start C001 barrier continuation requires currentInputContext.requiredPlayerId.");
+        }
+
+        if (!string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                TurnStartC001BarrierDeclineChoiceKey,
+                StringComparison.Ordinal))
+        {
+            var choiceKey = submitInputChoiceActionRequest.choiceKey;
+            if (!choiceKey.StartsWith(TurnStartC001BarrierCardChoiceKeyPrefix, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Turn-start C001 barrier continuation requires choiceKey to start with barrierCard: prefix.");
+            }
+
+            var cardIdSegment = choiceKey.Substring(TurnStartC001BarrierCardChoiceKeyPrefix.Length);
+            if (!long.TryParse(cardIdSegment, out var cardNumericId))
+            {
+                throw new InvalidOperationException("Turn-start C001 barrier choiceKey must encode a valid CardInstanceId numeric value.");
+            }
+
+            var cardInstanceId = new CardInstanceId(cardNumericId);
+
+            if (!gameState.cardInstances.TryGetValue(cardInstanceId, out var selectedCardInstance))
+            {
+                throw new InvalidOperationException("Turn-start C001 barrier continuation requires selected cardInstanceId to exist in gameState.cardInstances.");
+            }
+
+            if (selectedCardInstance.ownerPlayerId != inputContextState.requiredPlayerId.Value)
+            {
+                throw new InvalidOperationException("Turn-start C001 barrier continuation requires selected card to be owned by C001's player.");
+            }
+
+            if (!gameState.players.TryGetValue(selectedCardInstance.ownerPlayerId, out var c001PlayerState))
+            {
+                throw new InvalidOperationException("Turn-start C001 barrier continuation requires C001's player to exist in gameState.players.");
+            }
+
+            var discardEvent = zoneMovementService.moveCard(
+                gameState,
+                selectedCardInstance,
+                c001PlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                submitInputChoiceActionRequest.requestId);
+            actionChainState.producedEvents.Add(discardEvent);
+
+            var currentTurnPlayerId = gameState.turnState!.currentPlayerId;
+            if (tryFindAliveInPlayC001(gameState, out var c001Instance, out _) &&
+                tryFindAliveInPlayCharacterInstanceByOwner(
+                    gameState,
+                    currentTurnPlayerId,
+                    out var currentTurnCharacterInstance))
+            {
+                var barrierStatus = StatusRuntime.applyStatus(
+                    gameState,
+                    new StatusInstance
+                    {
+                        statusKey = StatusKeyBarrier,
+                        applierPlayerId = c001Instance.ownerPlayerId,
+                        applierCharacterInstanceId = c001Instance.characterInstanceId,
+                        targetPlayerId = currentTurnPlayerId,
+                        targetCharacterInstanceId = currentTurnCharacterInstance.characterInstanceId,
+                        stackCount = 1,
+                    });
+                actionChainState.producedEvents.Add(new StatusChangedEvent
+                {
+                    eventId = submitInputChoiceActionRequest.requestId,
+                    eventTypeKey = "statusChanged",
+                    sourceActionChainId = actionChainState.actionChainId,
+                    statusKey = barrierStatus.statusKey,
+                    targetPlayerId = barrierStatus.targetPlayerId,
+                    targetCharacterInstanceId = barrierStatus.targetCharacterInstanceId,
+                    isApplied = true,
+                });
+            }
+        }
+
+        actionChainState.pendingContinuationKey = null;
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = true;
+    }
+
+    public static bool isValidTurnStartC001BarrierChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        return inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey);
+    }
+
+    private void openTurnStartC001BarrierInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerState c001PlayerState,
+        List<CardInstanceId> qualifyingCardIds,
+        CharacterInstance c001Instance,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null)
+        {
+            throw new InvalidOperationException("Turn-start C001 barrier input requires gameState.currentInputContext to be null before opening.");
+        }
+
+        var inputContextId = new InputContextId(nextInputContextIdSupplier());
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = c001PlayerState.playerId,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = TurnStartC001BarrierInputTypeKey,
+            contextKey = TurnStartC001BarrierContextKey,
+        };
+        inputContextState.choiceKeys.Add(TurnStartC001BarrierDeclineChoiceKey);
+
+        foreach (var cardInstanceId in qualifyingCardIds)
+        {
+            inputContextState.choiceKeys.Add(
+                TurnStartC001BarrierCardChoiceKeyPrefix + cardInstanceId.Value);
+        }
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = ContinuationKeyTurnStartC001Barrier;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = false;
+    }
+
+    private static bool tryFindAliveInPlayC001(
+        RuleCore.GameState.GameState gameState,
+        out CharacterInstance c001Instance,
+        out PlayerState c001PlayerState)
+    {
+        foreach (var instance in gameState.characterInstances.Values)
+        {
+            if (!instance.isAlive || !instance.isInPlay)
+            {
+                continue;
+            }
+
+            if (!string.Equals(instance.definitionId, CharacterDefinitionIdC001, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!gameState.players.TryGetValue(instance.ownerPlayerId, out var playerState))
+            {
+                continue;
+            }
+
+            c001Instance = instance;
+            c001PlayerState = playerState;
+            return true;
+        }
+
+        c001Instance = null!;
+        c001PlayerState = null!;
+        return false;
+    }
+
+    private static bool tryFindAliveInPlayCharacterInstanceByOwner(
+        RuleCore.GameState.GameState gameState,
+        PlayerId ownerPlayerId,
+        out CharacterInstance characterInstance)
+    {
+        foreach (var instance in gameState.characterInstances.Values)
+        {
+            if (instance.ownerPlayerId == ownerPlayerId &&
+                instance.isAlive &&
+                instance.isInPlay)
+            {
+                characterInstance = instance;
+                return true;
+            }
+        }
+
+        characterInstance = null!;
+        return false;
     }
 
     private void appendReturnDefensePlacedCardsToHand(
@@ -434,6 +691,15 @@ public sealed class TurnTransitionProcessor
             submitInputChoiceActionRequest.requestId);
 
         actionChainState.pendingContinuationKey = null;
+
+        if (tryHandleC001BarrierAtTurnStart(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId))
+        {
+            return;
+        }
+
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
     }

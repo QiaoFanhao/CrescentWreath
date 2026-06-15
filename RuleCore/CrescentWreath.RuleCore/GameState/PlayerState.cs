@@ -17,4 +17,5 @@ public sealed class PlayerState
     public ZoneId discardZoneId { get; set; }
     public ZoneId fieldZoneId { get; set; }
     public ZoneId characterSetAsideZoneId { get; set; }
+    public int summonSigilDiscount { get; set; }
 }

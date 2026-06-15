@@ -21,6 +21,7 @@ public sealed class GameState
     public MatchMeta? matchMeta { get; set; }
     public PublicState? publicState { get; set; }
     public TurnState? turnState { get; set; }
+    public CharacterSelectionState? characterSelectionState { get; set; }
 
     public ActionChainState? currentActionChain { get; set; }
     public ResponseWindowState? currentResponseWindow { get; set; }

@@ -9,6 +9,45 @@ namespace CrescentWreath.Client.Tests.EditMode
 public class ServerBridgeEditModeTests
 {
     [Test]
+    public void SendSubmitCharacterSelection_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 3,
+        };
+
+        bridge.SendSubmitCharacterSelection("C008");
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("submitCharacterSelection"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(3));
+        Assert.That(root.payload.characterDefinitionId, Is.EqualTo("C008"));
+    }
+
+    [Test]
+    public void ProjectionParser_ShouldParseCharacterSelectionAndSkillCatalog()
+    {
+        const string responseJson =
+            "{\"viewerPlayerNumericId\":1,\"isSucceeded\":true,\"stateProjection\":{" +
+            "\"matchState\":\"initializing\"," +
+            "\"characterSelection\":{\"isActive\":true,\"isCompleted\":false," +
+            "\"currentSelectingPlayerNumericId\":1,\"selections\":[]}," +
+            "\"characterDefinitions\":[{\"definitionId\":\"C001\",\"characterName\":\"博丽灵梦\"," +
+            "\"factionKey\":\"TH\",\"baseMaxHp\":4,\"isImplemented\":true,\"raceTags\":[\"human\"]," +
+            "\"skills\":[{\"skillKey\":\"C001:1\",\"skillName\":\"八方鬼缚阵\",\"skillOrder\":1," +
+            "\"skillTypeRaw\":\"通常\",\"skillCostRaw\":\"④\",\"effectText\":\"封印目标玩家。\"}]}]}}";
+
+        var projection = ProjectionParser.Parse(responseJson, 1);
+
+        Assert.That(projection.characterSelection.isActive, Is.True);
+        Assert.That(projection.characterSelection.currentSelectingPlayerNumericId, Is.EqualTo(1));
+        Assert.That(projection.characterDefinitions, Has.Count.EqualTo(1));
+        Assert.That(projection.characterDefinitions[0].isImplemented, Is.True);
+        Assert.That(projection.characterDefinitions[0].skills[0].effectText, Is.EqualTo("封印目标玩家。"));
+    }
+
+    [Test]
     public void SendDrawOneCard_ShouldBuildExpectedEnvelope()
     {
         var fakeSocketClient = new FakeSocketClient();
@@ -93,6 +132,32 @@ public class ServerBridgeEditModeTests
         Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(1002));
         Assert.That(root.payload.cardInstanceNumericId, Is.EqualTo(9001));
         Assert.That(root.payload.playMode, Is.EqualTo("normal"));
+    }
+
+    [Test]
+    public void SendUseSkill_WithTargets_ShouldBuildExpectedEnvelope()
+    {
+        var fakeSocketClient = new FakeSocketClient();
+        using var bridge = new ServerBridge(fakeSocketClient)
+        {
+            viewerPlayerNumericId = 2,
+        };
+
+        bridge.SendUseSkill(
+            characterInstanceNumericId: 200001,
+            skillKey: "C007:4",
+            targetCharacterInstanceNumericId: 100001,
+            targetAllyCharacterInstanceNumericId: 300001,
+            targetPlayerNumericId: 1);
+
+        var root = parseEnvelope(fakeSocketClient.lastSentText);
+        Assert.That(root.actionType, Is.EqualTo("useSkill"));
+        Assert.That(root.payload.actorPlayerNumericId, Is.EqualTo(2));
+        Assert.That(root.payload.characterInstanceNumericId, Is.EqualTo(200001));
+        Assert.That(root.payload.skillKey, Is.EqualTo("C007:4"));
+        Assert.That(root.payload.targetCharacterInstanceNumericId, Is.EqualTo(100001));
+        Assert.That(root.payload.targetAllyCharacterInstanceNumericId, Is.EqualTo(300001));
+        Assert.That(root.payload.targetPlayerNumericId, Is.EqualTo(1));
     }
 
     [Test]
@@ -1543,8 +1608,13 @@ public class ServerBridgeEditModeTests
     private sealed class PayloadDto
     {
         public long actorPlayerNumericId;
+        public string characterDefinitionId = string.Empty;
         public long cardInstanceNumericId;
+        public long characterInstanceNumericId;
+        public string skillKey = string.Empty;
         public long targetCharacterInstanceNumericId;
+        public long targetAllyCharacterInstanceNumericId;
+        public long targetPlayerNumericId;
         public long inputContextNumericId;
         public int baseDamageValue;
         public string damageTypeKey = string.Empty;

@@ -13,6 +13,43 @@ namespace CrescentWreath.RuleCore.Tests;
 public class ServerGameSessionTests
 {
     [Fact]
+    public void CharacterSelectionSession_ShouldProjectCatalogAndStartAfterFourSelections()
+    {
+        var session = ServerGameSession.createStandard2v2(requireCharacterSelection: true);
+
+        var initialProjection = session.projectResultForViewer(
+            new ServerActionProcessResult
+            {
+                requestId = 0,
+                isSucceeded = true,
+                viewerPlayerNumericId = 1,
+                updatedState = session.gameState,
+            },
+            1).stateProjection!;
+        Assert.Equal(RuleCore.GameState.MatchState.initializing, session.gameState.matchState);
+        Assert.True(initialProjection.characterSelection!.isActive);
+        Assert.Equal(1, initialProjection.characterSelection.currentSelectingPlayerNumericId);
+        Assert.Equal(31, initialProjection.characterDefinitions.Count);
+
+        var definitions = new[] { "C001", "C007", "C008", "C018" };
+        for (var index = 0; index < definitions.Length; index++)
+        {
+            var result = session.processSubmitCharacterSelection(
+                new ServerSubmitCharacterSelectionRequestDto
+                {
+                    requestId = 9300 + index,
+                    actorPlayerNumericId = index + 1,
+                    characterDefinitionId = definitions[index],
+                });
+            Assert.True(result.isSucceeded, result.errorMessage);
+        }
+
+        Assert.Equal(RuleCore.GameState.MatchState.running, session.gameState.matchState);
+        Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState!.currentPhase);
+        Assert.All(session.gameState.players.Values, player => Assert.NotNull(player.activeCharacterInstanceId));
+    }
+
+    [Fact]
     public void CreateStandard2v2_ShouldInitializeSingleSessionWithGameState()
     {
         var session = ServerGameSession.createStandard2v2();
@@ -930,10 +967,60 @@ public class ServerGameSessionTests
                 statusChangedEvent.isApplied &&
                 statusChangedEvent.targetPlayerId == currentPlayerId);
         Assert.Equal(0, actorPlayerState.mana);
-        Assert.Equal(1, actorPlayerState.skillPoint);
+        Assert.Equal(0, actorPlayerState.skillPoint);
         Assert.Contains(
             session.gameState.statusInstances,
             status => status.statusKey == "Penetrate" && status.targetPlayerId == currentPlayerId);
+    }
+
+    [Fact]
+    public void ProcessUseSkill_C001_1_ShouldOpenTargetChoiceAndApplySealAfterSubmit()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var currentPlayerId = session.gameState.turnState!.currentPlayerId;
+        var targetPlayerId = session.gameState.players.Keys.First(
+            playerId => session.gameState.players[playerId].teamId != session.gameState.players[currentPlayerId].teamId);
+        var actorPlayerState = session.gameState.players[currentPlayerId];
+        var actorCharacterInstanceId = ensureActiveCharacterDefinitionId(session, currentPlayerId, "C001");
+        actorPlayerState.mana = 4;
+        actorPlayerState.skillPoint = 0;
+
+        var enterActionResult = session.processEnterActionPhase(new ServerEnterActionPhaseRequestDto
+        {
+            requestId = 990611,
+            actorPlayerNumericId = currentPlayerId.Value,
+        });
+        Assert.True(enterActionResult.isSucceeded);
+
+        var useSkillResult = session.processUseSkill(new ServerUseSkillRequestDto
+        {
+            requestId = 990612,
+            actorPlayerNumericId = currentPlayerId.Value,
+            characterInstanceNumericId = actorCharacterInstanceId.Value,
+            skillKey = "C001:1",
+        });
+
+        Assert.True(useSkillResult.isSucceeded);
+        Assert.NotNull(session.gameState.currentInputContext);
+        Assert.Contains($"player:{targetPlayerId.Value}", session.gameState.currentInputContext!.choiceKeys);
+
+        var result = session.processSubmitInputChoice(new ServerSubmitInputChoiceRequestDto
+        {
+            requestId = 990613,
+            actorPlayerNumericId = currentPlayerId.Value,
+            inputContextNumericId = session.gameState.currentInputContext.inputContextId.Value,
+            choiceKey = $"player:{targetPlayerId.Value}",
+            choiceKeys = new List<string>(),
+        });
+
+        Assert.True(result.isSucceeded);
+        Assert.Contains(
+            result.producedEvents,
+            gameEvent =>
+                gameEvent is StatusChangedEvent statusChangedEvent &&
+                statusChangedEvent.statusKey == "Seal" &&
+                statusChangedEvent.targetPlayerId == targetPlayerId &&
+                statusChangedEvent.isApplied);
     }
 
     [Fact]
@@ -1097,7 +1184,7 @@ public class ServerGameSessionTests
         var nextPlayerState = session.gameState.players[nextPlayerId];
         var nextPlayerCharacterInstanceId = ensureActiveCharacterDefinitionId(session, nextPlayerId, "C004");
         nextPlayerState.mana = 5;
-        nextPlayerState.skillPoint = 0;
+        nextPlayerState.skillPoint = 1;
         Assert.Equal(RuleCore.GameState.TurnPhase.action, session.gameState.turnState.currentPhase);
 
         var useSkillResult = session.processUseSkill(new ServerUseSkillRequestDto
@@ -2379,4 +2466,3 @@ public class ServerGameSessionTests
         return inputContextId;
     }
 }
-

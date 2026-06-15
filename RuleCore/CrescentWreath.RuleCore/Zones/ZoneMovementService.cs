@@ -29,6 +29,10 @@ public sealed class ZoneMovementService
         toZoneState.cardInstanceIds.Add(cardInstance.cardInstanceId);
         cardInstance.zoneId = targetZoneId;
         cardInstance.zoneKey = toZoneState.zoneType;
+        if (moveReason == CardMoveReason.summon && toZoneState.ownerPlayerId.HasValue)
+        {
+            cardInstance.ownerPlayerId = toZoneState.ownerPlayerId.Value;
+        }
         if (toZoneState.zoneType != ZoneKey.overlayContainer)
         {
             cardInstance.overlayContainerCardInstanceId = null;

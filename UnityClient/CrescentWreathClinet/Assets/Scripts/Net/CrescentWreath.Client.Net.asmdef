@@ -1,7 +1,9 @@
 {
   "name": "CrescentWreath.Client.Net",
   "rootNamespace": "CrescentWreath.Client.Net",
-  "references": [],
+  "references": [
+    "CrescentWreath.Client.Presentation"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

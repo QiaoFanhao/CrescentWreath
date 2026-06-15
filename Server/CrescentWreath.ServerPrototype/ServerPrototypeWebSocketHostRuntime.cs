@@ -29,7 +29,7 @@ public sealed class ServerPrototypeWebSocketHostRuntime : IAsyncDisposable
     private Task? acceptLoopTask;
 
     public ServerPrototypeWebSocketHostRuntime()
-        : this(ServerGameSession.createStandard2v2())
+        : this(ServerGameSession.createStandard2v2(requireCharacterSelection: true))
     {
     }
 

@@ -11,6 +11,93 @@ namespace CrescentWreath.RuleCore.Tests;
 public class ActionRequestProcessorSummonTreasureCardTests
 {
     [Fact]
+    public void C018Discount_ShouldApplyToEverySummonDuringTheSameSummonPhase()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, new TeamId(1), 900);
+        actorPlayerState.lockedSigil = 3;
+        actorPlayerState.isSigilLocked = true;
+        actorPlayerState.summonSigilDiscount = 1;
+        var summonZoneId = new ZoneId(9004);
+        var firstCardInstanceId = new CardInstanceId(4901);
+        var secondCardInstanceId = new CardInstanceId(4902);
+        var minimumCostCardInstanceId = new CardInstanceId(4903);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(actorPlayerId, actorPlayerState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorPlayerState.teamId, TurnPhase.summon);
+        gameState.publicState = createPublicState(summonZoneId);
+        addZone(
+            gameState,
+            gameState.publicState.publicTreasureDeckZoneId,
+            ZoneKey.publicTreasureDeck,
+            null,
+            ZonePublicOrPrivate.publicZone);
+        addZone(gameState, summonZoneId, ZoneKey.summonZone, null, ZonePublicOrPrivate.publicZone);
+        addZone(
+            gameState,
+            actorPlayerState.discardZoneId,
+            ZoneKey.discard,
+            actorPlayerId,
+            ZonePublicOrPrivate.publicZone);
+
+        foreach (var cardInstanceId in new[] { firstCardInstanceId, secondCardInstanceId })
+        {
+            gameState.cardInstances[cardInstanceId] = new CardInstance
+            {
+                cardInstanceId = cardInstanceId,
+                definitionId = "T002",
+                ownerPlayerId = actorPlayerId,
+                zoneId = summonZoneId,
+                zoneKey = ZoneKey.summonZone,
+            };
+            gameState.zones[summonZoneId].cardInstanceIds.Add(cardInstanceId);
+        }
+        gameState.cardInstances[minimumCostCardInstanceId] = new CardInstance
+        {
+            cardInstanceId = minimumCostCardInstanceId,
+            definitionId = "T024",
+            ownerPlayerId = actorPlayerId,
+            zoneId = summonZoneId,
+            zoneKey = ZoneKey.summonZone,
+        };
+        gameState.zones[summonZoneId].cardInstanceIds.Add(minimumCostCardInstanceId);
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new SummonTreasureCardActionRequest
+        {
+            requestId = 9791,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = firstCardInstanceId,
+        });
+
+        Assert.Equal(2, actorPlayerState.lockedSigil);
+        Assert.Equal(1, actorPlayerState.summonSigilDiscount);
+
+        processor.processActionRequest(gameState, new SummonTreasureCardActionRequest
+        {
+            requestId = 9792,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = secondCardInstanceId,
+        });
+
+        Assert.Equal(1, actorPlayerState.lockedSigil);
+        Assert.Equal(1, actorPlayerState.summonSigilDiscount);
+
+        processor.processActionRequest(gameState, new SummonTreasureCardActionRequest
+        {
+            requestId = 9793,
+            actorPlayerId = actorPlayerId,
+            cardInstanceId = minimumCostCardInstanceId,
+        });
+
+        Assert.Equal(0, actorPlayerState.lockedSigil);
+        Assert.Contains(firstCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Contains(secondCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+        Assert.Contains(minimumCostCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
+    }
+
+    [Fact]
     public void HappyPath_WhenPublicTreasureDeckHasCard_ShouldSummonAndRefillSummonZone()
     {
         var actorPlayerId = new PlayerId(1);
@@ -36,7 +123,7 @@ public class ActionRequestProcessorSummonTreasureCardTests
         {
             cardInstanceId = summonedCardInstanceId,
             definitionId = "test-summon-card",
-            ownerPlayerId = actorPlayerId,
+            ownerPlayerId = new PlayerId(0),
             zoneId = summonZoneId,
             zoneKey = ZoneKey.summonZone,
         };
@@ -47,7 +134,7 @@ public class ActionRequestProcessorSummonTreasureCardTests
         {
             cardInstanceId = refillCardInstanceId,
             definitionId = "test-public-deck-card",
-            ownerPlayerId = actorPlayerId,
+            ownerPlayerId = new PlayerId(0),
             zoneId = publicTreasureDeckZoneId,
             zoneKey = ZoneKey.publicTreasureDeck,
         };
@@ -68,11 +155,13 @@ public class ActionRequestProcessorSummonTreasureCardTests
         Assert.Contains(summonedCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
         Assert.Equal(actorPlayerState.discardZoneId, summonedCardInstance.zoneId);
         Assert.Equal(ZoneKey.discard, summonedCardInstance.zoneKey);
+        Assert.Equal(actorPlayerId, summonedCardInstance.ownerPlayerId);
 
         Assert.DoesNotContain(refillCardInstanceId, gameState.zones[publicTreasureDeckZoneId].cardInstanceIds);
         Assert.Contains(refillCardInstanceId, gameState.zones[summonZoneId].cardInstanceIds);
         Assert.Equal(summonZoneId, refillCardInstance.zoneId);
         Assert.Equal(ZoneKey.summonZone, refillCardInstance.zoneKey);
+        Assert.Equal(new PlayerId(0), refillCardInstance.ownerPlayerId);
         Assert.Equal(0, actorPlayerState.lockedSigil);
         Assert.Equal(5, actorPlayerState.sigilPreview);
 
@@ -324,6 +413,7 @@ public class ActionRequestProcessorSummonTreasureCardTests
         Assert.Contains(sakuraCardInstanceId, gameState.zones[actorPlayerState.discardZoneId].cardInstanceIds);
         Assert.Equal(actorPlayerState.discardZoneId, sakuraCardInstance.zoneId);
         Assert.Equal(ZoneKey.discard, sakuraCardInstance.zoneKey);
+        Assert.Equal(actorPlayerId, sakuraCardInstance.ownerPlayerId);
 
         Assert.Contains(publicTreasureCardInstanceId, gameState.zones[publicTreasureDeckZoneId].cardInstanceIds);
         Assert.Empty(gameState.zones[summonZoneId].cardInstanceIds);

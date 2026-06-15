@@ -17,6 +17,7 @@ public sealed class MechanicalJadeRuntime
     public const string ContextKeyOverlayAfterKill = "treasurePersistent:T016:overlayAfterKill";
     public const string ContinuationKeyOverlayAfterKill = "continuation:treasurePersistent:T016:overlayAfterKill";
     public const string LocalStateKeyContainerCardInstanceId = "treasurePersistent:T016:containerCardInstanceId";
+    public const string LocalStateKeyPendingTriggerQueue = "treasurePersistent:T016:pendingTriggerQueue";
 
     private const int MaxOverlayCount = 2;
     private const int ManaGainPerOverlay = 2;
@@ -82,6 +83,7 @@ public sealed class MechanicalJadeRuntime
             return false;
         }
 
+        var pendingTriggers = new List<string>();
         for (var eventIndex = producedEventsStartIndex; eventIndex < actionChainState.producedEvents.Count; eventIndex++)
         {
             if (actionChainState.producedEvents[eventIndex] is not KillRecordedEvent killRecordedEvent ||
@@ -96,29 +98,25 @@ public sealed class MechanicalJadeRuntime
                 continue;
             }
 
-            var containerCardInstance = tryFindFirstEligibleMechanicalJade(gameState, killerPlayerState);
-            if (containerCardInstance is null)
+            var eligibleMechanicalJades = findEligibleMechanicalJades(gameState, killerPlayerState);
+            foreach (var containerCardInstance in eligibleMechanicalJades)
             {
-                continue;
+                pendingTriggers.Add(
+                    killerPlayerId.Value + ":" + containerCardInstance.cardInstanceId.Value);
             }
-
-            var choiceKeys = collectOverlayChoiceKeys(gameState, killerPlayerState);
-            if (choiceKeys.Count == 0)
-            {
-                continue;
-            }
-
-            openOverlayAfterKillInputContext(
-                gameState,
-                actionChainState,
-                eventId,
-                killerPlayerId,
-                containerCardInstance,
-                choiceKeys);
-            return true;
         }
 
-        return false;
+        if (pendingTriggers.Count == 0)
+        {
+            return false;
+        }
+
+        actionChainState.localState[LocalStateKeyPendingTriggerQueue] =
+            string.Join(",", pendingTriggers);
+        return tryOpenNextQueuedOverlayAfterKillInputContext(
+            gameState,
+            actionChainState,
+            eventId);
     }
 
     public static void ensureValidOverlayAfterKillChoiceRequest(
@@ -176,7 +174,12 @@ public sealed class MechanicalJadeRuntime
                 TreasureOnPlayEffectRuntime.ChoiceKeyDeclineOverlay,
                 StringComparison.Ordinal))
         {
+            actionChainState.localState.Remove(LocalStateKeyContainerCardInstanceId);
             actionChainState.pendingContinuationKey = null;
+            tryOpenNextQueuedOverlayAfterKillInputContext(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId);
             return true;
         }
 
@@ -235,7 +238,90 @@ public sealed class MechanicalJadeRuntime
         actionChainState.producedEvents.Add(overlayEvent);
         applyOverlayDeltaResourceBonusForCurrentOwnerTurn(gameState, actorPlayerState);
 
+        actionChainState.localState.Remove(LocalStateKeyContainerCardInstanceId);
         actionChainState.pendingContinuationKey = null;
+        tryOpenNextQueuedOverlayAfterKillInputContext(
+            gameState,
+            actionChainState,
+            submitInputChoiceActionRequest.requestId);
+        return true;
+    }
+
+    private bool tryOpenNextQueuedOverlayAfterKillInputContext(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        while (tryDequeuePendingTrigger(
+                   actionChainState,
+                   out var requiredPlayerId,
+                   out var containerCardInstanceId))
+        {
+            if (!gameState.players.TryGetValue(requiredPlayerId, out var playerState) ||
+                !gameState.cardInstances.TryGetValue(containerCardInstanceId, out var containerCardInstance) ||
+                containerCardInstance.ownerPlayerId != requiredPlayerId ||
+                containerCardInstance.zoneId != playerState.fieldZoneId ||
+                !string.Equals(containerCardInstance.definitionId, DefinitionId, StringComparison.Ordinal) ||
+                OverlayRuntime.getOverlayCardCount(gameState, containerCardInstanceId) >= MaxOverlayCount)
+            {
+                continue;
+            }
+
+            var choiceKeys = collectOverlayChoiceKeys(gameState, playerState);
+            if (choiceKeys.Count <= 1)
+            {
+                continue;
+            }
+
+            openOverlayAfterKillInputContext(
+                gameState,
+                actionChainState,
+                eventId,
+                requiredPlayerId,
+                containerCardInstance,
+                choiceKeys);
+            return true;
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyPendingTriggerQueue);
+        return false;
+    }
+
+    private static bool tryDequeuePendingTrigger(
+        ActionChainState actionChainState,
+        out PlayerId requiredPlayerId,
+        out CardInstanceId containerCardInstanceId)
+    {
+        requiredPlayerId = default;
+        containerCardInstanceId = default;
+        if (!actionChainState.localState.TryGetValue(
+                LocalStateKeyPendingTriggerQueue,
+                out var serializedQueue) ||
+            string.IsNullOrWhiteSpace(serializedQueue))
+        {
+            return false;
+        }
+
+        var entries = serializedQueue.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        if (entries.Length == 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyPendingTriggerQueue);
+            return false;
+        }
+
+        actionChainState.localState[LocalStateKeyPendingTriggerQueue] =
+            entries.Length == 1 ? string.Empty : string.Join(",", entries, 1, entries.Length - 1);
+
+        var segments = entries[0].Split(':');
+        if (segments.Length != 2 ||
+            !long.TryParse(segments[0], out var playerNumericId) ||
+            !long.TryParse(segments[1], out var cardNumericId))
+        {
+            throw new InvalidOperationException("T016 pending trigger queue contains an invalid player/card entry.");
+        }
+
+        requiredPlayerId = new PlayerId(playerNumericId);
+        containerCardInstanceId = new CardInstanceId(cardNumericId);
         return true;
     }
 
@@ -320,13 +406,14 @@ public sealed class MechanicalJadeRuntime
         }
     }
 
-    private static CardInstance? tryFindFirstEligibleMechanicalJade(
+    private static List<CardInstance> findEligibleMechanicalJades(
         GameState.GameState gameState,
         PlayerState playerState)
     {
+        var result = new List<CardInstance>();
         if (!gameState.zones.TryGetValue(playerState.fieldZoneId, out var fieldZoneState))
         {
-            return null;
+            return result;
         }
 
         foreach (var cardInstanceId in fieldZoneState.cardInstanceIds)
@@ -343,10 +430,10 @@ public sealed class MechanicalJadeRuntime
                 continue;
             }
 
-            return cardInstance;
+            result.Add(cardInstance);
         }
 
-        return null;
+        return result;
     }
 
     private static int countMechanicalJadeOverlaysOnField(

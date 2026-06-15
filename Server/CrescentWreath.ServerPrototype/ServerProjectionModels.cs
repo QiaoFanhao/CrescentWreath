@@ -28,6 +28,43 @@ public sealed class ServerStateProjection
     public ServerPublicZonesProjection? publicZones { get; set; }
     public ServerAnomalyProjection? currentAnomaly { get; set; }
     public List<ServerCharacterProjection> characters { get; } = new();
+    public ServerCharacterSelectionProjection? characterSelection { get; set; }
+    public List<ServerCharacterDefinitionProjection> characterDefinitions { get; } = new();
+}
+
+public sealed class ServerCharacterSelectionProjection
+{
+    public bool isActive { get; set; }
+    public bool isCompleted { get; set; }
+    public long? currentSelectingPlayerNumericId { get; set; }
+    public List<ServerSelectedCharacterProjection> selections { get; } = new();
+}
+
+public sealed class ServerSelectedCharacterProjection
+{
+    public long playerNumericId { get; set; }
+    public string characterDefinitionId { get; set; } = string.Empty;
+}
+
+public sealed class ServerCharacterDefinitionProjection
+{
+    public string definitionId { get; set; } = string.Empty;
+    public string characterName { get; set; } = string.Empty;
+    public string factionKey { get; set; } = string.Empty;
+    public int baseMaxHp { get; set; }
+    public bool isImplemented { get; set; }
+    public List<string> raceTags { get; } = new();
+    public List<ServerCharacterSkillDefinitionProjection> skills { get; } = new();
+}
+
+public sealed class ServerCharacterSkillDefinitionProjection
+{
+    public string skillKey { get; set; } = string.Empty;
+    public string skillName { get; set; } = string.Empty;
+    public int skillOrder { get; set; }
+    public string skillTypeRaw { get; set; } = string.Empty;
+    public string skillCostRaw { get; set; } = string.Empty;
+    public string effectText { get; set; } = string.Empty;
 }
 
 public sealed class ServerTurnProjection
@@ -230,6 +267,52 @@ internal static class ServerProjectionBuilder
                 phaseStepIndex = gameState.turnState.phaseStepIndex,
                 hasResolvedAnomalyThisTurn = gameState.turnState.hasResolvedAnomalyThisTurn,
             };
+        }
+
+        if (gameState.characterSelectionState is not null)
+        {
+            projection.characterSelection = new ServerCharacterSelectionProjection
+            {
+                isActive = !gameState.characterSelectionState.isCompleted,
+                isCompleted = gameState.characterSelectionState.isCompleted,
+                currentSelectingPlayerNumericId =
+                    gameState.characterSelectionState.currentSelectingPlayerId?.Value,
+            };
+            foreach (var selection in gameState.characterSelectionState.selectedCharacterDefinitionIds
+                         .OrderBy(entry => entry.Key.Value))
+            {
+                projection.characterSelection.selections.Add(new ServerSelectedCharacterProjection
+                {
+                    playerNumericId = selection.Key.Value,
+                    characterDefinitionId = selection.Value,
+                });
+            }
+        }
+
+        foreach (var definition in CharacterDefinitionRepository.getAllDefinitions())
+        {
+            var definitionProjection = new ServerCharacterDefinitionProjection
+            {
+                definitionId = definition.definitionId,
+                characterName = definition.characterName,
+                factionKey = definition.factionKey,
+                baseMaxHp = definition.baseMaxHp,
+                isImplemented = definition.isImplemented,
+            };
+            definitionProjection.raceTags.AddRange(definition.raceTags);
+            foreach (var skill in definition.skills.Values.OrderBy(skill => skill.skillOrder))
+            {
+                definitionProjection.skills.Add(new ServerCharacterSkillDefinitionProjection
+                {
+                    skillKey = skill.skillKey,
+                    skillName = skill.skillName,
+                    skillOrder = skill.skillOrder,
+                    skillTypeRaw = skill.skillTypeRaw,
+                    skillCostRaw = skill.skillCostRaw,
+                    effectText = skill.effectText,
+                });
+            }
+            projection.characterDefinitions.Add(definitionProjection);
         }
 
         foreach (var teamState in gameState.teams.Values.OrderBy(team => team.teamId.Value))
@@ -449,6 +532,20 @@ internal static class ServerProjectionBuilder
         var projectedEvents = new List<ServerEventLogEntry>();
         foreach (var producedEvent in producedEvents)
         {
+            if (producedEvent is CharacterSelectedEvent characterSelectedEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = characterSelectedEvent.eventId,
+                    eventTypeKey = characterSelectedEvent.eventTypeKey,
+                    ownerPlayerNumericId = characterSelectedEvent.playerId.Value,
+                    targetCharacterInstanceNumericId =
+                        characterSelectedEvent.characterInstanceId.Value,
+                    definitionId = characterSelectedEvent.characterDefinitionId,
+                });
+                continue;
+            }
+
             if (producedEvent is CardMovedEvent cardMovedEvent)
             {
                 projectedEvents.Add(new ServerEventLogEntry

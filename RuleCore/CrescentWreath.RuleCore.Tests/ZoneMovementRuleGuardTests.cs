@@ -53,6 +53,10 @@ public class ZoneMovementRuleGuardTests
     public void MoveCard_WhenSummonFromSummonZoneToDiscard_ShouldSucceed()
     {
         var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(ZoneKey.summonZone, ZoneKey.discard);
+        var acquiringPlayerId = new PlayerId(2);
+        cardInstance.ownerPlayerId = new PlayerId(0);
+        gameState.zones[sourceZoneId].ownerPlayerId = null;
+        gameState.zones[targetZoneId].ownerPlayerId = acquiringPlayerId;
         var service = new ZoneMovementService();
 
         var movedEvent = service.moveCard(
@@ -68,12 +72,17 @@ public class ZoneMovementRuleGuardTests
         Assert.Equal(CardMoveReason.summon, movedEvent.moveReason);
         Assert.DoesNotContain(cardInstance.cardInstanceId, gameState.zones[sourceZoneId].cardInstanceIds);
         Assert.Contains(cardInstance.cardInstanceId, gameState.zones[targetZoneId].cardInstanceIds);
+        Assert.Equal(acquiringPlayerId, cardInstance.ownerPlayerId);
     }
 
     [Fact]
     public void MoveCard_WhenSummonFromSakuraCakeDeckToDiscard_ShouldSucceed()
     {
         var (gameState, cardInstance, sourceZoneId, targetZoneId) = createState(ZoneKey.sakuraCakeDeck, ZoneKey.discard);
+        var acquiringPlayerId = new PlayerId(2);
+        cardInstance.ownerPlayerId = new PlayerId(0);
+        gameState.zones[sourceZoneId].ownerPlayerId = null;
+        gameState.zones[targetZoneId].ownerPlayerId = acquiringPlayerId;
         var service = new ZoneMovementService();
 
         var movedEvent = service.moveCard(
@@ -89,6 +98,7 @@ public class ZoneMovementRuleGuardTests
         Assert.Equal(CardMoveReason.summon, movedEvent.moveReason);
         Assert.DoesNotContain(cardInstance.cardInstanceId, gameState.zones[sourceZoneId].cardInstanceIds);
         Assert.Contains(cardInstance.cardInstanceId, gameState.zones[targetZoneId].cardInstanceIds);
+        Assert.Equal(acquiringPlayerId, cardInstance.ownerPlayerId);
     }
 
     [Fact]

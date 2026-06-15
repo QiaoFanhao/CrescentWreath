@@ -214,6 +214,26 @@ public sealed class AnomalyA010Runtime
         return false;
     }
 
+    public bool tryForceResolveFromExternalEffect(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        PlayerId resolverPlayerId)
+    {
+        if (!isFateStayNightActiveAndUnresolved(gameState))
+        {
+            return false;
+        }
+
+        banishAllRemainingA010SetAsideCards(gameState, actionChainState, eventId);
+        openRewardChooseTwoInput(
+            gameState,
+            actionChainState,
+            eventId,
+            resolverPlayerId);
+        return true;
+    }
+
     public void ensureValidKillBanishSetAsideChoice(
         GameState.GameState gameState,
         InputContextState inputContextState,
