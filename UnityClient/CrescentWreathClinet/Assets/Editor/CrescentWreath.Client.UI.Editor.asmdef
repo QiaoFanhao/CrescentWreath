@@ -5,7 +5,9 @@
     "CrescentWreath.Client.Net",
     "CrescentWreath.Client.Presentation",
     "CrescentWreath.Client.UI",
-    "Unity.ugui"
+    "Unity.ugui",
+    "Unity.TextMeshPro",
+    "Unity.TextMeshPro.Editor"
   ],
   "includePlatforms": [
     "Editor"

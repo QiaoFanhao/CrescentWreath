@@ -4,7 +4,9 @@
   "references": [
     "CrescentWreath.Client.Net",
     "CrescentWreath.Client.Presentation",
-    "Unity.ugui"
+    "Unity.ugui",
+    "Unity.TextMeshPro",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

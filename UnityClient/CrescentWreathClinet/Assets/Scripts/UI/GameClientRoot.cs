@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace CrescentWreath.Client.UI
 {
+[ExecuteAlways]
 public sealed class GameClientRoot : MonoBehaviour
 {
     [SerializeField]
@@ -14,9 +15,24 @@ public sealed class GameClientRoot : MonoBehaviour
     [SerializeField]
     private InteractionOverlay? interactionOverlay;
 
+    [SerializeField]
+    private BattlefieldLayoutRoot? battlefieldLayoutRoot;
+
     public CardArtService? CardArtService => cardArtService;
     public ProjectionViewState? ProjectionViewState => projectionViewState;
     public InteractionOverlay? InteractionOverlay => interactionOverlay;
+    public BattlefieldLayoutRoot? BattlefieldLayoutRoot => battlefieldLayoutRoot;
+
+    private void OnEnable()
+    {
+        if (string.Equals(
+                gameObject.scene.name,
+                "GameClient",
+                System.StringComparison.Ordinal))
+        {
+            BattlefieldSceneSkeletonFactory.Ensure(this);
+        }
+    }
 
 #if UNITY_EDITOR
     public void ConfigureForEditor(
@@ -36,6 +52,11 @@ public sealed class GameClientRoot : MonoBehaviour
         cardArtService = newCardArtService;
         projectionViewState = newProjectionViewState;
         interactionOverlay = newInteractionOverlay;
+    }
+
+    public void ConfigureBattlefieldLayout(BattlefieldLayoutRoot newBattlefieldLayoutRoot)
+    {
+        battlefieldLayoutRoot = newBattlefieldLayoutRoot;
     }
 }
 }

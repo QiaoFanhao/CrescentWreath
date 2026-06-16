@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6401a9b8c7d6e5f4a3210, type: 3}
+  m_Name: BattlefieldUiTheme
+  m_EditorClassIdentifier: CrescentWreath.Client.UI::CrescentWreath.Client.UI.BattlefieldUiTheme
+  primaryFont: {fileID: 11400000, guid: d2ed33f9fa6f5e945a3df3ae8bf8ddb8, type: 2}
+  fontResourceStatus: SourceHanSansSC-Regular Dynamic SDF is active.
+  graphiteBackground: {r: 0.035, g: 0.045, b: 0.055, a: 1}
+  deepBluePanel: {r: 0.055, g: 0.11, b: 0.16, a: 0.96}
+  cyanTeam: {r: 0.12, g: 0.72, b: 0.82, a: 1}
+  coralTeam: {r: 0.92, g: 0.34, b: 0.28, a: 1}
+  goldActive: {r: 0.96, g: 0.73, b: 0.2, a: 1}
+  darkRedAnomaly: {r: 0.34, g: 0.055, b: 0.08, a: 0.98}
+  normalText: {r: 0.94, g: 0.97, b: 1, a: 1}
+  mutedText: {r: 0.56, g: 0.65, b: 0.71, a: 1}
+  disabledText: {r: 0.32, g: 0.37, b: 0.4, a: 1}
+  warning: {r: 1, g: 0.65, b: 0.16, a: 1}
+  error: {r: 0.94, g: 0.18, b: 0.2, a: 1}

@@ -5,7 +5,8 @@
   "references": [
     "CrescentWreath.Client.Net",
     "CrescentWreath.Client.Presentation",
-    "CrescentWreath.Client.UI"
+    "CrescentWreath.Client.UI",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [
     "Editor"
