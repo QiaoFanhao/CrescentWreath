@@ -40,6 +40,8 @@ public static class CardArtCatalogBuilder
     private const string SummonFolder = "Assets/Art/Cards/Illustrations/Relics/Summon";
     private const string SakuraFolder = "Assets/Art/Cards/Illustrations/Relics/Sakuracake";
     private const string AnomalyFolder = "Assets/Art/Cards/Illustrations/Anomaly";
+    private const string CharacterFolder = "Assets/Art/Cards/Illustrations/Characters";
+    private const string StatusFolder = "Assets/Art/Cards/Illustrations/Status";
 
     [InitializeOnLoadMethod]
     private static void ensureGeneratedAssetsAfterImport()
@@ -133,6 +135,19 @@ public static class CardArtCatalogBuilder
             var definitionId = $"A{index:000}";
             entries.Add(createEntry(definitionId, $"{AnomalyFolder}/{definitionId}.png"));
         }
+
+        for (var index = 1; index <= 31; index++)
+        {
+            var definitionId = $"C{index:000}";
+            entries.Add(createEntry(definitionId, $"{CharacterFolder}/{definitionId}.png"));
+        }
+
+        entries.Add(createEntry("C017-1", $"{CharacterFolder}/C017-1.png"));
+        entries.Add(createEntry("C026-1", $"{CharacterFolder}/C026-1.png"));
+
+        entries.Add(createEntry("Barrier", $"{StatusFolder}/Barrier.png"));
+        entries.Add(createEntry("Seal", $"{StatusFolder}/Seal.png"));
+        entries.Add(createEntry("Shackle", $"{StatusFolder}/Shackle.png"));
 
         var duplicateDefinitionIds = entries
             .GroupBy(entry => entry.definitionId, StringComparer.Ordinal)

@@ -18,10 +18,14 @@ public sealed class GameClientRoot : MonoBehaviour
     [SerializeField]
     private BattlefieldLayoutRoot? battlefieldLayoutRoot;
 
+    [SerializeField]
+    private GameClientNetworkController? gameClientNetworkController;
+
     public CardArtService? CardArtService => cardArtService;
     public ProjectionViewState? ProjectionViewState => projectionViewState;
     public InteractionOverlay? InteractionOverlay => interactionOverlay;
     public BattlefieldLayoutRoot? BattlefieldLayoutRoot => battlefieldLayoutRoot;
+    public GameClientNetworkController? GameClientNetworkController => gameClientNetworkController;
 
     private void OnEnable()
     {
@@ -57,6 +61,11 @@ public sealed class GameClientRoot : MonoBehaviour
     public void ConfigureBattlefieldLayout(BattlefieldLayoutRoot newBattlefieldLayoutRoot)
     {
         battlefieldLayoutRoot = newBattlefieldLayoutRoot;
+    }
+
+    public void ConfigureNetworkController(GameClientNetworkController newGameClientNetworkController)
+    {
+        gameClientNetworkController = newGameClientNetworkController;
     }
 }
 }

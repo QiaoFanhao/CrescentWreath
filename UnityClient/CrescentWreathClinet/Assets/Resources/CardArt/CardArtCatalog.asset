@@ -98,3 +98,75 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 672567da083b8e34585b6f2d4200fc1e, type: 3}
   - definitionId: A010
     sprite: {fileID: 21300000, guid: 03cfb97e3eac2a24281d347019a8ec07, type: 3}
+  - definitionId: C001
+    sprite: {fileID: 21300000, guid: 86dfc83c9315eae44ad46d1712cd183e, type: 3}
+  - definitionId: C002
+    sprite: {fileID: 21300000, guid: dcf5f44f8eb25fe429e6f23dc7e4287a, type: 3}
+  - definitionId: C003
+    sprite: {fileID: 21300000, guid: 36fe2ec046fe2444391d01f9caf49284, type: 3}
+  - definitionId: C004
+    sprite: {fileID: 21300000, guid: b619904a46bf7e04caa1cc97f985488d, type: 3}
+  - definitionId: C005
+    sprite: {fileID: 21300000, guid: 0367791c07a57d343aa2fd537a65ca89, type: 3}
+  - definitionId: C006
+    sprite: {fileID: 21300000, guid: d3d0ffb15b2b31346b2447f0126b3a3f, type: 3}
+  - definitionId: C007
+    sprite: {fileID: 21300000, guid: 0693520f6ae7a4747a5a8017adc81c84, type: 3}
+  - definitionId: C008
+    sprite: {fileID: 21300000, guid: b4842d4fbd32b844b8e3d0656d1980a8, type: 3}
+  - definitionId: C009
+    sprite: {fileID: 21300000, guid: bc702ac2bcb5f73408fdb1c9d692c4bd, type: 3}
+  - definitionId: C010
+    sprite: {fileID: 21300000, guid: e6cdeea8d8eb4394289b5b3643c5c112, type: 3}
+  - definitionId: C011
+    sprite: {fileID: 21300000, guid: af5503ee017c1ad4585780490e7098cc, type: 3}
+  - definitionId: C012
+    sprite: {fileID: 21300000, guid: efb66c0ac05a301478efd25b2d61534d, type: 3}
+  - definitionId: C013
+    sprite: {fileID: 21300000, guid: 5365a344ccb0579408216a485502ae2a, type: 3}
+  - definitionId: C014
+    sprite: {fileID: 21300000, guid: 9ec4fddfd1cc0344b94116c8e460f534, type: 3}
+  - definitionId: C015
+    sprite: {fileID: 21300000, guid: fbb9cb6175e6fd64899664b6afc3b91c, type: 3}
+  - definitionId: C016
+    sprite: {fileID: 21300000, guid: 8402fe74ac3e50546957e0258c906aa9, type: 3}
+  - definitionId: C017
+    sprite: {fileID: 21300000, guid: 317c6ee39eede5a4a8fbd6d1ba548a7b, type: 3}
+  - definitionId: C018
+    sprite: {fileID: 21300000, guid: 84d9b1e8860cf784c90f43ea588bddd5, type: 3}
+  - definitionId: C019
+    sprite: {fileID: 21300000, guid: e900c8a0229f4ad41adf0e1d87599c28, type: 3}
+  - definitionId: C020
+    sprite: {fileID: 21300000, guid: 9efd5dad876aac740a7687628462be5d, type: 3}
+  - definitionId: C021
+    sprite: {fileID: 21300000, guid: f62682f46ac31734a8ee50126e23b488, type: 3}
+  - definitionId: C022
+    sprite: {fileID: 21300000, guid: b6ef927a953f4af40a4c9f4c5195097b, type: 3}
+  - definitionId: C023
+    sprite: {fileID: 21300000, guid: bfbb37eb55a43e745b905f6b0362a6f3, type: 3}
+  - definitionId: C024
+    sprite: {fileID: 21300000, guid: 451b909b8059f9846a0ca0782b1b6eca, type: 3}
+  - definitionId: C025
+    sprite: {fileID: 21300000, guid: ecc40ef2ce6f2cf46aa9b182d7de6965, type: 3}
+  - definitionId: C026
+    sprite: {fileID: 21300000, guid: 61ec51fb6deed3b44a3602155d9f39f3, type: 3}
+  - definitionId: C027
+    sprite: {fileID: 21300000, guid: bd4993437d2752346b27884c10ff5ae0, type: 3}
+  - definitionId: C028
+    sprite: {fileID: 21300000, guid: f48b49e3bc0f17647ad03ee8dc5ef432, type: 3}
+  - definitionId: C029
+    sprite: {fileID: 21300000, guid: 6ad3739dfd578aa4281085255cd8cb4f, type: 3}
+  - definitionId: C030
+    sprite: {fileID: 21300000, guid: 3207bac1cfe45484e9165af1ac09a7e4, type: 3}
+  - definitionId: C031
+    sprite: {fileID: 21300000, guid: 71e6d670b41603f419905c5a39d64d4e, type: 3}
+  - definitionId: C017-1
+    sprite: {fileID: 21300000, guid: 1cc32d1a502bb414dbef9feabf93f866, type: 3}
+  - definitionId: C026-1
+    sprite: {fileID: 21300000, guid: cde0681e056ccbf4ca31e71dac97f78f, type: 3}
+  - definitionId: Barrier
+    sprite: {fileID: 21300000, guid: 5225745d74419094da194e5af404595d, type: 3}
+  - definitionId: Seal
+    sprite: {fileID: 21300000, guid: dd91a10d52a4bab42842aa8fe4b85804, type: 3}
+  - definitionId: Shackle
+    sprite: {fileID: 21300000, guid: 28032ac05d5ba34488f03313a5a2b162, type: 3}

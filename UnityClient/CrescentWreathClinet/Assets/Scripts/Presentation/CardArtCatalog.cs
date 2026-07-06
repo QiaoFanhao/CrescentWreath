@@ -84,12 +84,44 @@ public sealed class CardArtCatalog : ScriptableObject
             ? string.Empty
             : definitionId.Trim().ToUpperInvariant();
 
+        if (tryNormalizeCharacterDefinitionId(normalizedDefinitionId, out var characterDefinitionId))
+        {
+            return characterDefinitionId;
+        }
+
         return normalizedDefinitionId switch
         {
             "STARTER:KOURINDOUCOUPON" => "T001B",
             "STARTER:MAGICCIRCUIT" => "T002B",
             _ => normalizedDefinitionId,
         };
+    }
+
+    private static bool tryNormalizeCharacterDefinitionId(string value, out string normalizedDefinitionId)
+    {
+        normalizedDefinitionId = string.Empty;
+        for (var index = 0; index <= value.Length - 4; index += 1)
+        {
+            if (value[index] != 'C' ||
+                !char.IsDigit(value[index + 1]) ||
+                !char.IsDigit(value[index + 2]) ||
+                !char.IsDigit(value[index + 3]))
+            {
+                continue;
+            }
+
+            normalizedDefinitionId = value.Substring(index, 4);
+            if (value.Length >= index + 6 &&
+                value[index + 4] == '-' &&
+                value[index + 5] == '1')
+            {
+                normalizedDefinitionId += "-1";
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
 }

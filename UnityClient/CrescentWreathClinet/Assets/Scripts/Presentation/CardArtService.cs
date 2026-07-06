@@ -59,6 +59,20 @@ public sealed class CardArtService : MonoBehaviour
         return loadedCatalog.CardBack;
     }
 
+    public static Sprite? GetCardBackSprite()
+    {
+        var loadedCatalog = Catalog;
+        if (loadedCatalog is null)
+        {
+            warnOnce(
+                "<catalog>",
+                $"Card art catalog was not found at Resources/{CatalogResourcesPath}.asset.");
+            return null;
+        }
+
+        return loadedCatalog.CardBack;
+    }
+
     public static Texture2D? GetTextureForDefinition(string definitionId)
     {
         return GetSpriteForDefinition(definitionId)?.texture;

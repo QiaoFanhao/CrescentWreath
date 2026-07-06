@@ -53,16 +53,23 @@ public sealed class BattlefieldSceneSkeletonEditModeTests
             "SummonZoneAnchor04",
             "SummonZoneAnchor05",
             "SummonZoneAnchor06",
-            "SakuraCakeDeckAnchor",
-            "SakuraCakeZoneAnchor",
+            "SakuraCakeAnchor",
             "AnomalyDeckAnchor",
             "CurrentAnomalyAnchor",
             "ResolvedAnomalyAnchor",
             "GapZoneAnchor",
             "BottomPlayerFieldAnchor",
+            "BottomPlayerDeckAnchor",
+            "BottomPlayerDiscardAnchor",
             "LeftPlayerFieldAnchor",
+            "LeftPlayerDeckAnchor",
+            "LeftPlayerDiscardAnchor",
             "TopPlayerFieldAnchor",
+            "TopPlayerDeckAnchor",
+            "TopPlayerDiscardAnchor",
             "RightPlayerFieldAnchor",
+            "RightPlayerDeckAnchor",
+            "RightPlayerDiscardAnchor",
             "CurrentPlayerMirrorAnchor",
             "CurrentPlayerMirrorFieldBounds",
             "CurrentPlayerResourceAnchor",
@@ -74,6 +81,7 @@ public sealed class BattlefieldSceneSkeletonEditModeTests
         var mirror = anchors.Single(anchor => anchor.name == "CurrentPlayerMirrorAnchor");
         Assert.That(mirror.ReadOnly, Is.True);
         Assert.That(mirror.MaxVisibleCards, Is.EqualTo(15));
+        Assert.That(mirror.LayoutType, Is.EqualTo(BattlefieldZoneLayoutType.horizontalRow));
     }
 
     [Test]
@@ -88,6 +96,88 @@ public sealed class BattlefieldSceneSkeletonEditModeTests
             topPlayerField.transform.position.z,
             Is.GreaterThan(summonRow.transform.position.z + 1f),
             "The top player's private field must stay near the far table edge, behind the public summon row.");
+    }
+
+    [Test]
+    public void PlayerFieldAnchors_UseSeatReadableCardRotations()
+    {
+        var layout = ensureLayout(EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single));
+        var anchors = layout.TableWorld!.GetComponentsInChildren<BattlefieldZoneAnchor>(true);
+
+        Assert.That(anchors.Single(anchor => anchor.name == "BottomPlayerFieldAnchor").LocalRotation.y, Is.EqualTo(0f));
+        Assert.That(anchors.Single(anchor => anchor.name == "TopPlayerFieldAnchor").LocalRotation.y, Is.EqualTo(180f));
+        Assert.That(anchors.Single(anchor => anchor.name == "LeftPlayerFieldAnchor").LocalRotation.y, Is.EqualTo(90f));
+        Assert.That(anchors.Single(anchor => anchor.name == "RightPlayerFieldAnchor").LocalRotation.y, Is.EqualTo(-90f));
+    }
+
+    [Test]
+    public void PlayerDeckAndDiscardAnchors_AreSeparatedFromFieldAndPublicAreas()
+    {
+        var layout = ensureLayout(EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single));
+        var anchors = layout.TableWorld!.GetComponentsInChildren<BattlefieldZoneAnchor>(true);
+
+        assertStackAnchor(anchors, "BottomPlayerDeckAnchor");
+        assertStackAnchor(anchors, "BottomPlayerDiscardAnchor");
+        assertStackAnchor(anchors, "TopPlayerDeckAnchor");
+        assertStackAnchor(anchors, "TopPlayerDiscardAnchor");
+        assertStackAnchor(anchors, "LeftPlayerDeckAnchor");
+        assertStackAnchor(anchors, "LeftPlayerDiscardAnchor");
+        assertStackAnchor(anchors, "RightPlayerDeckAnchor");
+        assertStackAnchor(anchors, "RightPlayerDiscardAnchor");
+
+        Assert.That(
+            anchors.Single(anchor => anchor.name == "BottomPlayerDeckAnchor").transform.position.x,
+            Is.LessThan(anchors.Single(anchor => anchor.name == "BottomPlayerFieldAnchor").transform.position.x - 5f));
+        Assert.That(
+            anchors.Single(anchor => anchor.name == "BottomPlayerDiscardAnchor").transform.position.x,
+            Is.GreaterThan(anchors.Single(anchor => anchor.name == "BottomPlayerFieldAnchor").transform.position.x + 5f));
+        Assert.That(
+            anchors.Single(anchor => anchor.name == "RightPlayerDeckAnchor").transform.position.x,
+            Is.GreaterThan(anchors.Single(anchor => anchor.name == "RightPlayerFieldAnchor").transform.position.x));
+        Assert.That(
+            anchors.Single(anchor => anchor.name == "LeftPlayerDeckAnchor").transform.position.x,
+            Is.LessThan(anchors.Single(anchor => anchor.name == "LeftPlayerFieldAnchor").transform.position.x));
+    }
+
+    [Test]
+    public void PublicUtilityZones_StaySeparatedFromRightPlayerPrivateField()
+    {
+        var layout = ensureLayout(EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single));
+        var anchors = layout.TableWorld!.GetComponentsInChildren<BattlefieldZoneAnchor>(true);
+        var currentAnomaly = anchors.Single(anchor => anchor.name == "CurrentAnomalyAnchor");
+        var resolvedAnomaly = anchors.Single(anchor => anchor.name == "ResolvedAnomalyAnchor");
+        var sakuraCake = anchors.Single(anchor => anchor.name == "SakuraCakeAnchor");
+        var gapZone = anchors.Single(anchor => anchor.name == "GapZoneAnchor");
+
+        Assert.That(resolvedAnomaly.transform.position.z, Is.EqualTo(currentAnomaly.transform.position.z).Within(0.05f));
+        Assert.That(resolvedAnomaly.transform.position.x, Is.LessThan(currentAnomaly.transform.position.x));
+        Assert.That(gapZone.transform.position.x, Is.EqualTo(sakuraCake.transform.position.x).Within(0.05f));
+        Assert.That(gapZone.transform.position.z, Is.LessThan(sakuraCake.transform.position.z));
+        Assert.That(gapZone.transform.position.z, Is.GreaterThan(1.2f));
+
+        var gapPlate = gapZone.transform.Find("DebugPlate");
+        Assert.That(gapPlate, Is.Not.Null);
+        Assert.That(gapPlate!.localScale, Is.EqualTo(new Vector3(1.05f, 0.05f, 1.35f)));
+    }
+
+    [Test]
+    public void CurrentPlayerMirrorPlatform_DoesNotCoverRightPlayerField()
+    {
+        var layout = ensureLayout(EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single));
+        var platform = layout.TableWorld!.CurrentPlayerMirrorArea!.Find("CurrentPlayerMirrorPlatform");
+        var anchors = layout.TableWorld.GetComponentsInChildren<BattlefieldZoneAnchor>(true);
+        var bounds = anchors.Single(anchor => anchor.name == "CurrentPlayerMirrorFieldBounds");
+
+        Assert.That(platform, Is.Not.Null);
+        Assert.That(platform!.localScale.x, Is.EqualTo(11f));
+        Assert.That(bounds.CardSpacing.x, Is.EqualTo(10.8f));
+    }
+
+    private static void assertStackAnchor(BattlefieldZoneAnchor[] anchors, string name)
+    {
+        var anchor = anchors.Single(item => item.name == name);
+        Assert.That(anchor.LayoutType, Is.EqualTo(BattlefieldZoneLayoutType.stack));
+        Assert.That(anchor.ReadOnly, Is.True);
     }
 
     [Test]
