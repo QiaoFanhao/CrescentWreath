@@ -46,6 +46,19 @@ public static class ProjectionParser
                 }
             }
 
+            if (response.stateProjection?.turnOrderPlayerNumericIds is not null)
+            {
+                foreach (var playerNumericId in response.stateProjection.turnOrderPlayerNumericIds)
+                {
+                    if (playerNumericId <= 0)
+                    {
+                        continue;
+                    }
+
+                    projection.turnOrderPlayerNumericIds.Add(playerNumericId);
+                }
+            }
+
             fillTeamSummaries(projection, response.stateProjection?.teams);
             fillPlayerSummaries(projection, response.stateProjection?.players, response.stateProjection?.characters);
             fillCurrentAnomaly(projection, response.stateProjection?.currentAnomaly);
@@ -100,9 +113,12 @@ public static class ProjectionParser
                 }
             }
 
-            fillCards(projection.summonZoneCards, response.stateProjection?.publicZones?.summonZone);
-            fillCards(projection.sakuraCakeCards, response.stateProjection?.publicZones?.sakuraCakeDeckZone);
-            fillCards(projection.gapZoneCards, response.stateProjection?.publicZones?.gapZone);
+            var publicZones = response.stateProjection?.publicZones;
+            projection.publicTreasureDeckCount = publicZones?.publicTreasureDeckZone?.cardCount ?? 0;
+            projection.sakuraCakeDeckCount = publicZones?.sakuraCakeDeckZone?.cardCount ?? 0;
+            fillCards(projection.summonZoneCards, publicZones?.summonZone);
+            fillCards(projection.sakuraCakeCards, publicZones?.sakuraCakeDeckZone);
+            fillCards(projection.gapZoneCards, publicZones?.gapZone);
             fillInteraction(projection, response.interaction);
             fillEventLog(projection, response.eventLog);
 
@@ -136,7 +152,14 @@ public static class ProjectionParser
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId ?? string.Empty,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey ?? string.Empty,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey ?? string.Empty,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId > 0
                     ? card.overlayContainerCardInstanceNumericId
                     : null,
@@ -200,6 +223,7 @@ public static class ProjectionParser
                 sigilPreview = player.sigilPreview,
                 isSigilLocked = player.isSigilLocked,
                 lockedSigil = player.isSigilLocked ? player.lockedSigil : null,
+                deckCount = player.deckZone?.cardCount ?? 0,
                 handCount = player.handCardCount > 0
                     ? player.handCardCount
                     : player.handZone?.cardCount ?? 0,
@@ -209,6 +233,8 @@ public static class ProjectionParser
                     ? player.activeCharacterInstanceNumericId
                     : null,
             };
+            fillCards(summary.fieldCards, player.fieldZone);
+            fillCards(summary.discardCards, player.discardZone);
 
             if (player.statusKeys is not null)
             {
@@ -601,6 +627,7 @@ public static class ProjectionParser
     private sealed class StateProjectionDto
     {
         public string? matchState;
+        public long[]? turnOrderPlayerNumericIds;
         public TurnDto? turn;
         public TeamProjectionDto[]? teams;
         public PlayerProjectionDto[]? players;
@@ -693,6 +720,7 @@ public static class ProjectionParser
         public bool isSigilLocked;
         public int handCardCount;
         public string[]? statusKeys;
+        public ZoneProjectionDto? deckZone;
         public ZoneProjectionDto? handZone;
         public ZoneProjectionDto? fieldZone;
         public ZoneProjectionDto? discardZone;
@@ -701,6 +729,7 @@ public static class ProjectionParser
     [Serializable]
     private sealed class PublicZonesProjectionDto
     {
+        public ZoneProjectionDto? publicTreasureDeckZone;
         public ZoneProjectionDto? summonZone;
         public ZoneProjectionDto? sakuraCakeDeckZone;
         public ZoneProjectionDto? gapZone;
@@ -741,7 +770,14 @@ public static class ProjectionParser
     {
         public long cardInstanceNumericId;
         public string? definitionId;
+        public long ownerPlayerNumericId;
         public string? zoneKey;
+        public bool isFaceUp;
+        public bool isDefensePlacedOnField;
+        public int? baseSummonSigilCost;
+        public int? effectiveSummonSigilCost;
+        public bool isSummonableByViewer;
+        public string? summonUnavailableReasonKey;
         public long overlayContainerCardInstanceNumericId;
         public int overlayOrderIndex;
         public int overlayCardCount;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.RuleCore.ActionSystem;
 using CrescentWreath.RuleCore.Definitions;
+using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.GameState;
 using CrescentWreath.RuleCore.Ids;
@@ -22,6 +23,7 @@ public sealed class ServerStateProjection
     public long viewerPlayerNumericId { get; set; }
     public string matchState { get; set; } = string.Empty;
     public long? winnerTeamNumericId { get; set; }
+    public List<long> turnOrderPlayerNumericIds { get; } = new();
     public ServerTurnProjection? turn { get; set; }
     public List<ServerTeamProjection> teams { get; } = new();
     public List<ServerPlayerProjection> players { get; } = new();
@@ -168,6 +170,10 @@ public sealed class ServerCardProjection
     public bool isFaceUp { get; set; }
     public bool isSetAside { get; set; }
     public bool isDefensePlacedOnField { get; set; }
+    public int? baseSummonSigilCost { get; set; }
+    public int? effectiveSummonSigilCost { get; set; }
+    public bool isSummonableByViewer { get; set; }
+    public string? summonUnavailableReasonKey { get; set; }
     public long? overlayContainerCardInstanceNumericId { get; set; }
     public int? overlayOrderIndex { get; set; }
     public int overlayCardCount { get; set; }
@@ -267,6 +273,14 @@ internal static class ServerProjectionBuilder
                 phaseStepIndex = gameState.turnState.phaseStepIndex,
                 hasResolvedAnomalyThisTurn = gameState.turnState.hasResolvedAnomalyThisTurn,
             };
+        }
+
+        if (gameState.matchMeta is not null)
+        {
+            foreach (var playerId in gameState.matchMeta.seatOrder)
+            {
+                projection.turnOrderPlayerNumericIds.Add(playerId.Value);
+            }
         }
 
         if (gameState.characterSelectionState is not null)
@@ -750,7 +764,7 @@ internal static class ServerProjectionBuilder
                 continue;
             }
 
-            zoneProjection.cards.Add(new ServerCardProjection
+            var cardProjection = new ServerCardProjection
             {
                 cardInstanceNumericId = cardInstance.cardInstanceId.Value,
                 definitionId = cardInstance.definitionId,
@@ -762,9 +776,111 @@ internal static class ServerProjectionBuilder
                 overlayContainerCardInstanceNumericId = cardInstance.overlayContainerCardInstanceId?.Value,
                 overlayOrderIndex = cardInstance.overlayOrderIndex,
                 overlayCardCount = OverlayRuntime.getOverlayCardCount(gameState, cardInstance.cardInstanceId),
-            });
+            };
+            applySummonAvailabilityProjection(gameState, viewerPlayerId, cardInstance, cardProjection);
+            zoneProjection.cards.Add(cardProjection);
         }
 
         return zoneProjection;
+    }
+
+    private static void applySummonAvailabilityProjection(
+        GameState gameState,
+        PlayerId viewerPlayerId,
+        CardInstance cardInstance,
+        ServerCardProjection cardProjection)
+    {
+        if (gameState.publicState is null)
+        {
+            return;
+        }
+
+        var isSummonZoneSource = cardInstance.zoneId == gameState.publicState.summonZoneId;
+        var isSakuraCakeDeckSource = cardInstance.zoneId == gameState.publicState.sakuraCakeDeckZoneId;
+        if (!isSummonZoneSource && !isSakuraCakeDeckSource)
+        {
+            return;
+        }
+
+        int baseCost;
+        try
+        {
+            baseCost = TreasureResourceValueResolver.resolveSummonSigilCost(cardInstance.definitionId);
+        }
+        catch (NotSupportedException)
+        {
+            cardProjection.isSummonableByViewer = false;
+            cardProjection.summonUnavailableReasonKey = "cardNotInSummonableZone";
+            return;
+        }
+
+        cardProjection.baseSummonSigilCost = baseCost;
+
+        if (!gameState.players.TryGetValue(viewerPlayerId, out var viewerPlayerState))
+        {
+            cardProjection.effectiveSummonSigilCost = Math.Max(1, baseCost);
+            cardProjection.summonUnavailableReasonKey = "notViewerTurn";
+            return;
+        }
+
+        var effectiveCost = Math.Max(1, baseCost - viewerPlayerState.summonSigilDiscount);
+        cardProjection.effectiveSummonSigilCost = effectiveCost;
+
+        var unavailableReasonKey = resolveSummonUnavailableReasonKey(
+            gameState,
+            viewerPlayerId,
+            viewerPlayerState,
+            cardInstance,
+            effectiveCost);
+        if (string.IsNullOrEmpty(unavailableReasonKey))
+        {
+            cardProjection.isSummonableByViewer = true;
+            cardProjection.summonUnavailableReasonKey = null;
+            return;
+        }
+
+        cardProjection.isSummonableByViewer = false;
+        cardProjection.summonUnavailableReasonKey = unavailableReasonKey;
+    }
+
+    private static string? resolveSummonUnavailableReasonKey(
+        GameState gameState,
+        PlayerId viewerPlayerId,
+        PlayerState viewerPlayerState,
+        CardInstance cardInstance,
+        int effectiveCost)
+    {
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null)
+        {
+            return "interactionPending";
+        }
+
+        if (gameState.turnState is null ||
+            gameState.turnState.currentPlayerId != viewerPlayerId)
+        {
+            return "notViewerTurn";
+        }
+
+        if (gameState.turnState.currentPhase != TurnPhase.summon)
+        {
+            return "wrongPhase";
+        }
+
+        if (gameState.publicState is null ||
+            (cardInstance.zoneId != gameState.publicState.summonZoneId &&
+             cardInstance.zoneId != gameState.publicState.sakuraCakeDeckZoneId))
+        {
+            return "cardNotInSummonableZone";
+        }
+
+        if (!viewerPlayerState.isSigilLocked ||
+            !viewerPlayerState.lockedSigil.HasValue ||
+            viewerPlayerState.lockedSigil.Value < effectiveCost)
+        {
+            return "insufficientLockedSigil";
+        }
+
+        return null;
     }
 }

@@ -6,7 +6,14 @@ public sealed class ProjectionCardViewModel
 {
     public long cardInstanceNumericId;
     public string definitionId = string.Empty;
+    public long ownerPlayerNumericId;
     public string zoneKey = string.Empty;
+    public bool isFaceUp;
+    public bool isDefensePlacedOnField;
+    public int? baseSummonSigilCost;
+    public int? effectiveSummonSigilCost;
+    public bool isSummonableByViewer;
+    public string summonUnavailableReasonKey = string.Empty;
     public long? overlayContainerCardInstanceNumericId;
     public int? overlayOrderIndex;
     public int overlayCardCount;
@@ -93,6 +100,7 @@ public sealed class ProjectionPlayerSummaryViewModel
     public int sigilPreview;
     public int? lockedSigil;
     public bool isSigilLocked;
+    public int deckCount;
     public int handCount;
     public int fieldCount;
     public int discardCount;
@@ -106,6 +114,8 @@ public sealed class ProjectionPlayerSummaryViewModel
     public readonly List<ProjectionMarkerViewModel> activeCharacterMarkers = new();
     public string activeCharacterFactionKey = string.Empty;
     public bool activeCharacterIsActivated;
+    public readonly List<ProjectionCardViewModel> fieldCards = new();
+    public readonly List<ProjectionCardViewModel> discardCards = new();
 }
 
 public sealed class ProjectionTeamSummaryViewModel
@@ -158,12 +168,15 @@ public sealed class ProjectionViewModel
     public string activeCharacterFactionKey = string.Empty;
     public bool activeCharacterIsActivated;
 
+    public readonly List<long> turnOrderPlayerNumericIds = new();
     public readonly List<ProjectionCardViewModel> handCards = new();
     public readonly List<ProjectionCardViewModel> discardCards = new();
     public readonly List<ProjectionCardViewModel> fieldCards = new();
     public readonly List<ProjectionCardViewModel> summonZoneCards = new();
     public readonly List<ProjectionCardViewModel> sakuraCakeCards = new();
     public readonly List<ProjectionCardViewModel> gapZoneCards = new();
+    public int publicTreasureDeckCount;
+    public int sakuraCakeDeckCount;
     public readonly List<ProjectionTeamSummaryViewModel> teamSummaries = new();
     public readonly List<ProjectionPlayerSummaryViewModel> playerSummaries = new();
     public readonly List<ProjectionCharacterDefinitionViewModel> characterDefinitions = new();
@@ -210,7 +223,14 @@ public sealed class ProjectionViewModel
             activeCharacterDefinitionId = activeCharacterDefinitionId,
             activeCharacterIsActivated = activeCharacterIsActivated,
             recentEventTypeKey = recentEventTypeKey,
+            publicTreasureDeckCount = publicTreasureDeckCount,
+            sakuraCakeDeckCount = sakuraCakeDeckCount,
         };
+
+        foreach (var playerNumericId in turnOrderPlayerNumericIds)
+        {
+            cloned.turnOrderPlayerNumericIds.Add(playerNumericId);
+        }
 
         foreach (var statusKey in activeCharacterStatusKeys)
         {
@@ -237,7 +257,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -250,7 +277,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -263,7 +297,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -276,7 +317,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -289,7 +337,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -302,7 +357,14 @@ public sealed class ProjectionViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
                 zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
                 overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
                 overlayOrderIndex = card.overlayOrderIndex,
                 overlayCardCount = card.overlayCardCount,
@@ -332,6 +394,7 @@ public sealed class ProjectionViewModel
                 sigilPreview = playerSummary.sigilPreview,
                 lockedSigil = playerSummary.lockedSigil,
                 isSigilLocked = playerSummary.isSigilLocked,
+                deckCount = playerSummary.deckCount,
                 handCount = playerSummary.handCount,
                 fieldCount = playerSummary.fieldCount,
                 discardCount = playerSummary.discardCount,
@@ -362,6 +425,45 @@ public sealed class ProjectionViewModel
                     count = marker.count,
                     maxCount = marker.maxCount,
                     displayNameKey = marker.displayNameKey,
+                });
+            }
+
+            foreach (var card in playerSummary.fieldCards)
+            {
+                clonedPlayerSummary.fieldCards.Add(new ProjectionCardViewModel
+                {
+                    cardInstanceNumericId = card.cardInstanceNumericId,
+                    definitionId = card.definitionId,
+                    ownerPlayerNumericId = card.ownerPlayerNumericId,
+                    zoneKey = card.zoneKey,
+                    isFaceUp = card.isFaceUp,
+                    isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
+                    overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                    overlayOrderIndex = card.overlayOrderIndex,
+                    overlayCardCount = card.overlayCardCount,
+                });
+            }
+            foreach (var card in playerSummary.discardCards)
+            {
+                clonedPlayerSummary.discardCards.Add(new ProjectionCardViewModel
+                {
+                    cardInstanceNumericId = card.cardInstanceNumericId,
+                    definitionId = card.definitionId,
+                    ownerPlayerNumericId = card.ownerPlayerNumericId,
+                    zoneKey = card.zoneKey,
+                    isFaceUp = card.isFaceUp,
+                    isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
+                    overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                    overlayOrderIndex = card.overlayOrderIndex,
+                    overlayCardCount = card.overlayCardCount,
                 });
             }
 

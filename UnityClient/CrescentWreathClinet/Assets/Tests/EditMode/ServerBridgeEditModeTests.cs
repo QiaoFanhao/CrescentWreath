@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using CrescentWreath.Client.Net;
+using CrescentWreath.Client.UI;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -470,6 +471,7 @@ public class ServerBridgeEditModeTests
             + "\"viewerPlayerNumericId\":1,"
             + "\"isSucceeded\":true,"
             + "\"stateProjection\":{"
+            + "\"turnOrderPlayerNumericIds\":[1,2,3,4],"
             + "\"turn\":{\"turnNumber\":3,\"currentPhase\":\"summon\",\"currentPlayerNumericId\":2},"
             + "\"teams\":[{\"teamNumericId\":1,\"leyline\":4,\"killScore\":9},{\"teamNumericId\":2,\"leyline\":6,\"killScore\":8}],"
             + "\"players\":[{"
@@ -478,22 +480,25 @@ public class ServerBridgeEditModeTests
             + "\"activeCharacterInstanceNumericId\":200001,"
             + "\"mana\":4,\"skillPoint\":2,\"sigilPreview\":1,\"lockedSigil\":3,\"isSigilLocked\":true,"
             + "\"handCardCount\":2,"
-            + "\"handZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":101,\"definitionId\":\"T001\",\"zoneKey\":\"hand\"},{\"cardInstanceNumericId\":102,\"definitionId\":\"T002\",\"zoneKey\":\"hand\"}]},"
-            + "\"fieldZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":201,\"definitionId\":\"T003\",\"zoneKey\":\"field\"}]},"
-            + "\"discardZone\":{\"cardCount\":5,\"cards\":[]}"
+            + "\"deckZone\":{\"cardCount\":8},"
+            + "\"handZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":101,\"definitionId\":\"T001\",\"ownerPlayerNumericId\":1,\"zoneKey\":\"hand\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false},{\"cardInstanceNumericId\":102,\"definitionId\":\"T002\",\"ownerPlayerNumericId\":1,\"zoneKey\":\"hand\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false}]},"
+            + "\"fieldZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":201,\"definitionId\":\"T003\",\"ownerPlayerNumericId\":1,\"zoneKey\":\"field\",\"isFaceUp\":true,\"isDefensePlacedOnField\":true}]},"
+            + "\"discardZone\":{\"cardCount\":5,\"cards\":[{\"cardInstanceNumericId\":211,\"definitionId\":\"T007\",\"ownerPlayerNumericId\":1,\"zoneKey\":\"discard\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false}]}"
             + "},{"
             + "\"playerNumericId\":2,"
             + "\"teamNumericId\":2,"
             + "\"activeCharacterInstanceNumericId\":200002,"
             + "\"mana\":6,\"skillPoint\":1,\"sigilPreview\":5,\"lockedSigil\":2,\"isSigilLocked\":true,"
             + "\"handCardCount\":7,"
+            + "\"deckZone\":{\"cardCount\":9},"
             + "\"handZone\":{\"cardCount\":7,\"cards\":[]},"
-            + "\"fieldZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":202,\"definitionId\":\"T005\",\"zoneKey\":\"field\"},{\"cardInstanceNumericId\":203,\"definitionId\":\"T006\",\"zoneKey\":\"field\"}]},"
-            + "\"discardZone\":{\"cardCount\":3,\"cards\":[]}"
+            + "\"fieldZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":202,\"definitionId\":\"T005\",\"ownerPlayerNumericId\":2,\"zoneKey\":\"field\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false},{\"cardInstanceNumericId\":203,\"definitionId\":\"T006\",\"ownerPlayerNumericId\":2,\"zoneKey\":\"field\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false}]},"
+            + "\"discardZone\":{\"cardCount\":3,\"cards\":[{\"cardInstanceNumericId\":212,\"definitionId\":\"T008\",\"ownerPlayerNumericId\":2,\"zoneKey\":\"discard\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false}]}"
             + "}],"
             + "\"publicZones\":{"
-            + "\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":301,\"definitionId\":\"T004\",\"zoneKey\":\"summonZone\"}]},"
-            + "\"sakuraCakeDeckZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":401,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"},{\"cardInstanceNumericId\":402,\"definitionId\":\"S001\",\"zoneKey\":\"sakuraCakeDeck\"}]}"
+            + "\"publicTreasureDeckZone\":{\"cardCount\":23,\"cards\":[]},"
+            + "\"summonZone\":{\"cardCount\":1,\"cards\":[{\"cardInstanceNumericId\":301,\"definitionId\":\"T004\",\"ownerPlayerNumericId\":0,\"zoneKey\":\"summonZone\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false,\"baseSummonSigilCost\":6,\"effectiveSummonSigilCost\":5,\"isSummonableByViewer\":true,\"summonUnavailableReasonKey\":null}]},"
+            + "\"sakuraCakeDeckZone\":{\"cardCount\":2,\"cards\":[{\"cardInstanceNumericId\":401,\"definitionId\":\"S001\",\"ownerPlayerNumericId\":0,\"zoneKey\":\"sakuraCakeDeck\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false,\"baseSummonSigilCost\":3,\"effectiveSummonSigilCost\":2,\"isSummonableByViewer\":false,\"summonUnavailableReasonKey\":\"insufficientLockedSigil\"},{\"cardInstanceNumericId\":402,\"definitionId\":\"S001\",\"ownerPlayerNumericId\":0,\"zoneKey\":\"sakuraCakeDeck\",\"isFaceUp\":true,\"isDefensePlacedOnField\":false}]}"
             + "},"
             + "\"characters\":[{\"characterInstanceNumericId\":200001,\"currentHp\":3,\"maxHp\":4,\"raceTags\":[\"human\"],\"statusKeys\":[\"Seal\",\"Shackle\"]},{\"characterInstanceNumericId\":200002,\"currentHp\":2,\"maxHp\":4,\"raceTags\":[\"nonHuman\"],\"statusKeys\":[\"Penetrate\"]}]"
             + "},"
@@ -508,6 +513,7 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.turnNumber, Is.EqualTo(3));
         Assert.That(projection.currentPhase, Is.EqualTo("summon"));
         Assert.That(projection.currentPlayerNumericId, Is.EqualTo(2));
+        Assert.That(projection.turnOrderPlayerNumericIds, Is.EqualTo(new[] { 1L, 2L, 3L, 4L }));
         Assert.That(projection.teamSummaries.Count, Is.EqualTo(2));
         var team1 = projection.teamSummaries.Find(team => team.teamNumericId == 1);
         Assert.That(team1, Is.Not.Null);
@@ -523,9 +529,17 @@ public class ServerBridgeEditModeTests
         Assert.That(viewerSummary, Is.Not.Null);
         Assert.That(viewerSummary!.isViewerPlayer, Is.True);
         Assert.That(viewerSummary.isCurrentPlayer, Is.False);
+        Assert.That(viewerSummary.deckCount, Is.EqualTo(8));
         Assert.That(viewerSummary.handCount, Is.EqualTo(2));
         Assert.That(viewerSummary.fieldCount, Is.EqualTo(1));
         Assert.That(viewerSummary.discardCount, Is.EqualTo(5));
+        Assert.That(viewerSummary.fieldCards.Count, Is.EqualTo(1));
+        Assert.That(viewerSummary.fieldCards[0].cardInstanceNumericId, Is.EqualTo(201));
+        Assert.That(viewerSummary.fieldCards[0].ownerPlayerNumericId, Is.EqualTo(1));
+        Assert.That(viewerSummary.fieldCards[0].isFaceUp, Is.True);
+        Assert.That(viewerSummary.fieldCards[0].isDefensePlacedOnField, Is.True);
+        Assert.That(viewerSummary.discardCards.Count, Is.EqualTo(1));
+        Assert.That(viewerSummary.discardCards[0].cardInstanceNumericId, Is.EqualTo(211));
         Assert.That(viewerSummary.activeCharacterCurrentHp, Is.EqualTo(3));
         Assert.That(viewerSummary.activeCharacterRaceTags, Is.EquivalentTo(new[] { "human" }));
         Assert.That(viewerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Seal", "Shackle" }));
@@ -534,9 +548,12 @@ public class ServerBridgeEditModeTests
         Assert.That(currentPlayerSummary, Is.Not.Null);
         Assert.That(currentPlayerSummary!.isCurrentPlayer, Is.True);
         Assert.That(currentPlayerSummary.isViewerPlayer, Is.False);
+        Assert.That(currentPlayerSummary.deckCount, Is.EqualTo(9));
         Assert.That(currentPlayerSummary.handCount, Is.EqualTo(7));
         Assert.That(currentPlayerSummary.fieldCount, Is.EqualTo(2));
         Assert.That(currentPlayerSummary.discardCount, Is.EqualTo(3));
+        Assert.That(currentPlayerSummary.fieldCards.Count, Is.EqualTo(2));
+        Assert.That(currentPlayerSummary.discardCards.Count, Is.EqualTo(1));
         Assert.That(currentPlayerSummary.activeCharacterCurrentHp, Is.EqualTo(2));
         Assert.That(currentPlayerSummary.activeCharacterRaceTags, Is.EquivalentTo(new[] { "nonHuman" }));
         Assert.That(currentPlayerSummary.activeCharacterStatusKeys, Is.EquivalentTo(new[] { "Penetrate" }));
@@ -548,9 +565,26 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.handCards.Count, Is.EqualTo(2));
         Assert.That(projection.handCards.Exists(card => card.cardInstanceNumericId == 202 || card.cardInstanceNumericId == 203), Is.False);
         Assert.That(projection.fieldCards.Count, Is.EqualTo(1));
+        Assert.That(projection.fieldCards[0].ownerPlayerNumericId, Is.EqualTo(1));
+        Assert.That(projection.fieldCards[0].isDefensePlacedOnField, Is.True);
         Assert.That(projection.discardCount, Is.EqualTo(5));
+        Assert.That(projection.discardCards.Count, Is.EqualTo(1));
+        Assert.That(projection.publicTreasureDeckCount, Is.EqualTo(23));
+        Assert.That(projection.sakuraCakeDeckCount, Is.EqualTo(2));
         Assert.That(projection.summonZoneCards.Count, Is.EqualTo(1));
+        Assert.That(projection.summonZoneCards[0].baseSummonSigilCost, Is.EqualTo(6));
+        Assert.That(projection.summonZoneCards[0].effectiveSummonSigilCost, Is.EqualTo(5));
+        Assert.That(projection.summonZoneCards[0].isSummonableByViewer, Is.True);
+        Assert.That(projection.summonZoneCards[0].summonUnavailableReasonKey, Is.Empty);
         Assert.That(projection.sakuraCakeCards.Count, Is.EqualTo(2));
+        Assert.That(projection.sakuraCakeCards[0].baseSummonSigilCost, Is.EqualTo(3));
+        Assert.That(projection.sakuraCakeCards[0].effectiveSummonSigilCost, Is.EqualTo(2));
+        Assert.That(projection.sakuraCakeCards[0].isSummonableByViewer, Is.False);
+        Assert.That(projection.sakuraCakeCards[0].summonUnavailableReasonKey, Is.EqualTo("insufficientLockedSigil"));
+        Assert.That(projection.sakuraCakeCards[1].baseSummonSigilCost, Is.Null);
+        Assert.That(projection.sakuraCakeCards[1].effectiveSummonSigilCost, Is.Null);
+        Assert.That(projection.sakuraCakeCards[1].isSummonableByViewer, Is.False);
+        Assert.That(projection.sakuraCakeCards[1].summonUnavailableReasonKey, Is.Empty);
         Assert.That(projection.activeCharacterCurrentHp, Is.EqualTo(3));
         Assert.That(projection.activeCharacterMaxHp, Is.EqualTo(4));
         Assert.That(projection.activeCharacterRaceTags, Is.EquivalentTo(new[] { "human" }));
@@ -574,6 +608,53 @@ public class ServerBridgeEditModeTests
         Assert.That(projection.interaction.pendingDamageTypeKey, Is.EqualTo("physical"));
         Assert.That(projection.interaction.pendingDamageTargetCharacterInstanceNumericId, Is.EqualTo(200001));
         Assert.That(projection.interaction.pendingDamageDefenderPlayerNumericId, Is.EqualTo(1));
+    }
+
+    [TestCase(1, 1, 3, 2, 4)]
+    [TestCase(2, 2, 4, 3, 1)]
+    [TestCase(3, 3, 1, 4, 2)]
+    [TestCase(4, 4, 2, 1, 3)]
+    public void SeatLayoutResolver_ShouldMapViewerRelativeSeatsFromSeatOrderAndTeams(
+        long viewerPlayerNumericId,
+        long expectedBottom,
+        long expectedTop,
+        long expectedLeft,
+        long expectedRight)
+    {
+        var result = SeatLayoutResolver.Resolve(
+            viewerPlayerNumericId,
+            new[] { 1L, 2L, 3L, 4L },
+            new[]
+            {
+                playerSummary(1, 1),
+                playerSummary(2, 2),
+                playerSummary(3, 1),
+                playerSummary(4, 2),
+            });
+
+        Assert.That(result.isResolved, Is.True);
+        Assert.That(result.bottomPlayerNumericId, Is.EqualTo(expectedBottom));
+        Assert.That(result.topPlayerNumericId, Is.EqualTo(expectedTop));
+        Assert.That(result.leftPlayerNumericId, Is.EqualTo(expectedLeft));
+        Assert.That(result.rightPlayerNumericId, Is.EqualTo(expectedRight));
+    }
+
+    [Test]
+    public void SeatLayoutResolver_WhenSeatOrderOrTeamsAreMissing_ShouldNotGuessFromPlayerId()
+    {
+        var missingSeatOrder = SeatLayoutResolver.Resolve(
+            1,
+            Array.Empty<long>(),
+            new[] { playerSummary(1, 1), playerSummary(3, 1) });
+        var missingTeam = SeatLayoutResolver.Resolve(
+            1,
+            new[] { 1L, 2L, 3L, 4L },
+            new[] { playerSummary(1, 1), playerSummary(2, 2), playerSummary(3, 1) });
+
+        Assert.That(missingSeatOrder.isResolved, Is.False);
+        Assert.That(missingSeatOrder.failureReasonKey, Is.EqualTo("missingSeatOrder"));
+        Assert.That(missingTeam.isResolved, Is.False);
+        Assert.That(missingTeam.failureReasonKey, Is.EqualTo("missingSeatPlayerTeam"));
     }
 
     [Test]
@@ -1593,6 +1674,15 @@ public class ServerBridgeEditModeTests
         Assert.That(parsed, Is.Not.Null);
         Assert.That(parsed!.payload, Is.Not.Null);
         return parsed;
+    }
+
+    private static ProjectionPlayerSummaryViewModel playerSummary(long playerNumericId, long teamNumericId)
+    {
+        return new ProjectionPlayerSummaryViewModel
+        {
+            playerNumericId = playerNumericId,
+            teamNumericId = teamNumericId,
+        };
     }
 
     [Serializable]

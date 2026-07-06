@@ -218,7 +218,11 @@ public class ServerGameSessionTests
                          cardMovedEvent.moveReason == CardMoveReason.draw);
         Assert.NotNull(result.stateProjection);
         Assert.Equal(currentPlayerId.Value, result.viewerPlayerNumericId);
+        Assert.Equal(
+            session.gameState.matchMeta!.seatOrder.Select(playerId => playerId.Value),
+            result.stateProjection.turnOrderPlayerNumericIds);
         Assert.NotNull(result.stateProjection.publicZones);
+        Assert.True(result.stateProjection.publicZones!.publicTreasureDeckZone.cardCount > 0);
         Assert.True(result.stateProjection.publicZones!.summonZone.cardCount > 0);
         Assert.Equal(15, result.stateProjection.publicZones.sakuraCakeDeckZone.cardCount);
         Assert.All(
@@ -230,16 +234,26 @@ public class ServerGameSessionTests
             {
                 Assert.True(cardProjection.cardInstanceNumericId > 0);
                 Assert.True(cardProjection.definitionId.Length > 0);
+                Assert.True(cardProjection.ownerPlayerNumericId >= 0);
                 Assert.Equal("summonZone", cardProjection.zoneKey);
+                Assert.False(cardProjection.isDefensePlacedOnField);
             });
         var actorProjection = Assert.Single(
             result.stateProjection.players,
             player => player.playerNumericId == currentPlayerId.Value);
+        Assert.Equal(currentPlayerState.teamId.Value, actorProjection.teamNumericId);
+        Assert.Equal(session.gameState.zones[currentPlayerState.deckZoneId].cardInstanceIds.Count, actorProjection.deckZone.cardCount);
+        Assert.Equal(session.gameState.zones[currentPlayerState.discardZoneId].cardInstanceIds.Count, actorProjection.discardZone.cardCount);
+        Assert.Equal(session.gameState.zones[currentPlayerState.fieldZoneId].cardInstanceIds.Count, actorProjection.fieldZone.cardCount);
+        Assert.True(actorProjection.discardZone.isContentVisible);
+        Assert.True(actorProjection.fieldZone.isContentVisible);
         Assert.True(actorProjection.handZone.isContentVisible);
         Assert.Equal(session.gameState.zones[currentPlayerState.handZoneId].cardInstanceIds.Count, actorProjection.handZone.cardCount);
         var otherProjection = result.stateProjection.players.First(player => player.playerNumericId != currentPlayerId.Value);
         Assert.False(otherProjection.handZone.isContentVisible);
         Assert.Empty(otherProjection.handZone.cards);
+        Assert.True(otherProjection.fieldZone.isContentVisible);
+        Assert.True(otherProjection.discardZone.isContentVisible);
         Assert.NotEmpty(result.eventLog);
         Assert.Contains(
             result.eventLog,
@@ -1958,6 +1972,88 @@ public class ServerGameSessionTests
     }
 
     [Fact]
+    public void Projection_WhenViewerCanSummon_ShouldExposeBaseEffectiveCostAndAvailability()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var currentPlayerId = session.gameState.turnState!.currentPlayerId;
+        var currentPlayerState = session.gameState.players[currentPlayerId];
+        session.gameState.turnState.currentPhase = RuleCore.GameState.TurnPhase.summon;
+        currentPlayerState.isSigilLocked = true;
+        currentPlayerState.lockedSigil = 3;
+
+        var summonCardInstanceId = replaceFirstSummonZoneCard(session, "T001", 992001);
+        var result = projectForViewer(session, currentPlayerId.Value);
+        var summonCardProjection = result.stateProjection!.publicZones!.summonZone.cards.Single(
+            card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+        var sakuraCakeProjection = result.stateProjection.publicZones.sakuraCakeDeckZone.cards.First();
+
+        Assert.Equal(3, summonCardProjection.baseSummonSigilCost);
+        Assert.Equal(3, summonCardProjection.effectiveSummonSigilCost);
+        Assert.True(summonCardProjection.isSummonableByViewer);
+        Assert.Null(summonCardProjection.summonUnavailableReasonKey);
+        Assert.NotNull(sakuraCakeProjection.baseSummonSigilCost);
+        Assert.NotNull(sakuraCakeProjection.effectiveSummonSigilCost);
+    }
+
+    [Fact]
+    public void Projection_WhenViewerHasSummonDiscount_ShouldExposeDiscountedEffectiveCostWithoutChangingState()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var currentPlayerId = session.gameState.turnState!.currentPlayerId;
+        var currentPlayerState = session.gameState.players[currentPlayerId];
+        session.gameState.turnState.currentPhase = RuleCore.GameState.TurnPhase.summon;
+        currentPlayerState.isSigilLocked = true;
+        currentPlayerState.lockedSigil = 2;
+        currentPlayerState.summonSigilDiscount = 1;
+
+        var summonCardInstanceId = replaceFirstSummonZoneCard(session, "T001", 992011);
+        var lockedSigilBefore = currentPlayerState.lockedSigil;
+        var discountBefore = currentPlayerState.summonSigilDiscount;
+        var result = projectForViewer(session, currentPlayerId.Value);
+        var summonCardProjection = result.stateProjection!.publicZones!.summonZone.cards.Single(
+            card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+
+        Assert.Equal(3, summonCardProjection.baseSummonSigilCost);
+        Assert.Equal(2, summonCardProjection.effectiveSummonSigilCost);
+        Assert.True(summonCardProjection.isSummonableByViewer);
+        Assert.Equal(lockedSigilBefore, currentPlayerState.lockedSigil);
+        Assert.Equal(discountBefore, currentPlayerState.summonSigilDiscount);
+    }
+
+    [Fact]
+    public void Projection_WhenSummonIsUnavailable_ShouldExposeReasonByPriority()
+    {
+        var session = ServerGameSession.createStandard2v2();
+        var currentPlayerId = session.gameState.turnState!.currentPlayerId;
+        var otherPlayerId = session.gameState.players.Keys.First(playerId => playerId != currentPlayerId);
+        var currentPlayerState = session.gameState.players[currentPlayerId];
+        session.gameState.turnState.currentPhase = RuleCore.GameState.TurnPhase.summon;
+        currentPlayerState.isSigilLocked = true;
+        currentPlayerState.lockedSigil = 0;
+
+        var summonCardInstanceId = replaceFirstSummonZoneCard(session, "T001", 992021);
+        var insufficientProjection = projectForViewer(session, currentPlayerId.Value)
+            .stateProjection!.publicZones!.summonZone.cards.Single(card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+        Assert.False(insufficientProjection.isSummonableByViewer);
+        Assert.Equal("insufficientLockedSigil", insufficientProjection.summonUnavailableReasonKey);
+
+        session.gameState.turnState.currentPhase = RuleCore.GameState.TurnPhase.action;
+        var wrongPhaseProjection = projectForViewer(session, currentPlayerId.Value)
+            .stateProjection!.publicZones!.summonZone.cards.Single(card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+        Assert.Equal("wrongPhase", wrongPhaseProjection.summonUnavailableReasonKey);
+
+        session.gameState.turnState.currentPhase = RuleCore.GameState.TurnPhase.summon;
+        var notViewerTurnProjection = projectForViewer(session, otherPlayerId.Value)
+            .stateProjection!.publicZones!.summonZone.cards.Single(card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+        Assert.Equal("notViewerTurn", notViewerTurnProjection.summonUnavailableReasonKey);
+
+        prepareSimpleInputContextForSubmitChoice(session, currentPlayerId, 992030, "decline");
+        var interactionPendingProjection = projectForViewer(session, currentPlayerId.Value)
+            .stateProjection!.publicZones!.summonZone.cards.Single(card => card.cardInstanceNumericId == summonCardInstanceId.Value);
+        Assert.Equal("interactionPending", interactionPendingProjection.summonUnavailableReasonKey);
+    }
+
+    [Fact]
     public void ProcessPlayTreasureCard_WhenPlayingT002_ShouldOpenInputContextAndResolveTargetHeal()
     {
         var session = ServerGameSession.createStandard2v2(12345);
@@ -2429,6 +2525,35 @@ public class ServerGameSessionTests
 
         gameState.cardInstances.Add(cardInstanceId, cardInstance);
         gameState.zones[zoneId].cardInstanceIds.Add(cardInstanceId);
+    }
+
+    private static CardInstanceId replaceFirstSummonZoneCard(
+        ServerGameSession session,
+        string definitionId,
+        long cardInstanceNumericId)
+    {
+        var summonZoneId = session.gameState.publicState!.summonZoneId;
+        var summonZoneState = session.gameState.zones[summonZoneId];
+        if (summonZoneState.cardInstanceIds.Count > 0)
+        {
+            var removedCardInstanceId = summonZoneState.cardInstanceIds[0];
+            summonZoneState.cardInstanceIds.RemoveAt(0);
+            session.gameState.cardInstances.Remove(removedCardInstanceId);
+        }
+
+        var cardInstanceId = new CardInstanceId(cardInstanceNumericId);
+        createPublicCardInZone(session.gameState, cardInstanceId, definitionId, summonZoneId, ZoneKey.summonZone);
+        return cardInstanceId;
+    }
+
+    private static ServerActionProcessResult projectForViewer(ServerGameSession session, long viewerPlayerNumericId)
+    {
+        return session.projectResultForViewer(new ServerActionProcessResult
+        {
+            requestId = 0,
+            isSucceeded = true,
+            viewerPlayerNumericId = viewerPlayerNumericId,
+        }, viewerPlayerNumericId);
     }
 
     private static InputContextId prepareSimpleInputContextForSubmitChoice(
