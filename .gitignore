@@ -22,12 +22,13 @@ TestResults/
 *.pidb
 *.booproj
 *.svd
+*.pdb
+*.mdb
 *.opendb
 *.VC.db
-
-# Keep solution and project files tracked
-!*.sln
-!*.csproj
+*.csproj
+*.sln
+*.slnx
 
 # UnityClient local generated project artifacts (do not track)
 UnityClient/CrescentWreathClinet/*.csproj
@@ -39,6 +40,7 @@ UnityClient/CrescentWreathClinet/*.csproj.lscache
 # ---------- Unity (only relevant for UnityClient or future Unity project dirs) ----------
 [Ll]ibrary/
 [Tt]emp/
+[Oo]bj/
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
@@ -77,6 +79,9 @@ mono_crash.*
 *.zip
 UnityClient/CrescentWreathClinet/Assets/*.zip.meta
 UnityClient/CrescentWreathClinet/Assets/_Recovery/
+Assets/_Recovery/
+**/_Recovery/
+UnityClient/Pac/
 build_tests_diag.txt
 build_tests_msbuild_diag.txt
 # ---------- Local environment / tooling caches ----------
