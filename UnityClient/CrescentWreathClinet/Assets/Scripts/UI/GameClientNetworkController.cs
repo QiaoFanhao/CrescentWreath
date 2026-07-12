@@ -203,6 +203,12 @@ public sealed class GameClientNetworkController : MonoBehaviour
             return false;
         }
 
+        if (isMatchEnded())
+        {
+            setError("本局游戏已经结束，不能继续执行操作。");
+            return false;
+        }
+
         if (requestInFlight)
         {
             setError("已有请求进行中，请等待服务器响应。");
@@ -343,6 +349,12 @@ public sealed class GameClientNetworkController : MonoBehaviour
         return end > start && long.TryParse(rawJson[start..end], out var requestId)
             ? requestId
             : null;
+    }
+
+    private bool isMatchEnded()
+    {
+        return projectionViewState?.Current is { matchState: var state } &&
+               string.Equals(state, "ended", StringComparison.OrdinalIgnoreCase);
     }
 }
 }

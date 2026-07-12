@@ -29,6 +29,10 @@ public static class ProjectionParser
             projection.isSucceeded = response.isSucceeded;
             projection.hasStateProjection = response.stateProjection is not null;
             projection.matchState = response.stateProjection?.matchState ?? string.Empty;
+            if (response.stateProjection?.winnerTeamNumericId > 0)
+            {
+                projection.winnerTeamNumericId = response.stateProjection.winnerTeamNumericId;
+            }
 
             if (response.error is not null)
             {
@@ -62,6 +66,7 @@ public static class ProjectionParser
             fillTeamSummaries(projection, response.stateProjection?.teams);
             fillPlayerSummaries(projection, response.stateProjection?.players, response.stateProjection?.characters);
             fillCurrentAnomaly(projection, response.stateProjection?.currentAnomaly);
+            fillResolvedAnomalies(projection, response.stateProjection?.resolvedAnomalyDefinitionIds);
             fillCharacterDefinitions(projection, response.stateProjection?.characterDefinitions);
             fillCharacterSelection(projection, response.stateProjection?.characterSelection);
 
@@ -148,7 +153,7 @@ public static class ProjectionParser
                 continue;
             }
 
-            targetCards.Add(new ProjectionCardViewModel
+            var projectionCard = new ProjectionCardViewModel
             {
                 cardInstanceNumericId = card.cardInstanceNumericId,
                 definitionId = card.definitionId ?? string.Empty,
@@ -165,7 +170,48 @@ public static class ProjectionParser
                     : null,
                 overlayOrderIndex = card.overlayContainerCardInstanceNumericId > 0 ? card.overlayOrderIndex : null,
                 overlayCardCount = card.overlayCardCount,
-            });
+            };
+            fillOverlayCards(projectionCard.overlayCards, card.overlayCards);
+            targetCards.Add(projectionCard);
+        }
+    }
+
+    private static void fillOverlayCards(
+        System.Collections.Generic.List<ProjectionCardViewModel> targetCards,
+        CardProjectionDto[]? sourceCards)
+    {
+        if (sourceCards is null)
+        {
+            return;
+        }
+
+        foreach (var card in sourceCards)
+        {
+            if (card is null || card.cardInstanceNumericId <= 0)
+            {
+                continue;
+            }
+
+            var projectionCard = new ProjectionCardViewModel
+            {
+                cardInstanceNumericId = card.cardInstanceNumericId,
+                definitionId = card.definitionId ?? string.Empty,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
+                zoneKey = card.zoneKey ?? string.Empty,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey ?? string.Empty,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId > 0
+                    ? card.overlayContainerCardInstanceNumericId
+                    : null,
+                overlayOrderIndex = card.overlayContainerCardInstanceNumericId > 0 ? card.overlayOrderIndex : null,
+                overlayCardCount = card.overlayCardCount,
+            };
+            fillOverlayCards(projectionCard.overlayCards, card.overlayCards);
+            targetCards.Add(projectionCard);
         }
     }
 
@@ -229,12 +275,16 @@ public static class ProjectionParser
                     : player.handZone?.cardCount ?? 0,
                 fieldCount = player.fieldZone?.cardCount ?? 0,
                 discardCount = player.discardZone?.cardCount ?? 0,
+                characterSetAsideCount = player.characterSetAsideZone?.cardCount ?? 0,
+                characterSetAsideCardsVisible = player.characterSetAsideZone?.isContentVisible ?? false,
                 activeCharacterInstanceNumericId = player.activeCharacterInstanceNumericId > 0
                     ? player.activeCharacterInstanceNumericId
                     : null,
             };
             fillCards(summary.fieldCards, player.fieldZone);
             fillCards(summary.discardCards, player.discardZone);
+            fillCards(summary.characterSetAsideCards, player.characterSetAsideZone);
+            fillOwnedCardKnowledge(summary.ownedCardKnowledge, player.ownedCardKnowledge);
 
             if (player.statusKeys is not null)
             {
@@ -292,6 +342,35 @@ public static class ProjectionParser
             }
 
             projection.playerSummaries.Add(summary);
+        }
+    }
+
+    private static void fillOwnedCardKnowledge(
+        System.Collections.Generic.List<ProjectionOwnedCardKnowledgeViewModel> targetCards,
+        OwnedCardKnowledgeProjectionDto[]? sourceCards)
+    {
+        targetCards.Clear();
+        if (sourceCards is null)
+        {
+            return;
+        }
+
+        foreach (var sourceCard in sourceCards)
+        {
+            if (string.IsNullOrWhiteSpace(sourceCard.definitionId))
+            {
+                continue;
+            }
+
+            targetCards.Add(new ProjectionOwnedCardKnowledgeViewModel
+            {
+                definitionId = sourceCard.definitionId ?? string.Empty,
+                locationKey = sourceCard.locationKey ?? string.Empty,
+                isHiddenCandidate = sourceCard.isHiddenCandidate,
+                cardInstanceNumericId = sourceCard.cardInstanceNumericId > 0
+                    ? sourceCard.cardInstanceNumericId
+                    : null,
+            });
         }
     }
 
@@ -435,6 +514,31 @@ public static class ProjectionParser
         projection.currentAnomaly.hasResolvedThisTurn = currentAnomaly.hasResolvedThisTurn;
     }
 
+    private static void fillResolvedAnomalies(ProjectionViewModel projection, string[]? resolvedAnomalyDefinitionIds)
+    {
+        if (resolvedAnomalyDefinitionIds is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < resolvedAnomalyDefinitionIds.Length; index += 1)
+        {
+            var definitionId = resolvedAnomalyDefinitionIds[index];
+            if (string.IsNullOrWhiteSpace(definitionId))
+            {
+                continue;
+            }
+
+            projection.resolvedAnomalyCards.Add(new ProjectionCardViewModel
+            {
+                cardInstanceNumericId = -710000 - index,
+                definitionId = definitionId.Trim(),
+                zoneKey = "resolvedAnomaly",
+                isFaceUp = true,
+            });
+        }
+    }
+
     private static void fillInteraction(ProjectionViewModel projection, InteractionDto? interaction)
     {
         if (interaction?.inputContext is not null &&
@@ -510,7 +614,15 @@ public static class ProjectionParser
             projection.interaction.responseWindowOriginType = string.Empty;
             projection.interaction.pendingDamageResponseStageKey = string.Empty;
             projection.interaction.pendingDamageTypeKey = string.Empty;
+            projection.interaction.pendingDamageBaseDamageValue = null;
+            projection.interaction.pendingDamageSourcePlayerNumericId = null;
+            projection.interaction.pendingDamageSourceCharacterInstanceNumericId = null;
+            projection.interaction.pendingDamageSourceCharacterDefinitionId = string.Empty;
+            projection.interaction.pendingDamageSourceCardInstanceNumericId = null;
+            projection.interaction.pendingDamageSourceCardDefinitionId = string.Empty;
+            projection.interaction.pendingDamageSourceSkillKey = string.Empty;
             projection.interaction.pendingDamageTargetCharacterInstanceNumericId = null;
+            projection.interaction.pendingDamageTargetCharacterDefinitionId = string.Empty;
             projection.interaction.pendingDamageDefenderPlayerNumericId = null;
             return;
         }
@@ -526,11 +638,43 @@ public static class ProjectionParser
         projection.interaction.responseWindowOriginType = interaction.responseWindow.responseWindowOriginType ?? string.Empty;
         projection.interaction.pendingDamageResponseStageKey = interaction.responseWindow.pendingDamageResponseStageKey ?? string.Empty;
         projection.interaction.pendingDamageTypeKey = interaction.responseWindow.pendingDamageTypeKey ?? string.Empty;
+        projection.interaction.pendingDamageBaseDamageValue =
+            interaction.responseWindow.pendingDamageBaseDamageValue > 0
+                ? interaction.responseWindow.pendingDamageBaseDamageValue
+                : null;
+        if (interaction.responseWindow.pendingDamageSourcePlayerNumericId > 0)
+        {
+            projection.interaction.pendingDamageSourcePlayerNumericId =
+                interaction.responseWindow.pendingDamageSourcePlayerNumericId;
+        }
+
+        if (interaction.responseWindow.pendingDamageSourceCharacterInstanceNumericId > 0)
+        {
+            projection.interaction.pendingDamageSourceCharacterInstanceNumericId =
+                interaction.responseWindow.pendingDamageSourceCharacterInstanceNumericId;
+        }
+
+        projection.interaction.pendingDamageSourceCharacterDefinitionId =
+            interaction.responseWindow.pendingDamageSourceCharacterDefinitionId ?? string.Empty;
+
+        if (interaction.responseWindow.pendingDamageSourceCardInstanceNumericId > 0)
+        {
+            projection.interaction.pendingDamageSourceCardInstanceNumericId =
+                interaction.responseWindow.pendingDamageSourceCardInstanceNumericId;
+        }
+
+        projection.interaction.pendingDamageSourceCardDefinitionId =
+            interaction.responseWindow.pendingDamageSourceCardDefinitionId ?? string.Empty;
+        projection.interaction.pendingDamageSourceSkillKey =
+            interaction.responseWindow.pendingDamageSourceSkillKey ?? string.Empty;
         if (interaction.responseWindow.pendingDamageTargetCharacterInstanceNumericId > 0)
         {
             projection.interaction.pendingDamageTargetCharacterInstanceNumericId =
                 interaction.responseWindow.pendingDamageTargetCharacterInstanceNumericId;
         }
+
+        projection.interaction.pendingDamageTargetCharacterDefinitionId =
+            interaction.responseWindow.pendingDamageTargetCharacterDefinitionId ?? string.Empty;
 
         if (interaction.responseWindow.pendingDamageDefenderPlayerNumericId > 0)
         {
@@ -565,6 +709,19 @@ public static class ProjectionParser
 
             projection.recentEventTypeKey = eventTypeKey;
             projection.eventLog.Add(buildEventLine(eventTypeKey, eventEntry));
+            if (string.Equals(eventTypeKey, "cardRevealed", StringComparison.Ordinal) &&
+                eventEntry.cardInstanceNumericId > 0 &&
+                !string.IsNullOrWhiteSpace(eventEntry.definitionId))
+            {
+                projection.revealedCardEvents.Add(new ProjectionRevealedCardEventViewModel
+                {
+                    eventId = eventEntry.eventId,
+                    cardInstanceNumericId = eventEntry.cardInstanceNumericId,
+                    ownerPlayerNumericId = eventEntry.ownerPlayerNumericId,
+                    definitionId = eventEntry.definitionId ?? string.Empty,
+                    revealReasonKey = eventEntry.revealReasonKey ?? string.Empty,
+                });
+            }
         }
     }
 
@@ -627,12 +784,14 @@ public static class ProjectionParser
     private sealed class StateProjectionDto
     {
         public string? matchState;
+        public long winnerTeamNumericId;
         public long[]? turnOrderPlayerNumericIds;
         public TurnDto? turn;
         public TeamProjectionDto[]? teams;
         public PlayerProjectionDto[]? players;
         public PublicZonesProjectionDto? publicZones;
         public AnomalyProjectionDto? currentAnomaly;
+        public string[]? resolvedAnomalyDefinitionIds;
         public CharacterProjectionDto[]? characters;
         public CharacterSelectionProjectionDto? characterSelection;
         public CharacterDefinitionProjectionDto[]? characterDefinitions;
@@ -724,6 +883,17 @@ public static class ProjectionParser
         public ZoneProjectionDto? handZone;
         public ZoneProjectionDto? fieldZone;
         public ZoneProjectionDto? discardZone;
+        public ZoneProjectionDto? characterSetAsideZone;
+        public OwnedCardKnowledgeProjectionDto[]? ownedCardKnowledge;
+    }
+
+    [Serializable]
+    private sealed class OwnedCardKnowledgeProjectionDto
+    {
+        public string? definitionId;
+        public string? locationKey;
+        public bool isHiddenCandidate;
+        public long cardInstanceNumericId;
     }
 
     [Serializable]
@@ -762,6 +932,8 @@ public static class ProjectionParser
     private sealed class ZoneProjectionDto
     {
         public int cardCount;
+        public bool isContentVisible;
+        public int hiddenCardCount;
         public CardProjectionDto[]? cards;
     }
 
@@ -781,6 +953,7 @@ public static class ProjectionParser
         public long overlayContainerCardInstanceNumericId;
         public int overlayOrderIndex;
         public int overlayCardCount;
+        public CardProjectionDto[]? overlayCards;
     }
 
     [Serializable]
@@ -817,16 +990,26 @@ public static class ProjectionParser
         public long[]? responderPlayerNumericIds;
         public string? pendingDamageResponseStageKey;
         public string? pendingDamageTypeKey;
+        public int pendingDamageBaseDamageValue;
+        public long pendingDamageSourcePlayerNumericId;
+        public long pendingDamageSourceCharacterInstanceNumericId;
+        public string? pendingDamageSourceCharacterDefinitionId;
+        public long pendingDamageSourceCardInstanceNumericId;
+        public string? pendingDamageSourceCardDefinitionId;
+        public string? pendingDamageSourceSkillKey;
         public long pendingDamageTargetCharacterInstanceNumericId;
+        public string? pendingDamageTargetCharacterDefinitionId;
         public long pendingDamageDefenderPlayerNumericId;
     }
 
     [Serializable]
     private sealed class EventLogEntryDto
     {
+        public long eventId;
         public string eventTypeKey = string.Empty;
         public string? eventType;
         public long cardInstanceNumericId;
+        public long ownerPlayerNumericId;
         public string? definitionId;
         public string? revealReasonKey;
         public string? moveReason;

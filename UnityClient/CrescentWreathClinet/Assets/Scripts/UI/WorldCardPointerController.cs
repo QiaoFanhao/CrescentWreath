@@ -21,12 +21,18 @@ public sealed class WorldCardPointerController :
     {
         view ??= GetComponent<WorldCardView>();
         view.SetHighlighted(true);
+        if (!string.IsNullOrWhiteSpace(view.TooltipTitle) ||
+            !string.IsNullOrWhiteSpace(view.TooltipDescription))
+        {
+            WorldCardTooltipView.Show(view.TooltipTitle, view.TooltipDescription);
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         view ??= GetComponent<WorldCardView>();
         view.SetHighlighted(false);
+        WorldCardTooltipView.Hide();
     }
 
     public void OnPointerClick(PointerEventData eventData)

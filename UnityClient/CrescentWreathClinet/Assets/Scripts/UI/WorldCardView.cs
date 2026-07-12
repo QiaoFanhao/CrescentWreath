@@ -33,6 +33,12 @@ public sealed class WorldCardView : MonoBehaviour
     [SerializeField]
     private BoxCollider? boxCollider;
 
+    [SerializeField]
+    private TMPro.TextMeshPro? pileCountText;
+
+    [SerializeField]
+    private TMPro.TextMeshPro? activatedText;
+
     private WorldCardViewModel model = new();
     private Vector3 restLocalPosition;
     private bool highlighted;
@@ -47,6 +53,8 @@ public sealed class WorldCardView : MonoBehaviour
     public bool IsInteractable => model.isInteractable;
     public bool IsReadOnly => model.isReadOnly;
     public WorldCardDisplayMode DisplayMode => model.displayMode;
+    public string TooltipTitle => model.tooltipTitle;
+    public string TooltipDescription => model.tooltipDescription;
     public WorldCardViewModel CurrentModel => model.Clone();
 
     public void ConfigureForFactory(
@@ -55,7 +63,9 @@ public sealed class WorldCardView : MonoBehaviour
         SpriteRenderer newBackSurface,
         GameObject newSelectionOutline,
         GameObject newHoverHighlight,
-        BoxCollider newBoxCollider)
+        BoxCollider newBoxCollider,
+        TMPro.TextMeshPro? newPileCountText = null,
+        TMPro.TextMeshPro? newActivatedText = null)
     {
         cardBody = newCardBody;
         frontSurface = newFrontSurface;
@@ -63,6 +73,8 @@ public sealed class WorldCardView : MonoBehaviour
         selectionOutline = newSelectionOutline;
         hoverHighlight = newHoverHighlight;
         boxCollider = newBoxCollider;
+        pileCountText = newPileCountText;
+        activatedText = newActivatedText;
         restLocalPosition = transform.localPosition;
     }
 
@@ -135,12 +147,18 @@ public sealed class WorldCardView : MonoBehaviour
         var summonable = model.baseSummonSigilCost.HasValue || model.effectiveSummonSigilCost.HasValue
             ? $"\n可召唤: {model.isSummonableByViewer} reason={model.summonUnavailableReasonKey}"
             : string.Empty;
-        return $"{model.definitionId} #{model.cardInstanceNumericId}\n{side} / {mode}\nowner={model.ownerPlayerNumericId} zone={model.zoneKey} defensePlaced={model.isDefensePlacedOnField}{summonCost}{summonable}\n显示模式: {model.displayMode}";
+        var overlay = model.overlayCardCount > 0 ? $"\n下方叠放: {model.overlayCardCount}" : string.Empty;
+        var tooltip = string.IsNullOrWhiteSpace(model.tooltipTitle)
+            ? string.Empty
+            : $"\n状态说明: {model.tooltipTitle} - {model.tooltipDescription}";
+        return $"{model.definitionId} #{model.cardInstanceNumericId}\n{side} / {mode}\nowner={model.ownerPlayerNumericId} zone={model.zoneKey} defensePlaced={model.isDefensePlacedOnField}{summonCost}{summonable}{overlay}{tooltip}\n显示模式: {model.displayMode}";
     }
 
     private void setSprite()
     {
-        var frontSprite = CardArtService.GetSpriteForDefinition(model.definitionId);
+        var frontSprite = BuffIconSpriteService.TryGetSprite(model.definitionId, out var buffSprite)
+            ? buffSprite
+            : CardArtService.GetSpriteForDefinition(model.definitionId);
         var backSprite = CardArtService.GetCardBackSprite();
         if (frontSurface is not null)
         {
@@ -159,7 +177,7 @@ public sealed class WorldCardView : MonoBehaviour
     {
         if (frontSurface is not null)
         {
-            frontSurface.gameObject.SetActive(model.isFaceUp);
+            frontSurface.gameObject.SetActive(model.displayMode != WorldCardDisplayMode.emptyZone && model.isFaceUp);
             frontSurface.color = model.displayMode == WorldCardDisplayMode.disabled
                 ? new Color(0.55f, 0.55f, 0.55f, 1f)
                 : model.isInteractable || model.isReadOnly
@@ -169,17 +187,17 @@ public sealed class WorldCardView : MonoBehaviour
 
         if (backSurface is not null)
         {
-            backSurface.gameObject.SetActive(!model.isFaceUp);
+            backSurface.gameObject.SetActive(model.displayMode != WorldCardDisplayMode.emptyZone && !model.isFaceUp);
         }
 
         if (selectionOutline is not null)
         {
-            selectionOutline.SetActive(model.isSelected);
+            selectionOutline.SetActive(model.isSelected || model.overlayCardCount > 0 || model.isActivated);
         }
 
         if (hoverHighlight is not null)
         {
-            hoverHighlight.SetActive(highlighted);
+            hoverHighlight.SetActive(highlighted || model.isActivated);
         }
 
         transform.localPosition = highlighted
@@ -200,6 +218,9 @@ public sealed class WorldCardView : MonoBehaviour
             cardBody.localEulerAngles = new Vector3(0f, defenseRotation, 0f);
             applyPileBodyVisual(cardBody);
         }
+
+        updatePileCountText(defenseRotation);
+        updateActivatedText(defenseRotation);
 
         if (frontSurface is not null)
         {
@@ -247,16 +268,19 @@ public sealed class WorldCardView : MonoBehaviour
     private void applyPileBodyVisual(Transform body)
     {
         var pileCount = Math.Max(1, model.pileCardCount);
-        var isPile = model.displayMode == WorldCardDisplayMode.deckBack ||
+        var isEmptyZone = model.displayMode == WorldCardDisplayMode.emptyZone;
+        var isPile = isEmptyZone ||
+                     model.displayMode == WorldCardDisplayMode.deckBack ||
                      model.zoneKey.Contains("Deck", StringComparison.OrdinalIgnoreCase) ||
                      model.zoneKey.Contains("deck", StringComparison.OrdinalIgnoreCase) ||
                      model.zoneKey.Contains("discard", StringComparison.OrdinalIgnoreCase) ||
                      model.zoneKey.Contains("gap", StringComparison.OrdinalIgnoreCase) ||
-                     model.zoneKey.Contains("sakuraCakeZone", StringComparison.OrdinalIgnoreCase);
+                     model.zoneKey.Contains("sakuraCakeZone", StringComparison.OrdinalIgnoreCase) ||
+                     model.zoneKey.Contains("resolvedAnomaly", StringComparison.OrdinalIgnoreCase);
         var bodyRenderer = body.GetComponent<MeshRenderer>();
         if (bodyRenderer is not null)
         {
-            bodyRenderer.enabled = isPile && pileCount > 1;
+            bodyRenderer.enabled = isEmptyZone || (isPile && pileCount > 1);
         }
 
         if (!isPile)
@@ -267,9 +291,71 @@ public sealed class WorldCardView : MonoBehaviour
         }
 
         var thickness = Math.Min(MaxPileBodyThickness, CardBodyThickness + (pileCount - 1) * PileBodyThicknessPerCard);
+        if (isEmptyZone)
+        {
+            thickness = CardBodyThickness;
+        }
+
         body.localScale = new Vector3(CardBodyLocalScale.x, thickness, CardBodyLocalScale.z);
         // Keep the top surface below the sprite so the visible pile grows downward.
         body.localPosition = Vector3.down * ((thickness - CardBodyThickness) * 0.5f);
+    }
+
+    private void updatePileCountText(float defenseRotation)
+    {
+        if (pileCountText is null)
+        {
+            return;
+        }
+
+        var shouldShow =
+            model.overlayCardCount > 0 ||
+            model.displayMode == WorldCardDisplayMode.emptyZone ||
+            model.displayMode == WorldCardDisplayMode.deckBack ||
+            model.zoneKey.Contains("Deck", StringComparison.OrdinalIgnoreCase) ||
+            model.zoneKey.Contains("deck", StringComparison.OrdinalIgnoreCase) ||
+            model.zoneKey.Contains("discard", StringComparison.OrdinalIgnoreCase) ||
+            model.zoneKey.Contains("gap", StringComparison.OrdinalIgnoreCase) ||
+            model.zoneKey.Contains("sakuraCakeZone", StringComparison.OrdinalIgnoreCase) ||
+            model.zoneKey.Contains("resolvedAnomaly", StringComparison.OrdinalIgnoreCase);
+        pileCountText.gameObject.SetActive(shouldShow);
+        if (!shouldShow)
+        {
+            return;
+        }
+
+        pileCountText.text = model.overlayCardCount > 0
+            ? $"下方x{Math.Max(0, model.overlayCardCount)}"
+            : formatPileCountText();
+        pileCountText.transform.localEulerAngles = new Vector3(90f, defenseRotation, 0f);
+    }
+
+    private void updateActivatedText(float defenseRotation)
+    {
+        if (activatedText is null)
+        {
+            return;
+        }
+
+        activatedText.gameObject.SetActive(model.isActivated);
+        if (!model.isActivated)
+        {
+            return;
+        }
+
+        activatedText.text = "已启动";
+        activatedText.transform.localEulerAngles = new Vector3(90f, defenseRotation, 0f);
+    }
+
+    private string formatPileCountText()
+    {
+        var countText = Math.Max(0, model.pileCardCount).ToString();
+        if (model.zoneKey.Contains("sakuraCakeZone", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"樱花饼x{countText}";
+        }
+
+        return $"x{countText}";
     }
 }
 }

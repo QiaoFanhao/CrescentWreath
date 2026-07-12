@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
 using TMPro;
@@ -95,16 +95,11 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
             System.StringComparison.Ordinal);
 
         setText(titleText, $"响应窗口 #{renderedResponseWindowNumericId}");
-        var target = projection.interaction.pendingDamageTargetCharacterInstanceNumericId?.ToString() ?? "-";
-        var defender = projection.interaction.pendingDamageDefenderPlayerNumericId?.ToString() ?? "-";
-        var damageType = string.IsNullOrWhiteSpace(projection.interaction.pendingDamageTypeKey)
-            ? "未知"
-            : projection.interaction.pendingDamageTypeKey;
         setText(
             detailText,
-            $"响应者: Player {responder?.ToString() ?? "-"}\n" +
-            $"阶段: {projection.interaction.pendingDamageResponseStageKey}\n" +
-            $"伤害类型: {damageType}  目标角色: {target}  防守玩家: {defender}");
+            $"{buildDamageSentence(projection)}\n" +
+            $"响应者：Player {responder?.ToString() ?? "-"}    防守玩家：Player {projection.interaction.pendingDamageDefenderPlayerNumericId?.ToString() ?? "-"}\n" +
+            $"阶段：{projection.interaction.pendingDamageResponseStageKey}");
 
         if (!isLocalResponder)
         {
@@ -114,7 +109,7 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
 
         if (!isAwaitDefense)
         {
-            createInfoText("当前响应阶段不是 awaitDefense，正式 UI 不提供操作。");
+            createInfoText("当前响应阶段不是 awaitDefense，正式 UI 暂不提供操作。");
             return;
         }
 
@@ -162,6 +157,99 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
                     }
                 });
         }
+    }
+
+    private static string buildDamageSentence(ProjectionViewModel projection)
+    {
+        var sourceCharacterName = resolveCharacterDisplayName(
+            projection,
+            projection.interaction.pendingDamageSourceCharacterInstanceNumericId,
+            projection.interaction.pendingDamageSourceCharacterDefinitionId,
+            projection.interaction.pendingDamageSourcePlayerNumericId);
+        var targetCharacterName = resolveCharacterDisplayName(
+            projection,
+            projection.interaction.pendingDamageTargetCharacterInstanceNumericId,
+            projection.interaction.pendingDamageTargetCharacterDefinitionId,
+            projection.interaction.pendingDamageDefenderPlayerNumericId);
+        var sourceName = resolveDamageSourceDisplayName(projection);
+        var damageValue = projection.interaction.pendingDamageBaseDamageValue?.ToString() ?? "?";
+        var damageType = localizeDamageType(projection.interaction.pendingDamageTypeKey);
+        return $"【{sourceCharacterName}】通过【{sourceName}】对【{targetCharacterName}】造成【{damageValue}】点{damageType}伤害。";
+    }
+
+    private static string resolveDamageSourceDisplayName(ProjectionViewModel projection)
+    {
+        if (!string.IsNullOrWhiteSpace(projection.interaction.pendingDamageSourceSkillKey))
+        {
+            var skillName = resolveSkillName(
+                projection,
+                projection.interaction.pendingDamageSourceCharacterDefinitionId,
+                projection.interaction.pendingDamageSourceSkillKey);
+            return string.IsNullOrWhiteSpace(skillName)
+                ? projection.interaction.pendingDamageSourceSkillKey
+                : skillName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projection.interaction.pendingDamageSourceCardDefinitionId))
+        {
+            return CardNameLocalizer.Localize(projection.interaction.pendingDamageSourceCardDefinitionId);
+        }
+
+        return string.IsNullOrWhiteSpace(projection.interaction.responseWindowOriginType)
+            ? "伤害来源"
+            : projection.interaction.responseWindowOriginType;
+    }
+
+    private static string resolveSkillName(
+        ProjectionViewModel projection,
+        string characterDefinitionId,
+        string skillKey)
+    {
+        var definition = projection.characterDefinitions.FirstOrDefault(candidate =>
+            string.Equals(candidate.definitionId, characterDefinitionId, System.StringComparison.Ordinal));
+        var skill = definition?.skills.FirstOrDefault(candidate =>
+            string.Equals(candidate.skillKey, skillKey, System.StringComparison.Ordinal));
+        return skill?.skillName ?? string.Empty;
+    }
+
+    private static string resolveCharacterDisplayName(
+        ProjectionViewModel projection,
+        long? characterInstanceNumericId,
+        string characterDefinitionId,
+        long? fallbackPlayerNumericId)
+    {
+        var resolvedDefinitionId = characterDefinitionId;
+        if (string.IsNullOrWhiteSpace(resolvedDefinitionId) && characterInstanceNumericId.HasValue)
+        {
+            var owner = projection.playerSummaries.FirstOrDefault(player =>
+                player.activeCharacterInstanceNumericId == characterInstanceNumericId.Value);
+            resolvedDefinitionId = owner?.activeCharacterDefinitionId ?? string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(resolvedDefinitionId))
+        {
+            var definition = projection.characterDefinitions.FirstOrDefault(candidate =>
+                string.Equals(candidate.definitionId, resolvedDefinitionId, System.StringComparison.Ordinal));
+            if (!string.IsNullOrWhiteSpace(definition?.characterName))
+            {
+                return definition.characterName;
+            }
+
+            return resolvedDefinitionId;
+        }
+
+        return fallbackPlayerNumericId.HasValue ? $"Player {fallbackPlayerNumericId.Value}" : "未知角色";
+    }
+
+    private static string localizeDamageType(string damageTypeKey)
+    {
+        return damageTypeKey switch
+        {
+            "physical" => "体术",
+            "spell" => "咒术",
+            "direct" => "直接",
+            _ => string.IsNullOrWhiteSpace(damageTypeKey) ? "未知类型" : damageTypeKey,
+        };
     }
 
     private static bool hasCharm(ProjectionPlayerSummaryViewModel player)

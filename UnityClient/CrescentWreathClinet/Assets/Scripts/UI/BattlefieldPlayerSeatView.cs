@@ -54,7 +54,6 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
 
     private TMP_Text? resourceText;
     private TMP_Text? statusText;
-
     public void Configure(
         BattlefieldSeatDirection newDirection,
         RectTransform portrait,
@@ -91,6 +90,7 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
         {
             setText(playerNameText, $"{direction}: (empty)");
             setText(hpText, "HP -");
+            removeSeatHpCardVisual();
             setText(handCountText, "Hand -");
             setText(deckCountText, "Deck -");
             setText(discardCountText, "Discard -");
@@ -103,6 +103,7 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
         var viewerMarker = isViewerPlayer ? "You" : "P" + player.playerNumericId.ToString();
         setText(playerNameText, $"{currentMarker}{viewerMarker} / 队伍{player.teamNumericId}");
         setText(hpText, $"HP {formatNullableInt(player.activeCharacterCurrentHp)}/{formatNullableInt(player.activeCharacterMaxHp)}");
+        removeSeatHpCardVisual();
         setText(handCountText, $"Hand {player.handCount}");
         setText(deckCountText, $"Deck {player.deckCount}");
         setText(discardCountText, $"Discard {player.discardCount}");
@@ -156,6 +157,35 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
     private static string formatNullableInt(int? value)
     {
         return value.HasValue ? value.Value.ToString() : "-";
+    }
+
+    private void removeSeatHpCardVisual()
+    {
+        if (characterPortraitPlaceholder is null)
+        {
+            return;
+        }
+
+        removeChild(characterPortraitPlaceholder, "HpCardImage");
+        removeChild(characterPortraitPlaceholder, "HpCardFallbackText");
+    }
+
+    private static void removeChild(Transform parent, string childName)
+    {
+        var child = parent.Find(childName);
+        if (child is null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(child.gameObject);
+        }
+        else
+        {
+            DestroyImmediate(child.gameObject);
+        }
     }
 
     private TMP_Text? ensureResourceText()
@@ -324,3 +354,4 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
     }
 }
 }
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace CrescentWreath.Client.UI
@@ -34,7 +34,7 @@ public static class CardNameLocalizer
             ["T019"] = "空气魔法卷轴",
             ["T020"] = "非想天则",
             ["T021"] = "制御棒",
-            ["T022"] = "阿鲁猫火箭",
+            ["T022"] = "阿鲁猫型火箭",
             ["T023"] = "阴阳玉",
             ["T024"] = "EX变身红丝带",
             ["T025"] = "正式外典Gamaliel",
@@ -52,6 +52,16 @@ public static class CardNameLocalizer
             ["A008"] = "矛盾螺旋",
             ["A009"] = "666",
             ["A010"] = "命运长夜",
+            ["C001"] = "博丽灵梦",
+            ["C005"] = "魂魄妖梦",
+            ["C007"] = "莲",
+            ["C008"] = "阿尔托莉雅",
+            ["C016"] = "射命丸文",
+            ["C017"] = "帕秋莉",
+            ["C017-1"] = "帕秋莉扩展卡",
+            ["C018"] = "西行寺幽幽子",
+            ["C026"] = "比那名居天子",
+            ["C026-1"] = "比那名居天子扩展卡",
             ["Barrier"] = "结界",
             ["Seal"] = "封印",
             ["Shackle"] = "禁锢",

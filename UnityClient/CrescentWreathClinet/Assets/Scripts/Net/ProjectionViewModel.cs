@@ -17,6 +17,24 @@ public sealed class ProjectionCardViewModel
     public long? overlayContainerCardInstanceNumericId;
     public int? overlayOrderIndex;
     public int overlayCardCount;
+    public readonly List<ProjectionCardViewModel> overlayCards = new();
+}
+
+public sealed class ProjectionOwnedCardKnowledgeViewModel
+{
+    public string definitionId = string.Empty;
+    public string locationKey = string.Empty;
+    public bool isHiddenCandidate;
+    public long? cardInstanceNumericId;
+}
+
+public sealed class ProjectionRevealedCardEventViewModel
+{
+    public long eventId;
+    public long cardInstanceNumericId;
+    public long ownerPlayerNumericId;
+    public string definitionId = string.Empty;
+    public string revealReasonKey = string.Empty;
 }
 
 public sealed class ProjectionInteractionViewModel
@@ -42,7 +60,15 @@ public sealed class ProjectionInteractionViewModel
     public string responseWindowOriginType = string.Empty;
     public string pendingDamageResponseStageKey = string.Empty;
     public string pendingDamageTypeKey = string.Empty;
+    public int? pendingDamageBaseDamageValue;
+    public long? pendingDamageSourcePlayerNumericId;
+    public long? pendingDamageSourceCharacterInstanceNumericId;
+    public string pendingDamageSourceCharacterDefinitionId = string.Empty;
+    public long? pendingDamageSourceCardInstanceNumericId;
+    public string pendingDamageSourceCardDefinitionId = string.Empty;
+    public string pendingDamageSourceSkillKey = string.Empty;
     public long? pendingDamageTargetCharacterInstanceNumericId;
+    public string pendingDamageTargetCharacterDefinitionId = string.Empty;
     public long? pendingDamageDefenderPlayerNumericId;
 }
 
@@ -104,6 +130,8 @@ public sealed class ProjectionPlayerSummaryViewModel
     public int handCount;
     public int fieldCount;
     public int discardCount;
+    public int characterSetAsideCount;
+    public bool characterSetAsideCardsVisible;
     public long? activeCharacterInstanceNumericId;
     public string activeCharacterDefinitionId = string.Empty;
     public int? activeCharacterCurrentHp;
@@ -116,6 +144,8 @@ public sealed class ProjectionPlayerSummaryViewModel
     public bool activeCharacterIsActivated;
     public readonly List<ProjectionCardViewModel> fieldCards = new();
     public readonly List<ProjectionCardViewModel> discardCards = new();
+    public readonly List<ProjectionCardViewModel> characterSetAsideCards = new();
+    public readonly List<ProjectionOwnedCardKnowledgeViewModel> ownedCardKnowledge = new();
 }
 
 public sealed class ProjectionTeamSummaryViewModel
@@ -147,6 +177,7 @@ public sealed class ProjectionViewModel
     public long viewerPlayerNumericId;
     public bool hasStateProjection;
     public string matchState = string.Empty;
+    public long? winnerTeamNumericId;
 
     public int turnNumber;
     public string currentPhase = string.Empty;
@@ -175,6 +206,7 @@ public sealed class ProjectionViewModel
     public readonly List<ProjectionCardViewModel> summonZoneCards = new();
     public readonly List<ProjectionCardViewModel> sakuraCakeCards = new();
     public readonly List<ProjectionCardViewModel> gapZoneCards = new();
+    public readonly List<ProjectionCardViewModel> resolvedAnomalyCards = new();
     public int publicTreasureDeckCount;
     public int sakuraCakeDeckCount;
     public readonly List<ProjectionTeamSummaryViewModel> teamSummaries = new();
@@ -183,6 +215,7 @@ public sealed class ProjectionViewModel
     public readonly ProjectionCharacterSelectionViewModel characterSelection = new();
 
     public readonly List<string> eventLog = new();
+    public readonly List<ProjectionRevealedCardEventViewModel> revealedCardEvents = new();
     public string recentEventTypeKey = string.Empty;
 
     public readonly ProjectionInteractionViewModel interaction = new();
@@ -208,6 +241,7 @@ public sealed class ProjectionViewModel
             viewerPlayerNumericId = viewerPlayerNumericId,
             hasStateProjection = hasStateProjection,
             matchState = matchState,
+            winnerTeamNumericId = winnerTeamNumericId,
             turnNumber = turnNumber,
             currentPhase = currentPhase,
             currentPlayerNumericId = currentPlayerNumericId,
@@ -370,6 +404,25 @@ public sealed class ProjectionViewModel
                 overlayCardCount = card.overlayCardCount,
             });
         }
+        foreach (var card in resolvedAnomalyCards)
+        {
+            cloned.resolvedAnomalyCards.Add(new ProjectionCardViewModel
+            {
+                cardInstanceNumericId = card.cardInstanceNumericId,
+                definitionId = card.definitionId,
+                ownerPlayerNumericId = card.ownerPlayerNumericId,
+                zoneKey = card.zoneKey,
+                isFaceUp = card.isFaceUp,
+                isDefensePlacedOnField = card.isDefensePlacedOnField,
+                baseSummonSigilCost = card.baseSummonSigilCost,
+                effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                isSummonableByViewer = card.isSummonableByViewer,
+                summonUnavailableReasonKey = card.summonUnavailableReasonKey,
+                overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                overlayOrderIndex = card.overlayOrderIndex,
+                overlayCardCount = card.overlayCardCount,
+            });
+        }
 
         foreach (var teamSummary in teamSummaries)
         {
@@ -398,6 +451,8 @@ public sealed class ProjectionViewModel
                 handCount = playerSummary.handCount,
                 fieldCount = playerSummary.fieldCount,
                 discardCount = playerSummary.discardCount,
+                characterSetAsideCount = playerSummary.characterSetAsideCount,
+                characterSetAsideCardsVisible = playerSummary.characterSetAsideCardsVisible,
                 activeCharacterInstanceNumericId = playerSummary.activeCharacterInstanceNumericId,
                 activeCharacterDefinitionId = playerSummary.activeCharacterDefinitionId,
                 activeCharacterCurrentHp = playerSummary.activeCharacterCurrentHp,
@@ -466,6 +521,40 @@ public sealed class ProjectionViewModel
                     overlayCardCount = card.overlayCardCount,
                 });
             }
+            foreach (var card in playerSummary.characterSetAsideCards)
+            {
+                clonedPlayerSummary.characterSetAsideCards.Add(new ProjectionCardViewModel
+                {
+                    cardInstanceNumericId = card.cardInstanceNumericId,
+                    definitionId = card.definitionId,
+                    ownerPlayerNumericId = card.ownerPlayerNumericId,
+                    zoneKey = card.zoneKey,
+                    isFaceUp = card.isFaceUp,
+                    isDefensePlacedOnField = card.isDefensePlacedOnField,
+                    baseSummonSigilCost = card.baseSummonSigilCost,
+                    effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+                    isSummonableByViewer = card.isSummonableByViewer,
+                    summonUnavailableReasonKey = card.summonUnavailableReasonKey,
+                    overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+                    overlayOrderIndex = card.overlayOrderIndex,
+                    overlayCardCount = card.overlayCardCount,
+                });
+            }
+
+            copyOverlayCards(playerSummary.fieldCards, clonedPlayerSummary.fieldCards);
+            copyOverlayCards(playerSummary.discardCards, clonedPlayerSummary.discardCards);
+            copyOverlayCards(playerSummary.characterSetAsideCards, clonedPlayerSummary.characterSetAsideCards);
+
+            foreach (var knowledge in playerSummary.ownedCardKnowledge)
+            {
+                clonedPlayerSummary.ownedCardKnowledge.Add(new ProjectionOwnedCardKnowledgeViewModel
+                {
+                    definitionId = knowledge.definitionId,
+                    locationKey = knowledge.locationKey,
+                    isHiddenCandidate = knowledge.isHiddenCandidate,
+                    cardInstanceNumericId = knowledge.cardInstanceNumericId,
+                });
+            }
 
             cloned.playerSummaries.Add(clonedPlayerSummary);
         }
@@ -513,6 +602,17 @@ public sealed class ProjectionViewModel
         {
             cloned.eventLog.Add(eventLine);
         }
+        foreach (var revealedCardEvent in revealedCardEvents)
+        {
+            cloned.revealedCardEvents.Add(new ProjectionRevealedCardEventViewModel
+            {
+                eventId = revealedCardEvent.eventId,
+                cardInstanceNumericId = revealedCardEvent.cardInstanceNumericId,
+                ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
+                definitionId = revealedCardEvent.definitionId,
+                revealReasonKey = revealedCardEvent.revealReasonKey,
+            });
+        }
 
         cloned.currentAnomaly.hasCurrentAnomaly = currentAnomaly.hasCurrentAnomaly;
         cloned.currentAnomaly.definitionId = currentAnomaly.definitionId;
@@ -555,10 +655,67 @@ public sealed class ProjectionViewModel
         cloned.interaction.responseWindowOriginType = interaction.responseWindowOriginType;
         cloned.interaction.pendingDamageResponseStageKey = interaction.pendingDamageResponseStageKey;
         cloned.interaction.pendingDamageTypeKey = interaction.pendingDamageTypeKey;
+        cloned.interaction.pendingDamageBaseDamageValue = interaction.pendingDamageBaseDamageValue;
+        cloned.interaction.pendingDamageSourcePlayerNumericId = interaction.pendingDamageSourcePlayerNumericId;
+        cloned.interaction.pendingDamageSourceCharacterInstanceNumericId = interaction.pendingDamageSourceCharacterInstanceNumericId;
+        cloned.interaction.pendingDamageSourceCharacterDefinitionId = interaction.pendingDamageSourceCharacterDefinitionId;
+        cloned.interaction.pendingDamageSourceCardInstanceNumericId = interaction.pendingDamageSourceCardInstanceNumericId;
+        cloned.interaction.pendingDamageSourceCardDefinitionId = interaction.pendingDamageSourceCardDefinitionId;
+        cloned.interaction.pendingDamageSourceSkillKey = interaction.pendingDamageSourceSkillKey;
         cloned.interaction.pendingDamageTargetCharacterInstanceNumericId = interaction.pendingDamageTargetCharacterInstanceNumericId;
+        cloned.interaction.pendingDamageTargetCharacterDefinitionId = interaction.pendingDamageTargetCharacterDefinitionId;
         cloned.interaction.pendingDamageDefenderPlayerNumericId = interaction.pendingDamageDefenderPlayerNumericId;
 
+        copyOverlayCards(handCards, cloned.handCards);
+        copyOverlayCards(discardCards, cloned.discardCards);
+        copyOverlayCards(fieldCards, cloned.fieldCards);
+        copyOverlayCards(summonZoneCards, cloned.summonZoneCards);
+        copyOverlayCards(sakuraCakeCards, cloned.sakuraCakeCards);
+        copyOverlayCards(gapZoneCards, cloned.gapZoneCards);
+        copyOverlayCards(resolvedAnomalyCards, cloned.resolvedAnomalyCards);
+
         return cloned;
+    }
+
+    private static void copyOverlayCards(
+        IReadOnlyList<ProjectionCardViewModel> sourceCards,
+        IReadOnlyList<ProjectionCardViewModel> clonedCards)
+    {
+        var count = System.Math.Min(sourceCards.Count, clonedCards.Count);
+        for (var index = 0; index < count; index += 1)
+        {
+            foreach (var overlayCard in sourceCards[index].overlayCards)
+            {
+                clonedCards[index].overlayCards.Add(cloneCardShallow(overlayCard));
+            }
+        }
+    }
+
+    private static ProjectionCardViewModel cloneCardShallow(ProjectionCardViewModel card)
+    {
+        var clonedCard = new ProjectionCardViewModel
+        {
+            cardInstanceNumericId = card.cardInstanceNumericId,
+            definitionId = card.definitionId,
+            ownerPlayerNumericId = card.ownerPlayerNumericId,
+            zoneKey = card.zoneKey,
+            isFaceUp = card.isFaceUp,
+            isDefensePlacedOnField = card.isDefensePlacedOnField,
+            baseSummonSigilCost = card.baseSummonSigilCost,
+            effectiveSummonSigilCost = card.effectiveSummonSigilCost,
+            isSummonableByViewer = card.isSummonableByViewer,
+            summonUnavailableReasonKey = card.summonUnavailableReasonKey,
+            overlayContainerCardInstanceNumericId = card.overlayContainerCardInstanceNumericId,
+            overlayOrderIndex = card.overlayOrderIndex,
+            overlayCardCount = card.overlayCardCount,
+        };
+
+        foreach (var nestedOverlayCard in card.overlayCards)
+        {
+            clonedCard.overlayCards.Add(cloneCardShallow(nestedOverlayCard));
+        }
+
+        return clonedCard;
     }
 
     public static ProjectionViewModel mergeLatestWithIncomingFailure(ProjectionViewModel latest, ProjectionViewModel incoming)
@@ -572,11 +729,23 @@ public sealed class ProjectionViewModel
 
         merged.recentEventTypeKey = incoming.recentEventTypeKey;
         merged.eventLog.Clear();
+        merged.revealedCardEvents.Clear();
         if (incoming.eventLog.Count > 0)
         {
             foreach (var eventLine in incoming.eventLog)
             {
                 merged.eventLog.Add(eventLine);
+            }
+            foreach (var revealedCardEvent in incoming.revealedCardEvents)
+            {
+                merged.revealedCardEvents.Add(new ProjectionRevealedCardEventViewModel
+                {
+                    eventId = revealedCardEvent.eventId,
+                    cardInstanceNumericId = revealedCardEvent.cardInstanceNumericId,
+                    ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
+                    definitionId = revealedCardEvent.definitionId,
+                    revealReasonKey = revealedCardEvent.revealReasonKey,
+                });
             }
         }
         else
@@ -584,6 +753,17 @@ public sealed class ProjectionViewModel
             foreach (var eventLine in latest.eventLog)
             {
                 merged.eventLog.Add(eventLine);
+            }
+            foreach (var revealedCardEvent in latest.revealedCardEvents)
+            {
+                merged.revealedCardEvents.Add(new ProjectionRevealedCardEventViewModel
+                {
+                    eventId = revealedCardEvent.eventId,
+                    cardInstanceNumericId = revealedCardEvent.cardInstanceNumericId,
+                    ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
+                    definitionId = revealedCardEvent.definitionId,
+                    revealReasonKey = revealedCardEvent.revealReasonKey,
+                });
             }
         }
 
@@ -620,7 +800,15 @@ public sealed class ProjectionViewModel
         merged.interaction.responseWindowOriginType = incoming.interaction.responseWindowOriginType;
         merged.interaction.pendingDamageResponseStageKey = incoming.interaction.pendingDamageResponseStageKey;
         merged.interaction.pendingDamageTypeKey = incoming.interaction.pendingDamageTypeKey;
+        merged.interaction.pendingDamageBaseDamageValue = incoming.interaction.pendingDamageBaseDamageValue;
+        merged.interaction.pendingDamageSourcePlayerNumericId = incoming.interaction.pendingDamageSourcePlayerNumericId;
+        merged.interaction.pendingDamageSourceCharacterInstanceNumericId = incoming.interaction.pendingDamageSourceCharacterInstanceNumericId;
+        merged.interaction.pendingDamageSourceCharacterDefinitionId = incoming.interaction.pendingDamageSourceCharacterDefinitionId;
+        merged.interaction.pendingDamageSourceCardInstanceNumericId = incoming.interaction.pendingDamageSourceCardInstanceNumericId;
+        merged.interaction.pendingDamageSourceCardDefinitionId = incoming.interaction.pendingDamageSourceCardDefinitionId;
+        merged.interaction.pendingDamageSourceSkillKey = incoming.interaction.pendingDamageSourceSkillKey;
         merged.interaction.pendingDamageTargetCharacterInstanceNumericId = incoming.interaction.pendingDamageTargetCharacterInstanceNumericId;
+        merged.interaction.pendingDamageTargetCharacterDefinitionId = incoming.interaction.pendingDamageTargetCharacterDefinitionId;
         merged.interaction.pendingDamageDefenderPlayerNumericId = incoming.interaction.pendingDamageDefenderPlayerNumericId;
 
         return merged;

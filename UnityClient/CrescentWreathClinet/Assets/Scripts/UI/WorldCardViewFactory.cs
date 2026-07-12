@@ -1,9 +1,12 @@
 using UnityEngine;
+using TMPro;
 
 namespace CrescentWreath.Client.UI
 {
 public static class WorldCardViewFactory
 {
+    private const string PrimaryFontResourcePath = "UI/Fonts/SourceHanSansSC-Regular SDF";
+    private static TMP_FontAsset? primaryFont;
     public const string CardBodyMaterialResourcesPath = "UI/Materials/WorldCardBodyMaterial";
     public const string SelectionMaterialResourcesPath = "UI/Materials/WorldCardSelectionMaterial";
     public const string HoverMaterialResourcesPath = "UI/Materials/WorldCardHoverMaterial";
@@ -54,10 +57,48 @@ public static class WorldCardViewFactory
         collider.size = new Vector3(1.08f, 0.1f, 1.48f);
         collider.center = Vector3.up * 0.02f;
 
+        var countTextObject = new GameObject("PileCountText");
+        countTextObject.transform.SetParent(cardObject.transform, false);
+        countTextObject.transform.localPosition = new Vector3(0f, 0.08f, -0.88f);
+        countTextObject.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
+        var countText = countTextObject.AddComponent<TMPro.TextMeshPro>();
+        countText.alignment = TMPro.TextAlignmentOptions.Center;
+        countText.font = getPrimaryFont();
+        countText.fontSize = 2.8f;
+        countText.color = Color.white;
+        countText.enableWordWrapping = false;
+        countText.raycastTarget = false;
+        countTextObject.SetActive(false);
+
+        var activatedTextObject = new GameObject("ActivatedText");
+        activatedTextObject.transform.SetParent(cardObject.transform, false);
+        activatedTextObject.transform.localPosition = new Vector3(0f, 0.095f, 0.86f);
+        activatedTextObject.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
+        var activatedText = activatedTextObject.AddComponent<TMPro.TextMeshPro>();
+        activatedText.alignment = TMPro.TextAlignmentOptions.Center;
+        activatedText.font = getPrimaryFont();
+        activatedText.fontSize = 2.7f;
+        activatedText.fontStyle = TMPro.FontStyles.Bold;
+        activatedText.color = new Color(1f, 0.88f, 0.18f, 1f);
+        activatedText.enableWordWrapping = false;
+        activatedText.raycastTarget = false;
+        activatedTextObject.SetActive(false);
+
         var view = cardObject.AddComponent<WorldCardView>();
-        view.ConfigureForFactory(body, front, back, selection, hover, collider);
+        view.ConfigureForFactory(body, front, back, selection, hover, collider, countText, activatedText);
         cardObject.AddComponent<WorldCardPointerController>();
         return view;
+    }
+
+    private static TMP_FontAsset? getPrimaryFont()
+    {
+        if (primaryFont is not null)
+        {
+            return primaryFont;
+        }
+
+        primaryFont = Resources.Load<TMP_FontAsset>(PrimaryFontResourcePath);
+        return primaryFont;
     }
 
     private static SpriteRenderer createSpriteSurface(

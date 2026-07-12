@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
 using TMPro;
@@ -32,6 +32,7 @@ public sealed class InputContextOverlayView : MonoBehaviour
     private long? renderedInputContextNumericId;
     private bool isCurrentMultiSelect;
     private int currentMaxSelectionCount = 1;
+    private int currentMinSelectionCount = 1;
 
     private void Awake()
     {
@@ -101,6 +102,7 @@ public sealed class InputContextOverlayView : MonoBehaviour
         var hasSubmitted = projection.interaction.isViewerSubmittedInput ||
                            projection.interaction.inputSubmittedPlayerNumericIds.Contains(projection.viewerPlayerNumericId);
         isCurrentMultiSelect = ChoicePresentationResolver.IsMultiSelectInput(projection.interaction);
+        currentMinSelectionCount = ChoicePresentationResolver.GetSuggestedMinSelectionCount(projection.interaction);
         currentMaxSelectionCount = ChoicePresentationResolver.GetSuggestedMaxSelectionCount(projection.interaction);
         if (!isCurrentMultiSelect && selectedChoiceKeys.Count > 1)
         {
@@ -265,7 +267,13 @@ public sealed class InputContextOverlayView : MonoBehaviour
         setText(selectionText, buildSelectionText());
         if (submitButton is not null)
         {
-            submitButton.interactable = selectedChoiceKeys.Count > 0 && networkController?.IsRequestInFlight != true;
+            var selectedDeclineOnly =
+                selectedChoiceKeys.Count == 1 &&
+                ChoicePresentationResolver.IsDeclineChoice(selectedChoiceKeys[0]);
+            submitButton.interactable =
+                (selectedDeclineOnly || selectedChoiceKeys.Count >= currentMinSelectionCount) &&
+                selectedChoiceKeys.Count > 0 &&
+                networkController?.IsRequestInFlight != true;
         }
 
         if (clearButton is not null)
@@ -282,8 +290,9 @@ public sealed class InputContextOverlayView : MonoBehaviour
         }
 
         var maxText = currentMaxSelectionCount == int.MaxValue ? "不限" : currentMaxSelectionCount.ToString();
+        var minText = currentMinSelectionCount > 1 ? $"，至少 {currentMinSelectionCount}" : string.Empty;
         return isCurrentMultiSelect
-            ? $"已选 {selectedChoiceKeys.Count}/{maxText}"
+            ? $"已选 {selectedChoiceKeys.Count}/{maxText}{minText}"
             : $"已选：{selectedChoiceKeys[0]}";
     }
 

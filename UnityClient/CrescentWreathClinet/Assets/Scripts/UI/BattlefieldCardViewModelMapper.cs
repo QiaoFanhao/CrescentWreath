@@ -31,6 +31,7 @@ public static class BattlefieldCardViewModelMapper
             summonUnavailableReasonKey = card.summonUnavailableReasonKey,
             displayMode = isUnavailableSummonCard ? WorldCardDisplayMode.disabled : displayMode,
             pileCardCount = 1,
+            overlayCardCount = card.overlayCardCount,
         };
     }
 
@@ -106,7 +107,7 @@ public static class BattlefieldCardViewModelMapper
                 isFaceUp = false,
                 isInteractable = false,
                 isReadOnly = true,
-                displayMode = WorldCardDisplayMode.disabled,
+                displayMode = WorldCardDisplayMode.emptyZone,
                 pileCardCount = 0,
             },
         };

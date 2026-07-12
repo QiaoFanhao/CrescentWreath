@@ -6,6 +6,7 @@ public enum WorldCardDisplayMode
     deckBack,
     readOnlyMirror,
     disabled,
+    emptyZone,
 }
 
 public sealed class WorldCardViewModel
@@ -19,12 +20,16 @@ public sealed class WorldCardViewModel
     public bool isInteractable;
     public bool isReadOnly;
     public bool isDefensePlacedOnField;
+    public bool isActivated;
     public int? baseSummonSigilCost;
     public int? effectiveSummonSigilCost;
     public bool isSummonableByViewer;
     public string summonUnavailableReasonKey = string.Empty;
     public WorldCardDisplayMode displayMode = WorldCardDisplayMode.normal;
     public int pileCardCount = 1;
+    public int overlayCardCount;
+    public string tooltipTitle = string.Empty;
+    public string tooltipDescription = string.Empty;
 
     public WorldCardViewModel Clone()
     {
@@ -39,12 +44,16 @@ public sealed class WorldCardViewModel
             isInteractable = isInteractable,
             isReadOnly = isReadOnly,
             isDefensePlacedOnField = isDefensePlacedOnField,
+            isActivated = isActivated,
             baseSummonSigilCost = baseSummonSigilCost,
             effectiveSummonSigilCost = effectiveSummonSigilCost,
             isSummonableByViewer = isSummonableByViewer,
             summonUnavailableReasonKey = summonUnavailableReasonKey,
             displayMode = displayMode,
             pileCardCount = pileCardCount,
+            overlayCardCount = overlayCardCount,
+            tooltipTitle = tooltipTitle,
+            tooltipDescription = tooltipDescription,
         };
     }
 }

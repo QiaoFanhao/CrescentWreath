@@ -40,8 +40,10 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
     private TMP_Text? currentManaText;
     private TMP_Text? currentSkillText;
     private TMP_Text? currentSigilText;
+    private LocalPlayerHudView? localPlayerHudView;
     private bool isAnomalyResolveConfirmOpen;
     private ProjectionViewModel? latestProjection;
+    private readonly HashSet<string> shownRevealEventKeys = new();
 
     public BattlefieldView? View => battlefieldView;
 
@@ -144,6 +146,9 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             statusText ??= layoutRoot.ScreenHudCanvas.transform
                 .Find("TurnInfoPanel/Label")
                 ?.GetComponent<TMP_Text>();
+            localPlayerHudView ??= layoutRoot.ScreenHudCanvas.transform
+                .Find("PlayerHud")
+                ?.GetComponent<LocalPlayerHudView>();
         }
 
         if (layoutRoot?.OverlayCanvas is not null)
@@ -186,6 +191,8 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             return;
         }
 
+        showNewRevealEvents(projection);
+
         var playerById = projection.playerSummaries
             .Where(player => player.playerNumericId > 0)
             .GroupBy(player => player.playerNumericId)
@@ -214,8 +221,72 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         renderPlayerStatuses(seatResult, playerById);
         renderCurrentPlayerMirror(projection, playerById);
         renderCurrentPlayerResources(projection, playerById);
+        renderLocalPlayerHud(projection, playerById);
         renderLocalHand(projection);
         renderActionPanel(projection);
+    }
+
+    private void showNewRevealEvents(ProjectionViewModel projection)
+    {
+        if (zoneCardListOverlayView is null || projection.revealedCardEvents.Count == 0)
+        {
+            return;
+        }
+
+        var newRevealedCards = new List<ProjectionCardViewModel>();
+        foreach (var revealedCardEvent in projection.revealedCardEvents)
+        {
+            var revealIdentity =
+                $"{revealedCardEvent.eventId}:{revealedCardEvent.cardInstanceNumericId}:{revealedCardEvent.revealReasonKey}";
+            if (!shownRevealEventKeys.Add(revealIdentity))
+            {
+                continue;
+            }
+
+            newRevealedCards.Add(new ProjectionCardViewModel
+            {
+                cardInstanceNumericId = revealedCardEvent.cardInstanceNumericId,
+                definitionId = revealedCardEvent.definitionId,
+                ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
+                zoneKey = localizeRevealReason(revealedCardEvent.revealReasonKey),
+                isFaceUp = true,
+            });
+        }
+
+        if (newRevealedCards.Count == 0)
+        {
+            return;
+        }
+
+        var title = newRevealedCards.Count == 1
+            ? $"公开展示：{CardNameLocalizer.Localize(newRevealedCards[0].definitionId)}"
+            : $"公开展示：{newRevealedCards.Count} 张牌";
+        zoneCardListOverlayView.Show(title, newRevealedCards);
+    }
+
+    private static string localizeRevealReason(string revealReasonKey)
+    {
+        return revealReasonKey switch
+        {
+            "treasureOnPlay:T013:declareCardName" => "T013 宣言卡名展示",
+            "character:C013:3:darkJadeFist" => "C013 暗黑翡翠拳展示",
+            "character:C013:4:criminal" => "C013 你被犯人了展示",
+            _ when string.IsNullOrWhiteSpace(revealReasonKey) => "公开展示",
+            _ => revealReasonKey,
+        };
+    }
+
+    private void renderLocalPlayerHud(
+        ProjectionViewModel projection,
+        IReadOnlyDictionary<long, ProjectionPlayerSummaryViewModel> playerById)
+    {
+        if (localPlayerHudView is null)
+        {
+            return;
+        }
+
+        playerById.TryGetValue(projection.viewerPlayerNumericId, out var viewerPlayer);
+        localPlayerHudView.Bind(viewerPlayer);
     }
 
     private void bindSeat(
@@ -302,6 +373,15 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 "A001",
                 projection.currentAnomaly.remainingDeckCount));
 
+        battlefieldView.ReconcileZone(
+            "resolvedAnomaly",
+            BattlefieldCardViewModelMapper.CreatePublicPilePreview(
+                "resolvedAnomaly",
+                -125000,
+                projection.resolvedAnomalyCards,
+                projection.resolvedAnomalyCards.Count,
+                "A001"));
+
         if (!string.IsNullOrWhiteSpace(projection.currentAnomaly.definitionId))
         {
             battlefieldView.ReconcileZone(
@@ -359,6 +439,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             string.IsNullOrWhiteSpace(player.activeCharacterDefinitionId))
         {
             battlefieldView!.ClearZone(zoneViewKey);
+            clearCharacterMarkers(zoneViewKey);
             return;
         }
 
@@ -366,6 +447,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         if (string.IsNullOrWhiteSpace(primaryDefinitionId))
         {
             battlefieldView!.ClearZone(zoneViewKey);
+            clearCharacterMarkers(zoneViewKey);
             return;
         }
 
@@ -387,11 +469,59 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 zoneKey = zoneViewKey,
                 isFaceUp = true,
                 isReadOnly = true,
+                isActivated = index == 0 && player.activeCharacterIsActivated,
                 displayMode = WorldCardDisplayMode.readOnlyMirror,
+                overlayCardCount = index == 0 ? player.characterSetAsideCount : 0,
             });
         }
 
         battlefieldView!.ReconcileZone(zoneViewKey, models);
+        reconcileCharacterMarkers(zoneViewKey, player.activeCharacterMarkers);
+    }
+
+    private void reconcileCharacterMarkers(
+        string characterZoneViewKey,
+        IReadOnlyList<ProjectionMarkerViewModel> markers)
+    {
+        if (battlefieldView is null ||
+            !battlefieldView.LayoutByZoneKey.TryGetValue(characterZoneViewKey, out var layout) ||
+            layout.Anchor is null)
+        {
+            return;
+        }
+
+        var markerView = getOrCreateCharacterMarkerView(layout.Anchor.transform);
+        markerView.Reconcile(markers, layout.Anchor.LocalRotation);
+    }
+
+    private void clearCharacterMarkers(string characterZoneViewKey)
+    {
+        if (battlefieldView is null ||
+            !battlefieldView.LayoutByZoneKey.TryGetValue(characterZoneViewKey, out var layout) ||
+            layout.Anchor is null)
+        {
+            return;
+        }
+
+        var markerView = layout.Anchor.transform
+            .Find("CharacterMarkerView")
+            ?.GetComponent<BattlefieldCharacterMarkerView>();
+        markerView?.Clear();
+    }
+
+    private static BattlefieldCharacterMarkerView getOrCreateCharacterMarkerView(Transform anchorTransform)
+    {
+        var markerTransform = anchorTransform.Find("CharacterMarkerView");
+        if (markerTransform is not null)
+        {
+            return markerTransform.GetComponent<BattlefieldCharacterMarkerView>() ??
+                   markerTransform.gameObject.AddComponent<BattlefieldCharacterMarkerView>();
+        }
+
+        var markerObject = new GameObject("CharacterMarkerView");
+        markerObject.transform.SetParent(anchorTransform, false);
+        markerObject.transform.localPosition = Vector3.zero;
+        return markerObject.AddComponent<BattlefieldCharacterMarkerView>();
     }
 
     private static string getCharacterExtensionDefinitionId(string characterDefinitionId)
@@ -451,10 +581,12 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         var statusModels = new List<WorldCardViewModel>();
         var statusIndex = 0;
         foreach (var statusKey in player.activeCharacterStatusKeys
+                     .Concat(player.playerStatusKeys)
                      .Select(normalizeStatusDefinitionId)
                      .Where(definitionId => !string.IsNullOrWhiteSpace(definitionId))
-                     .Distinct())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            BuffIconSpriteService.TryGetTooltip(statusKey, out var tooltipTitle, out var tooltipDescription);
             statusModels.Add(new WorldCardViewModel
             {
                 cardInstanceNumericId = syntheticBase - player.playerNumericId * 100 - statusIndex,
@@ -465,6 +597,8 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 isReadOnly = true,
                 isDefensePlacedOnField = true,
                 displayMode = WorldCardDisplayMode.readOnlyMirror,
+                tooltipTitle = tooltipTitle,
+                tooltipDescription = tooltipDescription,
             });
             statusIndex += 1;
         }
@@ -474,13 +608,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private static string normalizeStatusDefinitionId(string statusKey)
     {
-        return statusKey?.Trim().ToLowerInvariant() switch
-        {
-            "seal" => "Seal",
-            "shackle" => "Shackle",
-            "barrier" => "Barrier",
-            _ => string.Empty,
-        };
+        return BuffIconSpriteService.NormalizeStatusDefinitionId(statusKey);
     }
 
     private void renderSeatField(
@@ -514,7 +642,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
         battlefieldView!.ReconcileZone(
             $"playerDeck:{seatKey}",
-            BattlefieldCardViewModelMapper.CreateDeckBackStack($"playerDeck:{seatKey}", syntheticBase, "T001", player.deckCount));
+            createPlayerDeckPileModel($"playerDeck:{seatKey}", syntheticBase, player.deckCount));
         var discardModels = BattlefieldCardViewModelMapper.CreatePublicPilePreview(
             $"playerDiscard:{seatKey}",
             syntheticBase - 1000,
@@ -522,6 +650,32 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             player.discardCount,
             "T001");
         battlefieldView.ReconcileZone($"playerDiscard:{seatKey}", discardModels);
+    }
+
+    private static IReadOnlyList<WorldCardViewModel> createPlayerDeckPileModel(
+        string zoneKey,
+        long syntheticBase,
+        int deckCount)
+    {
+        if (deckCount > 0)
+        {
+            return BattlefieldCardViewModelMapper.CreateDeckBackStack(zoneKey, syntheticBase, "T001", deckCount);
+        }
+
+        return new[]
+        {
+            new WorldCardViewModel
+            {
+                cardInstanceNumericId = syntheticBase,
+                definitionId = "T001",
+                zoneKey = zoneKey,
+                isFaceUp = false,
+                isInteractable = false,
+                isReadOnly = true,
+                displayMode = WorldCardDisplayMode.emptyZone,
+                pileCardCount = 0,
+            },
+        };
     }
 
     private void renderCurrentPlayerMirror(
@@ -1188,12 +1342,193 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private void handleCardClicked(WorldCardView view)
     {
-        if (tryOpenBrowsableZone(view.CurrentModel))
+        var model = view.CurrentModel;
+        if (tryOpenOverlayCards(model))
         {
             return;
         }
 
-        cardDetailPanel?.Show(view.CurrentModel);
+        if (tryOpenBrowsableZone(model))
+        {
+            return;
+        }
+
+        cardDetailPanel?.Show(model);
+    }
+
+    private bool tryOpenOverlayCards(WorldCardViewModel model)
+    {
+        if (zoneCardListOverlayView is null || latestProjection is null || model.overlayCardCount <= 0)
+        {
+            return false;
+        }
+
+        if (model.zoneKey.StartsWith("playerCharacter:", StringComparison.Ordinal))
+        {
+            var player = latestProjection.playerSummaries.FirstOrDefault(candidate =>
+                candidate.playerNumericId == model.ownerPlayerNumericId);
+            if (player is null)
+            {
+                return false;
+            }
+
+            var title = $"{CardNameLocalizer.Localize(model.definitionId)} 下方盖放";
+            if (player.characterSetAsideCardsVisible)
+            {
+                zoneCardListOverlayView.Show(title, player.characterSetAsideCards);
+            }
+            else
+            {
+                zoneCardListOverlayView.ShowHiddenCount(
+                    title,
+                    player.characterSetAsideCount,
+                    "这些牌当前未向你公开。");
+            }
+            return true;
+        }
+
+        var projectionCard = findProjectionCard(model.cardInstanceNumericId);
+        if (projectionCard is null)
+        {
+            zoneCardListOverlayView.ShowHiddenCount(
+                $"{CardNameLocalizer.Localize(model.definitionId)} 下方叠放",
+                model.overlayCardCount,
+                "当前投影只公开了叠放数量。");
+            return true;
+        }
+
+        if (projectionCard.overlayCards.Count > 0)
+        {
+            zoneCardListOverlayView.Show(
+                $"{CardNameLocalizer.Localize(model.definitionId)} 下方叠放",
+                projectionCard.overlayCards);
+        }
+        else
+        {
+            zoneCardListOverlayView.ShowHiddenCount(
+                $"{CardNameLocalizer.Localize(model.definitionId)} 下方叠放",
+                projectionCard.overlayCardCount,
+                "当前投影只公开了叠放数量。");
+        }
+
+        return true;
+    }
+
+    private ProjectionCardViewModel? findProjectionCard(long cardInstanceNumericId)
+    {
+        if (latestProjection is null || cardInstanceNumericId <= 0)
+        {
+            return null;
+        }
+
+        foreach (var card in enumerateProjectionCards(latestProjection))
+        {
+            if (card.cardInstanceNumericId == cardInstanceNumericId)
+            {
+                return card;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<ProjectionCardViewModel> enumerateProjectionCards(ProjectionViewModel projection)
+    {
+        foreach (var card in projection.handCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.discardCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.fieldCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.summonZoneCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.sakuraCakeCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.gapZoneCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var card in projection.resolvedAnomalyCards)
+        {
+            yield return card;
+            foreach (var overlayCard in enumerateOverlayCards(card))
+            {
+                yield return overlayCard;
+            }
+        }
+        foreach (var player in projection.playerSummaries)
+        {
+            foreach (var card in player.fieldCards)
+            {
+                yield return card;
+                foreach (var overlayCard in enumerateOverlayCards(card))
+                {
+                    yield return overlayCard;
+                }
+            }
+            foreach (var card in player.discardCards)
+            {
+                yield return card;
+                foreach (var overlayCard in enumerateOverlayCards(card))
+                {
+                    yield return overlayCard;
+                }
+            }
+            foreach (var card in player.characterSetAsideCards)
+            {
+                yield return card;
+                foreach (var overlayCard in enumerateOverlayCards(card))
+                {
+                    yield return overlayCard;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<ProjectionCardViewModel> enumerateOverlayCards(ProjectionCardViewModel card)
+    {
+        foreach (var overlayCard in card.overlayCards)
+        {
+            yield return overlayCard;
+            foreach (var nestedOverlayCard in enumerateOverlayCards(overlayCard))
+            {
+                yield return nestedOverlayCard;
+            }
+        }
     }
 
     private bool tryOpenBrowsableZone(WorldCardViewModel model)
@@ -1206,6 +1541,27 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         if (string.Equals(model.zoneKey, "gapZone", System.StringComparison.Ordinal))
         {
             zoneCardListOverlayView.Show("间隙区", latestProjection.gapZoneCards);
+            return true;
+        }
+
+        if (string.Equals(model.zoneKey, "resolvedAnomaly", System.StringComparison.Ordinal))
+        {
+            zoneCardListOverlayView.Show("已解决异变牌堆", latestProjection.resolvedAnomalyCards);
+            return true;
+        }
+
+        if (model.zoneKey.StartsWith("playerDeck:", System.StringComparison.Ordinal))
+        {
+            var deckSeatKey = model.zoneKey["playerDeck:".Length..];
+            var deckPlayer = resolvePlayerSummaryForSeatKey(deckSeatKey);
+            if (deckPlayer is null)
+            {
+                return false;
+            }
+
+            zoneCardListOverlayView.ShowDeckKnowledge(
+                $"Player {deckPlayer.playerNumericId} 卡组公开信息",
+                deckPlayer.ownedCardKnowledge);
             return true;
         }
 

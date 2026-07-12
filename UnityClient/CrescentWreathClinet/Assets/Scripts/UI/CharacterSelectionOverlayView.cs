@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
@@ -222,7 +222,7 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             destroy(transform.GetChild(index).gameObject);
         }
 
-        titleText = createText("Title", transform, "开局角色选择", 20f, TextAlignmentOptions.Center);
+        titleText = createText("Title", transform, "寮€灞€瑙掕壊閫夋嫨", 20f, TextAlignmentOptions.Center);
         setAnchors(titleText.rectTransform, new Vector2(0.04f, 0.89f), new Vector2(0.96f, 0.98f), Vector2.zero, Vector2.zero);
         detailText = createText("Detail", transform, string.Empty, 13f, TextAlignmentOptions.Center);
         setAnchors(detailText.rectTransform, new Vector2(0.04f, 0.81f), new Vector2(0.96f, 0.89f), Vector2.zero, Vector2.zero);

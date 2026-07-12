@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
@@ -21,7 +21,7 @@ public static class ChoicePresentationResolver
         var normalized = choiceKey?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            return create(normalized, "(空选项)", string.Empty, "unknown", false);
+            return create(normalized, "（空选项）", string.Empty, "unknown", false);
         }
 
         if (isAcceptChoice(normalized))
@@ -59,6 +59,7 @@ public static class ChoicePresentationResolver
             "setAsideCard" => resolveCard(projection, normalized, value, "盖放候选"),
             "markerGrant" => resolveMarkerGrant(projection, normalized, value),
             "declareCardName" => resolveDeclareCardName(normalized, value),
+            "damageType" => resolveDamageType(normalized, value),
             "draw" => create(normalized, localizeDrawChoice(value), "抽牌选择", "draw", false),
             _ => create(normalized, normalized, $"未识别前缀：{prefix}", "unknown", false),
         };
@@ -66,9 +67,21 @@ public static class ChoicePresentationResolver
 
     public static bool IsMultiSelectInput(ProjectionInteractionViewModel interaction)
     {
-        if (containsAny(interaction.inputTypeKey, interaction.contextKey, "arrivalSetAside"))
+        if (containsAny(interaction.inputTypeKey, interaction.contextKey,
+                "arrivalSetAside",
+                "selectGapTreasureToHand",
+                "arrivalDirectSummonFromSummonZone",
+                "selectSummonCardToHand",
+                "targetOpponent",
+                "targetPlayer",
+                "damageType"))
         {
             return false;
+        }
+
+        if (containsAny(interaction.inputTypeKey, interaction.contextKey, "turnStartC013MechanicalJadeChoice", "turnStart:c013MechanicalJade"))
+        {
+            return true;
         }
 
         return containsAny(
@@ -80,6 +93,7 @@ public static class ChoicePresentationResolver
             "overlayCards",
             "extraDiscard",
             "OptionalShackle",
+            "rewardOptionalShackleOpponents",
             "DefenseLikePlace",
             "conditionDefenseLikePlace",
             "rewardChooseTwo",
@@ -92,9 +106,19 @@ public static class ChoicePresentationResolver
 
     public static int GetSuggestedMaxSelectionCount(ProjectionInteractionViewModel interaction)
     {
+        if (containsAny(interaction.inputTypeKey, interaction.contextKey, "rewardOptionalShackleOpponents"))
+        {
+            return 2;
+        }
+
         if (containsAny(interaction.inputTypeKey, interaction.contextKey, "T025", "extraDiscard"))
         {
             return int.MaxValue;
+        }
+
+        if (containsAny(interaction.inputTypeKey, interaction.contextKey, "turnStartC013MechanicalJadeChoice", "turnStart:c013MechanicalJade"))
+        {
+            return 2;
         }
 
         if (containsAny(
@@ -102,8 +126,7 @@ public static class ChoicePresentationResolver
                 interaction.contextKey,
                 "turnStartShackleDiscard",
                 "shackleDiscard",
-                "SelectDiscardCards",
-                "turnStartShackleDiscard"))
+                "SelectDiscardCards"))
         {
             return 4;
         }
@@ -120,6 +143,16 @@ public static class ChoicePresentationResolver
         }
 
         return IsMultiSelectInput(interaction) ? int.MaxValue : 1;
+    }
+
+    public static int GetSuggestedMinSelectionCount(ProjectionInteractionViewModel interaction)
+    {
+        if (containsAny(interaction.inputTypeKey, interaction.contextKey, "turnStartC013MechanicalJadeChoice", "turnStart:c013MechanicalJade"))
+        {
+            return 2;
+        }
+
+        return 1;
     }
 
     public static bool IsDeclineChoice(string choiceKey)
@@ -146,11 +179,11 @@ public static class ChoicePresentationResolver
 
         var character = string.IsNullOrWhiteSpace(player.activeCharacterDefinitionId)
             ? "未选择角色"
-            : player.activeCharacterDefinitionId;
+            : CardNameLocalizer.Localize(player.activeCharacterDefinitionId);
         var hp = player.activeCharacterCurrentHp.HasValue && player.activeCharacterMaxHp.HasValue
             ? $"HP {player.activeCharacterCurrentHp}/{player.activeCharacterMaxHp}"
             : "HP ?";
-        return create(choiceKey, $"{label} {playerId}", $"{character} / {hp}", "player", false);
+        return create(choiceKey, $"{label} P{playerId}", $"{character} / {hp}", "player", false);
     }
 
     private static ChoicePresentationViewModel resolveCharacter(ProjectionViewModel projection, string choiceKey, string value)
@@ -168,8 +201,8 @@ public static class ChoicePresentationResolver
 
         var characterName = string.IsNullOrWhiteSpace(player.activeCharacterDefinitionId)
             ? $"角色 #{characterId}"
-            : player.activeCharacterDefinitionId;
-        return create(choiceKey, characterName, $"玩家 {player.playerNumericId}", "character", false);
+            : CardNameLocalizer.Localize(player.activeCharacterDefinitionId);
+        return create(choiceKey, characterName, $"玩家 P{player.playerNumericId}", "character", false);
     }
 
     private static ChoicePresentationViewModel resolveCard(
@@ -203,12 +236,24 @@ public static class ChoicePresentationResolver
 
         var markerKey = parts[1];
         var player = projection.playerSummaries.FirstOrDefault(summary => summary.playerNumericId == playerId);
-        return create(choiceKey, $"给予玩家 {playerId}：{localizeMarker(markerKey)}", player?.activeCharacterDefinitionId ?? string.Empty, "marker", false);
+        return create(choiceKey, $"给予 P{playerId}：{localizeMarker(markerKey)}", player?.activeCharacterDefinitionId ?? string.Empty, "marker", false);
     }
 
     private static ChoicePresentationViewModel resolveDeclareCardName(string choiceKey, string value)
     {
         return create(choiceKey, $"宣言：{CardNameLocalizer.Localize(value)}", "卡名宣言", "declareCardName", false);
+    }
+
+    private static ChoicePresentationViewModel resolveDamageType(string choiceKey, string value)
+    {
+        var title = value switch
+        {
+            "physical" => "体术伤害",
+            "spell" => "咒术伤害",
+            "direct" => "直接伤害",
+            _ => value,
+        };
+        return create(choiceKey, title, "选择伤害类型", "damageType", false);
     }
 
     private static ProjectionCardViewModel? findCard(ProjectionViewModel projection, long cardId)
@@ -259,7 +304,7 @@ public static class ChoicePresentationResolver
     {
         if (choiceKey.Contains("draw", StringComparison.OrdinalIgnoreCase))
         {
-            return "抽 1 张牌";
+            return "抽1张牌";
         }
 
         if (choiceKey.Contains("sakura", StringComparison.OrdinalIgnoreCase))
@@ -272,12 +317,6 @@ public static class ChoicePresentationResolver
 
     private static string localizeDecline(string choiceKey)
     {
-        if (choiceKey.Contains("banish", StringComparison.OrdinalIgnoreCase) ||
-            choiceKey.Contains("gapCard", StringComparison.OrdinalIgnoreCase))
-        {
-            return "不处理";
-        }
-
         if (choiceKey.Contains("discard", StringComparison.OrdinalIgnoreCase))
         {
             return "不弃牌 / 跳过";
@@ -294,7 +333,7 @@ public static class ChoicePresentationResolver
     private static string localizeDrawChoice(string value)
     {
         return string.Equals(value, "accept", StringComparison.Ordinal)
-            ? "抽 1 张牌"
+            ? "抽1张牌"
             : "不抽牌";
     }
 
