@@ -77,6 +77,7 @@ mono_crash.*
 
 # ---------- Optional local artifacts ----------
 *.zip
+~$*
 UnityClient/CrescentWreathClinet/Assets/*.zip.meta
 UnityClient/CrescentWreathClinet/Assets/_Recovery/
 Assets/_Recovery/
