@@ -16,6 +16,7 @@ namespace CrescentWreath.RuleCore.ActionSystem;
 
 public sealed class TreasureOnPlayEffectRuntime
 {
+    private const int LeylineMaxValue = 5;
     public const string InputTypeKeyTreasureOnPlayTargetPlayerChoice = "treasureOnPlayTargetPlayerChoice";
     public const string InputTypeKeyTreasureOnPlayOptionalBanishChoice = "treasureOnPlayOptionalBanishChoice";
     public const string InputTypeKeyTreasureOnPlayDiscardCardChoice = "treasureOnPlayDiscardCardChoice";
@@ -133,6 +134,7 @@ public sealed class TreasureOnPlayEffectRuntime
     private readonly ZoneMovementService zoneMovementService;
     private readonly DamageProcessor damageProcessor;
     private readonly Action<GameState.GameState, ActionChainState, PlayerId, long> forceResolveCurrentAnomalyFromExternalEffect;
+    private readonly Func<GameState.GameState, ActionChainState, long, DamageContext, bool> tryOpenBeforeDefenseResponseHook;
 
     private enum OnPlayEffectKind
     {
@@ -169,13 +171,15 @@ public sealed class TreasureOnPlayEffectRuntime
         Func<long> nextResponseWindowIdSupplier,
         ZoneMovementService zoneMovementService,
         DamageProcessor damageProcessor,
-        Action<GameState.GameState, ActionChainState, PlayerId, long> forceResolveCurrentAnomalyFromExternalEffect)
+        Action<GameState.GameState, ActionChainState, PlayerId, long> forceResolveCurrentAnomalyFromExternalEffect,
+        Func<GameState.GameState, ActionChainState, long, DamageContext, bool>? tryOpenBeforeDefenseResponseHook = null)
     {
         this.nextInputContextIdSupplier = nextInputContextIdSupplier;
         this.nextResponseWindowIdSupplier = nextResponseWindowIdSupplier;
         this.zoneMovementService = zoneMovementService;
         this.damageProcessor = damageProcessor;
         this.forceResolveCurrentAnomalyFromExternalEffect = forceResolveCurrentAnomalyFromExternalEffect;
+        this.tryOpenBeforeDefenseResponseHook = tryOpenBeforeDefenseResponseHook ?? ((_, _, _, _) => false);
     }
 
     public static bool isTreasureOnPlayContinuationKey(string? continuationKey)
@@ -3093,7 +3097,7 @@ public sealed class TreasureOnPlayEffectRuntime
             throw new InvalidOperationException("T023 on-play effect requires actor team state to exist.");
         }
 
-        actorTeamState.leyline += 1;
+        actorTeamState.leyline = Math.Min(LeylineMaxValue, actorTeamState.leyline + 1);
         openT023HumanHealInputContextOrContinue(
             gameState,
             actionChainState,
@@ -3567,7 +3571,8 @@ public sealed class TreasureOnPlayEffectRuntime
             sourceCardInstanceId,
             targetCharacterInstance.characterInstanceId,
             baseDamageValue,
-            damageTypeKey);
+            damageTypeKey,
+            continuationKey);
     }
 
     private void openStagedDamageResponseWindow(
@@ -3578,7 +3583,8 @@ public sealed class TreasureOnPlayEffectRuntime
         CardInstanceId? sourceCardInstanceId,
         CharacterInstanceId targetCharacterInstanceId,
         int baseDamageValue,
-        string damageTypeKey)
+        string damageTypeKey,
+        string continuationKey)
     {
         if (gameState.currentResponseWindow is not null)
         {
@@ -3591,6 +3597,63 @@ public sealed class TreasureOnPlayEffectRuntime
         }
 
         var pendingDamageDefenderPlayerId = targetCharacterInstance.ownerPlayerId;
+        var stagedDamageContext = new DamageContext
+        {
+            damageContextId = new DamageContextId(requestId),
+            sourcePlayerId = sourcePlayerId,
+            sourceCardInstanceId = sourceCardInstanceId,
+            targetPlayerId = pendingDamageDefenderPlayerId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = baseDamageValue,
+            damageType = string.IsNullOrWhiteSpace(damageTypeKey) ? DamageTypeKeyPhysical : damageTypeKey,
+        };
+        actionChainState.producedEvents.AddRange(
+            damageProcessor.applySourceMatchingDamageBonuses(gameState, stagedDamageContext));
+        var wasCharmConsumedBeforeDefense = damageProcessor.tryConsumeCharmBeforeDefense(
+            gameState,
+            stagedDamageContext,
+            out var charmPreDefenseEvents);
+        actionChainState.producedEvents.AddRange(charmPreDefenseEvents);
+        var isPreventedByBarrier = damageProcessor.tryResolveBarrierBeforeDefense(
+            gameState,
+            stagedDamageContext,
+            out var preDefenseEvents);
+        actionChainState.producedEvents.AddRange(preDefenseEvents);
+        if (isPreventedByBarrier)
+        {
+            if (gameState.currentInputContext is null &&
+                string.Equals(actionChainState.pendingContinuationKey, continuationKey, StringComparison.Ordinal))
+            {
+                actionChainState.pendingContinuationKey = null;
+            }
+
+            return;
+        }
+
+        if (wasCharmConsumedBeforeDefense)
+        {
+            actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(
+                gameState,
+                stagedDamageContext));
+            if (gameState.currentInputContext is null &&
+                string.Equals(actionChainState.pendingContinuationKey, continuationKey, StringComparison.Ordinal))
+            {
+                actionChainState.pendingContinuationKey = null;
+            }
+
+            return;
+        }
+
+        if (tryOpenBeforeDefenseResponseHook(
+                gameState,
+                actionChainState,
+                requestId,
+                stagedDamageContext))
+        {
+            actionChainState.isCompleted = false;
+            return;
+        }
+
         var responseWindowState = new ResponseWindowState
         {
             responseWindowId = new ResponseWindowId(nextResponseWindowIdSupplier()),
@@ -3598,10 +3661,10 @@ public sealed class TreasureOnPlayEffectRuntime
             windowTypeKey = ResponseWindowTypeDamageResponse,
             sourceActionChainId = actionChainState.actionChainId,
             pendingDamageTargetCharacterInstanceId = targetCharacterInstanceId,
-            pendingDamageBaseDamageValue = baseDamageValue,
+            pendingDamageBaseDamageValue = stagedDamageContext.baseDamageValue,
             pendingDamageSourcePlayerId = sourcePlayerId,
             pendingDamageSourceCardInstanceId = sourceCardInstanceId,
-            pendingDamageTypeKey = damageTypeKey,
+            pendingDamageTypeKey = stagedDamageContext.damageType,
             pendingDamageResponseStageKey = ActionRequestProcessor.DamageResponseStageAwaitDefense,
             pendingDamageDefenseDeclarationKey = null,
             pendingDamageDefenderPlayerId = pendingDamageDefenderPlayerId,

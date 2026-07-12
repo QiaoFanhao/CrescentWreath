@@ -41,6 +41,8 @@ public sealed class DamageProcessor
     private const string StatusKeyCharmLegacy = "status:charm";
     private const string StatusKeyPenetrate = "Penetrate";
     private const string StatusKeyPenetrateLegacy = "status:penetrate";
+    private const int LeylineMaxValue = 5;
+    private const string LocalStateKeyLeylineRewardGranted = "damage:leylineRewardGranted";
 
     public List<GameEvent> resolveDamage(GameState.GameState gameState, DamageContext damageContext)
     {
@@ -49,6 +51,16 @@ public sealed class DamageProcessor
         var targetCharacterInstanceId = damageContext.targetCharacterInstanceId!.Value;
         var targetCharacter = gameState.characterInstances[targetCharacterInstanceId];
         var producedEvents = applySourceMatchingDamageBonuses(gameState, damageContext);
+
+        var consumedCharmStatusKey = consumeCharmOnTargetPlayer(gameState, targetCharacter.ownerPlayerId);
+        appendStatusChangedEventsForConsumedStatuses(
+            producedEvents,
+            damageContext,
+            targetCharacterInstanceId,
+            targetCharacter.ownerPlayerId,
+            new List<string>(),
+            consumedCharmStatusKey,
+            consumedBarrierStatusKey: null);
 
         if (tryResolveBarrierPrevention(
                 gameState,
@@ -76,7 +88,6 @@ public sealed class DamageProcessor
         }
 
         var hasPenetrate = containsPenetrateEffect(consumedShortEffectKeys);
-        var consumedCharmStatusKey = consumeCharmOnTargetPlayer(gameState, targetCharacter.ownerPlayerId);
 
         var hpBefore = targetCharacter.currentHp;
         var finalDamageValue = damageContext.baseDamageValue;
@@ -135,9 +146,41 @@ public sealed class DamageProcessor
             targetCharacterInstanceId,
             targetCharacter.ownerPlayerId,
             consumedShortEffectKeys,
-            consumedCharmStatusKey,
+            consumedCharmStatusKey: null,
             consumedBarrierStatusKey: null);
         return producedEvents;
+    }
+
+    public bool tryConsumeCharmBeforeDefense(
+        GameState.GameState gameState,
+        DamageContext damageContext,
+        out List<GameEvent> producedEvents)
+    {
+        ensureCanAcceptExternalResolution(gameState);
+        producedEvents = new List<GameEvent>();
+        if (!damageContext.targetCharacterInstanceId.HasValue ||
+            !gameState.characterInstances.TryGetValue(
+                damageContext.targetCharacterInstanceId.Value,
+                out var targetCharacter))
+        {
+            throw new InvalidOperationException("Charm pre-defense resolution requires a valid target character.");
+        }
+
+        var consumedCharmStatusKey = consumeCharmOnTargetPlayer(gameState, targetCharacter.ownerPlayerId);
+        if (consumedCharmStatusKey is null)
+        {
+            return false;
+        }
+
+        appendStatusChangedEventsForConsumedStatuses(
+            producedEvents,
+            damageContext,
+            targetCharacter.characterInstanceId,
+            targetCharacter.ownerPlayerId,
+            new List<string>(),
+            consumedCharmStatusKey,
+            consumedBarrierStatusKey: null);
+        return true;
     }
 
     public bool tryResolveBarrierBeforeDefense(
@@ -198,6 +241,9 @@ public sealed class DamageProcessor
             });
         }
 
+        damageBonus += StatusRuntime.getPersistentAllDamageBoostForAttempt(
+            gameState,
+            damageContext.sourcePlayerId.Value);
         damageContext.baseDamageValue += damageBonus;
         return producedEvents;
     }
@@ -254,7 +300,7 @@ public sealed class DamageProcessor
         var killContext = new KillContext
         {
             killContextId = damageContext.damageContextId.Value,
-            killerPlayerId = damageContext.sourcePlayerId,
+            killerPlayerId = damageContext.killCreditPlayerIdOverride ?? damageContext.sourcePlayerId,
             killedCharacterInstanceId = targetCharacterInstanceId,
             killedPlayerId = targetPlayerId,
             causedByDamage = true,
@@ -404,8 +450,11 @@ public sealed class DamageProcessor
         applyMatchEndIfThresholdReached(gameState, killedTeamId, killedTeamState);
 
         // Even when matchState is written to ended here, this in-flight kill suffix must
-        // continue to append reward draw / restore hp before returning to caller.
-        producedEvents.AddRange(drawOneForKillReward(gameState, killerPlayerId, eventId));
+        // continue to append eligible reward draw / restore hp before returning to caller.
+        if (shouldGrantKillRewardDraw(gameState, killerPlayerId, killedPlayerId))
+        {
+            producedEvents.AddRange(drawOneForKillReward(gameState, killerPlayerId, eventId));
+        }
 
         var hpBeforeRestore = targetCharacter.currentHp;
         targetCharacter.currentHp = targetCharacter.maxHp;
@@ -507,7 +556,37 @@ public sealed class DamageProcessor
             return;
         }
 
-        sourceTeamState.leyline += 1;
+        var currentActionChain = gameState.currentActionChain;
+        if (currentActionChain is not null)
+        {
+            if (currentActionChain.localState.ContainsKey(LocalStateKeyLeylineRewardGranted))
+            {
+                return;
+            }
+
+            currentActionChain.localState[LocalStateKeyLeylineRewardGranted] = "true";
+        }
+
+        sourceTeamState.leyline = Math.Min(LeylineMaxValue, sourceTeamState.leyline + 1);
+    }
+
+    private static bool shouldGrantKillRewardDraw(
+        GameState.GameState gameState,
+        PlayerId? killerPlayerId,
+        PlayerId killedPlayerId)
+    {
+        if (!killerPlayerId.HasValue)
+        {
+            return false;
+        }
+
+        if (!gameState.players.TryGetValue(killerPlayerId.Value, out var killerPlayerState) ||
+            !gameState.players.TryGetValue(killedPlayerId, out var killedPlayerState))
+        {
+            return false;
+        }
+
+        return killerPlayerState.teamId != killedPlayerState.teamId;
     }
 
     private static bool tryOpenT029DamageImmunityInputContext(
@@ -624,9 +703,6 @@ public sealed class DamageProcessor
             damageContext.appliedShortEffectKeys.Add(shortEffectKey);
         }
 
-        var consumedCharmStatusKey = consumeCharmOnTargetPlayer(
-            gameState,
-            targetCharacter.ownerPlayerId);
         var consumedBarrierStatusKey = consumeBarrierOnTargetCharacter(
             gameState,
             targetCharacterInstanceId);
@@ -658,7 +734,7 @@ public sealed class DamageProcessor
             targetCharacterInstanceId,
             targetCharacter.ownerPlayerId,
             consumedShortEffectKeys,
-            consumedCharmStatusKey,
+            consumedCharmStatusKey: null,
             consumedBarrierStatusKey);
         return true;
     }

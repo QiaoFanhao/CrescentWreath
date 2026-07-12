@@ -46,6 +46,12 @@ public static class StatusPolicyTable
             ["status:physicalDamageBoostNext"] = "PhysicalDamageBoostNext",
             ["SpellDamageBoostNext"] = "SpellDamageBoostNext",
             ["status:spellDamageBoostNext"] = "SpellDamageBoostNext",
+            ["PhysicalOrSpellDamageBoostNext"] = "PhysicalOrSpellDamageBoostNext",
+            ["status:physicalOrSpellDamageBoostNext"] = "PhysicalOrSpellDamageBoostNext",
+            ["C011AllDamageBoostThisTurn"] = "C011AllDamageBoostThisTurn",
+            ["status:c011AllDamageBoostThisTurn"] = "C011AllDamageBoostThisTurn",
+            ["C011EndTurnSelfShackle"] = "C011EndTurnSelfShackle",
+            ["status:c011EndTurnSelfShackle"] = "C011EndTurnSelfShackle",
         };
 
     private static readonly Dictionary<string, StatusPolicy> PolicyByCanonicalKey =
@@ -98,6 +104,24 @@ public static class StatusPolicyTable
                 canonicalStatusKey = "SpellDamageBoostNext",
                 identityScope = StatusIdentityScope.player,
                 stackPolicy = StatusStackPolicy.stack,
+            },
+            ["PhysicalOrSpellDamageBoostNext"] = new StatusPolicy
+            {
+                canonicalStatusKey = "PhysicalOrSpellDamageBoostNext",
+                identityScope = StatusIdentityScope.player,
+                stackPolicy = StatusStackPolicy.stack,
+            },
+            ["C011AllDamageBoostThisTurn"] = new StatusPolicy
+            {
+                canonicalStatusKey = "C011AllDamageBoostThisTurn",
+                identityScope = StatusIdentityScope.player,
+                stackPolicy = StatusStackPolicy.stack,
+            },
+            ["C011EndTurnSelfShackle"] = new StatusPolicy
+            {
+                canonicalStatusKey = "C011EndTurnSelfShackle",
+                identityScope = StatusIdentityScope.character,
+                stackPolicy = StatusStackPolicy.refresh,
             },
         };
 

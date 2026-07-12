@@ -18,6 +18,7 @@ public sealed class MechanicalJadeRuntime
     public const string ContinuationKeyOverlayAfterKill = "continuation:treasurePersistent:T016:overlayAfterKill";
     public const string LocalStateKeyContainerCardInstanceId = "treasurePersistent:T016:containerCardInstanceId";
     public const string LocalStateKeyPendingTriggerQueue = "treasurePersistent:T016:pendingTriggerQueue";
+    private const string LocalStateKeyProcessedTriggerPrefix = "treasurePersistent:T016:processedTrigger:";
 
     private const int MaxOverlayCount = 2;
     private const int ManaGainPerOverlay = 2;
@@ -101,8 +102,16 @@ public sealed class MechanicalJadeRuntime
             var eligibleMechanicalJades = findEligibleMechanicalJades(gameState, killerPlayerState);
             foreach (var containerCardInstance in eligibleMechanicalJades)
             {
-                pendingTriggers.Add(
-                    killerPlayerId.Value + ":" + containerCardInstance.cardInstanceId.Value);
+                var triggerKey = killRecordedEvent.killContextId +
+                                 ":" + killerPlayerId.Value +
+                                 ":" + containerCardInstance.cardInstanceId.Value;
+                if (actionChainState.localState.ContainsKey(LocalStateKeyProcessedTriggerPrefix + triggerKey))
+                {
+                    continue;
+                }
+
+                actionChainState.localState[LocalStateKeyProcessedTriggerPrefix + triggerKey] = "true";
+                pendingTriggers.Add(triggerKey);
             }
         }
 
@@ -313,9 +322,9 @@ public sealed class MechanicalJadeRuntime
             entries.Length == 1 ? string.Empty : string.Join(",", entries, 1, entries.Length - 1);
 
         var segments = entries[0].Split(':');
-        if (segments.Length != 2 ||
-            !long.TryParse(segments[0], out var playerNumericId) ||
-            !long.TryParse(segments[1], out var cardNumericId))
+        if (segments.Length != 3 ||
+            !long.TryParse(segments[1], out var playerNumericId) ||
+            !long.TryParse(segments[2], out var cardNumericId))
         {
             throw new InvalidOperationException("T016 pending trigger queue contains an invalid player/card entry.");
         }

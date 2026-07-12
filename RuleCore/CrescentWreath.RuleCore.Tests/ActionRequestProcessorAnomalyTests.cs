@@ -1176,7 +1176,7 @@ public class ActionRequestProcessorAnomalyTests
     }
 
     [Fact]
-    public void TryResolveAnomaly_WhenA003AndManaSufficient_ShouldDeductManaApplyRewardAndFlipNext()
+    public void TryResolveAnomaly_WhenA003RewardReducesOpponentKillScoreToZero_ShouldEndMatchWithoutFlippingNextAnomaly()
     {
         var actorPlayerId = new PlayerId(1);
         var actorTeamId = new TeamId(1);
@@ -1196,7 +1196,7 @@ public class ActionRequestProcessorAnomalyTests
             actorPlayerId = actorPlayerId,
         });
 
-        Assert.Equal(3, events.Count);
+        Assert.Equal(2, events.Count);
         var attemptedEvent = Assert.IsType<AnomalyResolveAttemptedEvent>(events[0]);
         Assert.True(attemptedEvent.isSucceeded);
         Assert.Null(attemptedEvent.failedReasonKey);
@@ -1204,17 +1204,16 @@ public class ActionRequestProcessorAnomalyTests
         var resolvedEvent = Assert.IsType<AnomalyResolvedEvent>(events[1]);
         Assert.Equal("A003", resolvedEvent.anomalyDefinitionId);
 
-        var flippedEvent = Assert.IsType<AnomalyFlippedEvent>(events[2]);
-        Assert.Equal("A004", flippedEvent.anomalyDefinitionId);
-
         Assert.Equal(0, gameState.players[actorPlayerId].mana);
-        Assert.Equal(5, gameState.teams[actorTeamId].leyline);
+        Assert.Equal(3, gameState.teams[actorTeamId].leyline);
         Assert.Equal(0, gameState.teams[enemyTeamId].killScore);
+        Assert.Equal(RuleCore.GameState.MatchState.ended, gameState.matchState);
+        Assert.Equal(actorTeamId, gameState.winnerTeamId);
         var actorCharacterId = gameState.players[actorPlayerId].activeCharacterInstanceId!.Value;
         Assert.True(StatusRuntime.hasStatusOnCharacter(gameState, actorCharacterId, "Shackle"));
         Assert.True(gameState.turnState!.hasResolvedAnomalyThisTurn);
-        Assert.Equal("A004", gameState.currentAnomalyState!.currentAnomalyDefinitionId);
-        Assert.Empty(gameState.currentAnomalyState.anomalyDeckDefinitionIds);
+        Assert.Equal("A003", gameState.currentAnomalyState!.currentAnomalyDefinitionId);
+        Assert.Equal(new[] { "A004" }, gameState.currentAnomalyState.anomalyDeckDefinitionIds);
     }
 
     [Fact]
@@ -1509,6 +1508,94 @@ public class ActionRequestProcessorAnomalyTests
         Assert.Equal("A009", gameState.currentAnomalyState.currentAnomalyDefinitionId);
         Assert.Single(gameState.currentAnomalyState.anomalyDeckDefinitionIds);
         Assert.Equal("A010", gameState.currentAnomalyState.anomalyDeckDefinitionIds[0]);
+    }
+
+    [Fact]
+    public void TryResolveAnomaly_WhenA007OpponentsDrawThenActorSelectsCharmTarget_ShouldResolveAndFlipNext()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var firstOpponentPlayerId = new PlayerId(2);
+        var secondOpponentPlayerId = new PlayerId(4);
+        var actorTeamId = new TeamId(1);
+        var enemyTeamId = new TeamId(2);
+        var gameState = createA009ConditionFlowGameState(
+            actorPlayerId,
+            firstOpponentPlayerId,
+            secondOpponentPlayerId,
+            actorTeamId,
+            enemyTeamId,
+            actorMana: 8,
+            sakuraCakeCount: 0);
+
+        gameState.currentAnomalyState!.currentAnomalyDefinitionId = "A007";
+        gameState.currentAnomalyState.anomalyDeckDefinitionIds.Clear();
+        gameState.currentAnomalyState.anomalyDeckDefinitionIds.Add("A008");
+        gameState.currentAnomalyState.anomalyDeckDefinitionIds.Add("A009");
+        gameState.teams[enemyTeamId].killScore = 5;
+
+        var firstOpponentTargetCharacterId = gameState.players[firstOpponentPlayerId].activeCharacterInstanceId!.Value;
+        var firstOpponentDrawCardId = addCardToPlayerDeckZone(
+            gameState,
+            firstOpponentPlayerId,
+            "starter:magicCircuit",
+            999951);
+        var secondOpponentDrawCardId = addCardToPlayerDeckZone(
+            gameState,
+            secondOpponentPlayerId,
+            "starter:kourindouCoupon",
+            999952);
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new TryResolveAnomalyActionRequest
+        {
+            requestId = 91037,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal("anomaly:A007:conditionOpponentOptionalDraw", gameState.currentInputContext!.contextKey);
+        Assert.Equal(0, gameState.players[actorPlayerId].mana);
+
+        var drawInputContextId = gameState.currentInputContext.inputContextId;
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 91038,
+            actorPlayerId = firstOpponentPlayerId,
+            inputContextId = drawInputContextId,
+            choiceKey = "draw:accept",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 91039,
+            actorPlayerId = secondOpponentPlayerId,
+            inputContextId = drawInputContextId,
+            choiceKey = "draw:accept",
+        });
+
+        Assert.Equal(gameState.players[firstOpponentPlayerId].handZoneId, gameState.cardInstances[firstOpponentDrawCardId].zoneId);
+        Assert.Equal(gameState.players[secondOpponentPlayerId].handZoneId, gameState.cardInstances[secondOpponentDrawCardId].zoneId);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal("anomaly:A007:rewardTargetCharm", gameState.currentInputContext!.contextKey);
+        Assert.Equal(actorPlayerId, gameState.currentInputContext.requiredPlayerId);
+        Assert.Contains("opponentPlayer:2", gameState.currentInputContext.choiceKeys);
+
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 91040,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = "opponentPlayer:2",
+        });
+
+        Assert.True(StatusRuntime.hasStatusOnCharacter(gameState, firstOpponentTargetCharacterId, "Charm"));
+        Assert.Equal(4, gameState.teams[enemyTeamId].killScore);
+        Assert.True(gameState.turnState!.hasResolvedAnomalyThisTurn);
+        Assert.Equal("A008", gameState.currentAnomalyState.currentAnomalyDefinitionId);
+        Assert.Single(gameState.currentAnomalyState.anomalyDeckDefinitionIds);
+        Assert.Equal("A009", gameState.currentAnomalyState.anomalyDeckDefinitionIds[0]);
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
     }
 
     [Fact]
@@ -5906,6 +5993,28 @@ public class ActionRequestProcessorAnomalyTests
         };
         gameState.zones[handZoneId].cardInstanceIds.Add(handCardInstanceId);
         return handCardInstanceId;
+    }
+
+    private static CardInstanceId addCardToPlayerDeckZone(
+        RuleCore.GameState.GameState gameState,
+        PlayerId playerId,
+        string definitionId,
+        long cardInstanceNumericId)
+    {
+        var playerState = gameState.players[playerId];
+        var deckZoneId = playerState.deckZoneId;
+        var deckCardInstanceId = new CardInstanceId(cardInstanceNumericId);
+        gameState.cardInstances[deckCardInstanceId] = new CardInstance
+        {
+            cardInstanceId = deckCardInstanceId,
+            definitionId = definitionId,
+            ownerPlayerId = playerId,
+            zoneId = deckZoneId,
+            zoneKey = ZoneKey.deck,
+            isFaceUp = false,
+        };
+        gameState.zones[deckZoneId].cardInstanceIds.Add(deckCardInstanceId);
+        return deckCardInstanceId;
     }
 
     private static RuleCore.GameState.GameState createA006SampleGameState(

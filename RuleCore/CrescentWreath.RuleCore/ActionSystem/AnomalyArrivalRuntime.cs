@@ -12,6 +12,7 @@ namespace CrescentWreath.RuleCore.ActionSystem;
 
 public static class AnomalyArrivalRuntime
 {
+    private const int LeylineMaxValue = 5;
     public const string ArrivalStepKeyLegacyNoop = "legacyNoop";
     public const string ArrivalStepKeyA003SelectOpponentApplyShackleAndGrantYuukaTeamLeyline = "selectOpponentApplyShackleAndGrantYuukaTeamLeyline";
     public const string ArrivalStepKeyBanishSummonZoneToGap = "banishSummonZoneToGap";
@@ -265,11 +266,6 @@ public static class AnomalyArrivalRuntime
             throw new InvalidOperationException("Anomaly arrival runtime requires gapZoneId to exist for arrivalStepKey: banishSummonZoneToGap.");
         }
 
-        if (summonZoneState.cardInstanceIds.Count == 0)
-        {
-            return;
-        }
-
         var cardInstanceIdsToBanish = new List<CardInstanceId>(summonZoneState.cardInstanceIds);
         foreach (var cardInstanceId in cardInstanceIdsToBanish)
         {
@@ -287,6 +283,12 @@ public static class AnomalyArrivalRuntime
                 requestId);
             actionChainState.producedEvents.Add(movedEvent);
         }
+
+        refillSummonZoneFromPublicTreasureDeck(
+            gameState,
+            actionChainState,
+            requestId,
+            zoneMovementService);
     }
 
     private static void executeApplySealToLeadingTeamActiveCharacters(
@@ -390,8 +392,42 @@ public static class AnomalyArrivalRuntime
 
             if (grantedTeamIds.Add(playerState.teamId))
             {
-                teamState.leyline += 1;
+                teamState.leyline = Math.Min(LeylineMaxValue, teamState.leyline + 1);
             }
+        }
+    }
+
+    private static void refillSummonZoneFromPublicTreasureDeck(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId,
+        ZoneMovementService zoneMovementService)
+    {
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("Anomaly arrival runtime requires gameState.publicState when refilling summonZone.");
+        }
+
+        var publicState = gameState.publicState;
+        if (!gameState.zones.TryGetValue(publicState.summonZoneId, out var summonZoneState) ||
+            !gameState.zones.TryGetValue(publicState.publicTreasureDeckZoneId, out var publicTreasureDeckZoneState))
+        {
+            throw new InvalidOperationException("Anomaly arrival runtime requires summonZone and publicTreasureDeck zones when refilling summonZone.");
+        }
+
+        while (summonZoneState.cardInstanceIds.Count < 6 &&
+               publicTreasureDeckZoneState.cardInstanceIds.Count > 0)
+        {
+            var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
+            var topPublicTreasureCardInstance = gameState.cardInstances[topPublicTreasureCardInstanceId];
+            var refillEvent = zoneMovementService.moveCard(
+                gameState,
+                topPublicTreasureCardInstance,
+                publicState.summonZoneId,
+                CardMoveReason.reveal,
+                actionChainState.actionChainId,
+                requestId);
+            actionChainState.producedEvents.Add(refillEvent);
         }
     }
 }

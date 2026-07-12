@@ -549,6 +549,7 @@ public sealed class AnomalyRewardInputRuntime
             actionChainState.actionChainId,
             submitInputChoiceActionRequest.requestId);
         actionChainState.producedEvents.Add(moveEvent);
+        selectedCardInstance.ownerPlayerId = actorPlayerId;
 
         if (!gameState.zones.TryGetValue(
                 gameState.publicState.publicTreasureDeckZoneId,
@@ -718,6 +719,7 @@ public sealed class AnomalyRewardInputRuntime
             actionChainState.actionChainId,
             submitInputChoiceActionRequest.requestId);
         actionChainState.producedEvents.Add(moveEvent);
+        selectedCardInstance.ownerPlayerId = actorPlayerId;
     }
 
     public List<string> createA002RewardOptionalBanishDecisionChoiceKeys(

@@ -1,4 +1,5 @@
-﻿using CrescentWreath.RuleCore.Entities;
+﻿using System;
+using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
 using CrescentWreath.RuleCore.Ids;
 
@@ -6,6 +7,8 @@ namespace CrescentWreath.RuleCore.Zones;
 
 public sealed class ZoneMovementService
 {
+    private const string SakuraCakeDefinitionId = "S001";
+
     public CardMovedEvent moveCard(
         GameState.GameState gameState,
         CardInstance cardInstance,
@@ -16,14 +19,17 @@ public sealed class ZoneMovementService
     {
         var fromZoneId = cardInstance.zoneId;
         var fromZoneState = gameState.zones[fromZoneId];
-        var toZoneState = gameState.zones[targetZoneId];
+        var requestedToZoneState = gameState.zones[targetZoneId];
 
-        ZoneMovementRuleGuard.ensureCoreMoveReasonRouteOrThrow(fromZoneState.zoneType, toZoneState.zoneType, moveReason);
+        ZoneMovementRuleGuard.ensureCoreMoveReasonRouteOrThrow(fromZoneState.zoneType, requestedToZoneState.zoneType, moveReason);
         TreasureStaticMovementRuleGuard.ensureTreasureStaticMovementRestrictionsOrThrow(
             cardInstance,
             fromZoneState.zoneType,
-            toZoneState.zoneType,
+            requestedToZoneState.zoneType,
             moveReason);
+
+        targetZoneId = resolveBanishTargetZoneId(gameState, cardInstance, targetZoneId, moveReason);
+        var toZoneState = gameState.zones[targetZoneId];
 
         fromZoneState.cardInstanceIds.Remove(cardInstance.cardInstanceId);
         toZoneState.cardInstanceIds.Add(cardInstance.cardInstanceId);
@@ -32,6 +38,10 @@ public sealed class ZoneMovementService
         if (moveReason == CardMoveReason.summon && toZoneState.ownerPlayerId.HasValue)
         {
             cardInstance.ownerPlayerId = toZoneState.ownerPlayerId.Value;
+        }
+        if (toZoneState.zoneType == ZoneKey.sakuraCakeDeck)
+        {
+            cardInstance.ownerPlayerId = new PlayerId(0);
         }
         if (toZoneState.zoneType != ZoneKey.overlayContainer)
         {
@@ -54,4 +64,22 @@ public sealed class ZoneMovementService
             moveReason = moveReason,
         };
     }
+
+    private static ZoneId resolveBanishTargetZoneId(
+        GameState.GameState gameState,
+        CardInstance cardInstance,
+        ZoneId requestedTargetZoneId,
+        CardMoveReason moveReason)
+    {
+        if (moveReason != CardMoveReason.banish ||
+            !string.Equals(cardInstance.definitionId, SakuraCakeDefinitionId, StringComparison.Ordinal) ||
+            gameState.publicState is null ||
+            !requestedTargetZoneId.Equals(gameState.publicState.gapZoneId))
+        {
+            return requestedTargetZoneId;
+        }
+
+        return gameState.publicState.sakuraCakeDeckZoneId;
+    }
 }
+

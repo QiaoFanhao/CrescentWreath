@@ -40,6 +40,7 @@ public sealed class TreasureArrivalEffectRuntime
     private const string LocalStateKeyArrivalQueueIndex = "treasureArrival.queueIndex";
     private const string DefinitionIdAya = "C016";
     private const string DefinitionIdFateStayNight = "A010";
+    private const int LeylineMaxValue = 5;
     private const string StatusKeyBarrier = "Barrier";
 
     private readonly Func<long> nextInputContextIdSupplier;
@@ -101,6 +102,48 @@ public sealed class TreasureArrivalEffectRuntime
         saveArrivalQueue(actionChainState, arrivalQueue);
         saveArrivalQueueIndex(actionChainState, 0);
         continueArrivalQueue(gameState, actionChainState, eventId);
+        return true;
+    }
+
+    public bool tryRefillSummonZoneFromPublicTreasureDeck(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (gameState.publicState is null)
+        {
+            throw new InvalidOperationException("Treasure arrival refill requires gameState.publicState.");
+        }
+
+        if (!gameState.zones.TryGetValue(gameState.publicState.publicTreasureDeckZoneId, out var publicTreasureDeckZoneState))
+        {
+            throw new InvalidOperationException("Treasure arrival refill requires publicTreasureDeck zone.");
+        }
+
+        if (!gameState.zones.ContainsKey(gameState.publicState.summonZoneId))
+        {
+            throw new InvalidOperationException("Treasure arrival refill requires summonZone.");
+        }
+
+        if (publicTreasureDeckZoneState.cardInstanceIds.Count <= 0)
+        {
+            return false;
+        }
+
+        var topPublicTreasureCardInstanceId = publicTreasureDeckZoneState.cardInstanceIds[0];
+        if (!gameState.cardInstances.TryGetValue(topPublicTreasureCardInstanceId, out var topPublicTreasureCardInstance))
+        {
+            throw new InvalidOperationException("Treasure arrival refill requires publicTreasureDeck cardInstanceIds to exist.");
+        }
+
+        var refillEvent = zoneMovementService.moveCard(
+            gameState,
+            topPublicTreasureCardInstance,
+            gameState.publicState.summonZoneId,
+            CardMoveReason.reveal,
+            actionChainState.actionChainId,
+            eventId);
+        actionChainState.producedEvents.Add(refillEvent);
         return true;
     }
 
@@ -678,7 +721,7 @@ public sealed class TreasureArrivalEffectRuntime
     {
         foreach (var teamState in gameState.teams.Values)
         {
-            teamState.leyline += 1;
+            teamState.leyline = Math.Min(LeylineMaxValue, teamState.leyline + 1);
         }
 
         if (AnomalyA010Runtime.shouldSkipT017ForcedFateStayNight(gameState))

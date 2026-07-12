@@ -15,12 +15,15 @@ public sealed class TurnTransitionProcessor
 {
     public const string ContinuationKeyTurnStartShackleDiscard = "continuation:turnStartShackleDiscard";
     public const string ContinuationKeyTurnStartC001Barrier = "continuation:turnStartC001Barrier";
+    public const string ContinuationKeyTurnStartC013MechanicalJade = "continuation:turnStartC013MechanicalJade";
 
     private const int TurnStartSkillPointBaseline = 1;
     private const int ShackleDiscardRequiredCount = 4;
     private const string StatusKeyShackle = "Shackle";
     private const string StatusKeyBarrier = "Barrier";
     private const string CharacterDefinitionIdC001 = "C001";
+    private const string CharacterDefinitionIdC013 = "C013";
+    private const string TreasureDefinitionIdT016 = "T016";
     private const int C001BarrierMinDefenseValue = 3;
     private const string TurnStartShackleDiscardInputTypeKey = "turnStartShackleDiscardChoice";
     private const string TurnStartShackleDiscardContextKey = "turnStart:shackleDiscard";
@@ -30,18 +33,27 @@ public sealed class TurnTransitionProcessor
     private const string TurnStartC001BarrierContextKey = "turnStart:c001Barrier";
     private const string TurnStartC001BarrierDeclineChoiceKey = "c001Barrier:decline";
     private const string TurnStartC001BarrierCardChoiceKeyPrefix = "barrierCard:";
+    private const string TurnStartC013MechanicalJadeInputTypeKey = "turnStartC013MechanicalJadeChoice";
+    private const string TurnStartC013MechanicalJadeContextKey = "turnStart:c013MechanicalJade";
+    private const string TurnStartC013MechanicalJadeDeclineChoiceKey = "c013MechanicalJade:decline";
+    private const string TurnStartC013MechanicalJadeDiscardChoiceKeyPrefix = "discardCard:";
+    private const string LocalStateKeyTurnStartResponseNextSeatIndex = "turnStart:responseQueue:nextSeatIndex";
+    private const string LocalStateKeyTurnStartResponseScannedCount = "turnStart:responseQueue:scannedCount";
 
     private readonly ZoneMovementService zoneMovementService;
     private readonly EndPhaseProcessor endPhaseProcessor;
+    private readonly TreasureArrivalEffectRuntime treasureArrivalEffectRuntime;
     private readonly Func<long> nextInputContextIdSupplier;
 
     public TurnTransitionProcessor(
         ZoneMovementService zoneMovementService,
         EndPhaseProcessor endPhaseProcessor,
+        TreasureArrivalEffectRuntime treasureArrivalEffectRuntime,
         Func<long> nextInputContextIdSupplier)
     {
         this.zoneMovementService = zoneMovementService;
         this.endPhaseProcessor = endPhaseProcessor;
+        this.treasureArrivalEffectRuntime = treasureArrivalEffectRuntime;
         this.nextInputContextIdSupplier = nextInputContextIdSupplier;
     }
 
@@ -304,10 +316,11 @@ public sealed class TurnTransitionProcessor
             return actionChainState.producedEvents;
         }
 
-        if (tryHandleC001BarrierAtTurnStart(
+        if (tryStartTurnStartResponseQueue(
                 gameState,
                 actionChainState,
-                startNextTurnActionRequest.requestId))
+                startNextTurnActionRequest.requestId,
+                nextPlayerId))
         {
             return actionChainState.producedEvents;
         }
@@ -352,6 +365,199 @@ public sealed class TurnTransitionProcessor
             c001Instance,
             eventId);
         return true;
+    }
+
+    private bool tryStartTurnStartResponseQueue(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        PlayerId startPlayerId)
+    {
+        var seatOrder = resolveTurnStartSeatOrder(gameState);
+        if (seatOrder.Count == 0)
+        {
+            return false;
+        }
+
+        var startSeatIndex = seatOrder.IndexOf(startPlayerId);
+        if (startSeatIndex < 0)
+        {
+            startSeatIndex = 0;
+        }
+
+        actionChainState.localState[LocalStateKeyTurnStartResponseNextSeatIndex] = startSeatIndex.ToString();
+        actionChainState.localState[LocalStateKeyTurnStartResponseScannedCount] = "0";
+        if (tryOpenNextTurnStartResponseInSeatOrder(gameState, actionChainState, eventId))
+        {
+            return true;
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyTurnStartResponseNextSeatIndex);
+        actionChainState.localState.Remove(LocalStateKeyTurnStartResponseScannedCount);
+        return false;
+    }
+
+    private bool tryOpenNextTurnStartResponseInSeatOrder(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        var seatOrder = resolveTurnStartSeatOrder(gameState);
+        if (seatOrder.Count == 0)
+        {
+            return false;
+        }
+
+        var nextSeatIndex = tryReadInt(
+            actionChainState.localState,
+            LocalStateKeyTurnStartResponseNextSeatIndex,
+            0);
+        var scannedCount = tryReadInt(
+            actionChainState.localState,
+            LocalStateKeyTurnStartResponseScannedCount,
+            0);
+
+        while (scannedCount < seatOrder.Count)
+        {
+            if (nextSeatIndex < 0 || nextSeatIndex >= seatOrder.Count)
+            {
+                nextSeatIndex = 0;
+            }
+
+            var playerId = seatOrder[nextSeatIndex];
+            nextSeatIndex = (nextSeatIndex + 1) % seatOrder.Count;
+            scannedCount += 1;
+            actionChainState.localState[LocalStateKeyTurnStartResponseNextSeatIndex] = nextSeatIndex.ToString();
+            actionChainState.localState[LocalStateKeyTurnStartResponseScannedCount] = scannedCount.ToString();
+
+            if (tryOpenTurnStartResponseForPlayer(
+                    gameState,
+                    actionChainState,
+                    playerId,
+                    eventId))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool tryOpenTurnStartResponseForPlayer(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId playerId,
+        long eventId)
+    {
+        if (!gameState.players.TryGetValue(playerId, out var playerState) ||
+            !tryFindAliveInPlayCharacterInstanceByOwner(gameState, playerId, out var characterInstance))
+        {
+            return false;
+        }
+
+        if (string.Equals(characterInstance.definitionId, CharacterDefinitionIdC001, StringComparison.Ordinal))
+        {
+            return tryHandleC001BarrierAtTurnStartForPlayer(
+                gameState,
+                actionChainState,
+                playerState,
+                characterInstance,
+                eventId);
+        }
+
+        if (string.Equals(characterInstance.definitionId, CharacterDefinitionIdC013, StringComparison.Ordinal))
+        {
+            return tryHandleC013MechanicalJadeAtTurnStartForPlayer(
+                gameState,
+                actionChainState,
+                playerState,
+                characterInstance,
+                eventId);
+        }
+
+        return false;
+    }
+
+    private bool tryHandleC001BarrierAtTurnStartForPlayer(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerState c001PlayerState,
+        CharacterInstance c001Instance,
+        long eventId)
+    {
+        var handZoneState = gameState.zones[c001PlayerState.handZoneId];
+        var qualifyingCardIds = new List<CardInstanceId>();
+        foreach (var cardInstanceId in handZoneState.cardInstanceIds)
+        {
+            var cardInstance = gameState.cardInstances[cardInstanceId];
+            var defenseValue = TreasureResourceValueResolver.resolveDefenseValue(cardInstance.definitionId);
+            if (defenseValue.HasValue && defenseValue.Value >= C001BarrierMinDefenseValue)
+            {
+                qualifyingCardIds.Add(cardInstanceId);
+            }
+        }
+
+        if (qualifyingCardIds.Count == 0)
+        {
+            return false;
+        }
+
+        openTurnStartC001BarrierInputContext(
+            gameState,
+            actionChainState,
+            c001PlayerState,
+            qualifyingCardIds,
+            c001Instance,
+            eventId);
+        return true;
+    }
+
+    private bool tryHandleC013MechanicalJadeAtTurnStartForPlayer(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerState c013PlayerState,
+        CharacterInstance c013Instance,
+        long eventId)
+    {
+        if (gameState.publicState is null ||
+            !gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState) ||
+            !tryFindFirstT016InSummonZone(gameState, summonZoneState, out _) ||
+            !gameState.zones.TryGetValue(c013PlayerState.handZoneId, out var handZoneState) ||
+            handZoneState.cardInstanceIds.Count < 2)
+        {
+            return false;
+        }
+
+        openTurnStartC013MechanicalJadeInputContext(
+            gameState,
+            actionChainState,
+            c013PlayerState,
+            handZoneState.cardInstanceIds,
+            c013Instance,
+            eventId);
+        return true;
+    }
+
+    private static List<PlayerId> resolveTurnStartSeatOrder(RuleCore.GameState.GameState gameState)
+    {
+        return gameState.matchMeta is not null && gameState.matchMeta.seatOrder.Count > 0
+            ? new List<PlayerId>(gameState.matchMeta.seatOrder)
+            : new List<PlayerId>();
+    }
+
+    private static int tryReadInt(Dictionary<string, string> localState, string key, int fallback)
+    {
+        return localState.TryGetValue(key, out var text) && int.TryParse(text, out var value)
+            ? value
+            : fallback;
+    }
+
+    private static void finishTurnStartResponseQueue(ActionChainState actionChainState)
+    {
+        actionChainState.localState.Remove(LocalStateKeyTurnStartResponseNextSeatIndex);
+        actionChainState.localState.Remove(LocalStateKeyTurnStartResponseScannedCount);
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = true;
     }
 
     public void continueTurnStartC001BarrierContinuation(
@@ -445,8 +651,6 @@ public sealed class TurnTransitionProcessor
         }
 
         actionChainState.pendingContinuationKey = null;
-        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
-        actionChainState.isCompleted = true;
     }
 
     public static bool isValidTurnStartC001BarrierChoiceRequest(
@@ -454,6 +658,152 @@ public sealed class TurnTransitionProcessor
         SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
     {
         return inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey);
+    }
+
+    private bool tryHandleC013MechanicalJadeAtTurnStart(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!tryFindAliveInPlayC013(gameState, out var c013Instance, out var c013PlayerState) ||
+            gameState.publicState is null ||
+            !gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState) ||
+            !tryFindFirstT016InSummonZone(gameState, summonZoneState, out _) ||
+            !gameState.zones.TryGetValue(c013PlayerState.handZoneId, out var handZoneState) ||
+            handZoneState.cardInstanceIds.Count < 2)
+        {
+            return false;
+        }
+
+        openTurnStartC013MechanicalJadeInputContext(
+            gameState,
+            actionChainState,
+            c013PlayerState,
+            handZoneState.cardInstanceIds,
+            c013Instance,
+            eventId);
+        return true;
+    }
+
+    public void continueTurnStartC013MechanicalJadeContinuation(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (inputContextState.contextKey != TurnStartC013MechanicalJadeContextKey)
+        {
+            throw new InvalidOperationException("Turn-start C013 Mechanical Jade continuation requires currentInputContext.contextKey to be turnStart:c013MechanicalJade.");
+        }
+
+        if (!inputContextState.requiredPlayerId.HasValue ||
+            !gameState.players.TryGetValue(inputContextState.requiredPlayerId.Value, out var c013PlayerState))
+        {
+            throw new InvalidOperationException("Turn-start C013 Mechanical Jade continuation requires C013 player state.");
+        }
+
+        if (!string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                TurnStartC013MechanicalJadeDeclineChoiceKey,
+                StringComparison.Ordinal))
+        {
+            if (submitInputChoiceActionRequest.choiceKeys.Count != 2)
+            {
+                throw new InvalidOperationException("Turn-start C013 Mechanical Jade continuation requires exactly two discard choices.");
+            }
+
+            foreach (var choiceKey in submitInputChoiceActionRequest.choiceKeys)
+            {
+                var cardInstanceId = parseCardChoiceKey(choiceKey, TurnStartC013MechanicalJadeDiscardChoiceKeyPrefix);
+                if (!gameState.cardInstances.TryGetValue(cardInstanceId, out var selectedCardInstance) ||
+                    selectedCardInstance.ownerPlayerId != c013PlayerState.playerId ||
+                    selectedCardInstance.zoneId != c013PlayerState.handZoneId)
+                {
+                    throw new InvalidOperationException("Turn-start C013 Mechanical Jade requires selected discard cards to be in C013 player's hand.");
+                }
+
+                actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                    gameState,
+                    selectedCardInstance,
+                    c013PlayerState.discardZoneId,
+                    CardMoveReason.discard,
+                    actionChainState.actionChainId,
+                    submitInputChoiceActionRequest.requestId));
+            }
+
+            if (gameState.publicState is not null &&
+                gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState) &&
+                tryFindFirstT016InSummonZone(gameState, summonZoneState, out var mechanicalJadeCardInstance))
+            {
+                actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                    gameState,
+                    mechanicalJadeCardInstance,
+                    c013PlayerState.discardZoneId,
+                    CardMoveReason.summon,
+                    actionChainState.actionChainId,
+                    submitInputChoiceActionRequest.requestId));
+                mechanicalJadeCardInstance.ownerPlayerId = c013PlayerState.playerId;
+                treasureArrivalEffectRuntime.tryRefillSummonZoneFromPublicTreasureDeck(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest.requestId);
+            }
+        }
+
+        actionChainState.pendingContinuationKey = null;
+    }
+
+    public static bool isValidTurnStartC013MechanicalJadeChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest submitInputChoiceActionRequest)
+    {
+        if (string.Equals(
+                submitInputChoiceActionRequest.choiceKey,
+                TurnStartC013MechanicalJadeDeclineChoiceKey,
+                StringComparison.Ordinal))
+        {
+            return submitInputChoiceActionRequest.choiceKeys.Count == 0 &&
+                   inputContextState.choiceKeys.Contains(TurnStartC013MechanicalJadeDeclineChoiceKey);
+        }
+
+        if (submitInputChoiceActionRequest.choiceKeys.Count != 2)
+        {
+            return false;
+        }
+
+        var seenChoiceKeys = new HashSet<string>();
+        foreach (var choiceKey in submitInputChoiceActionRequest.choiceKeys)
+        {
+            if (!inputContextState.choiceKeys.Contains(choiceKey) ||
+                !choiceKey.StartsWith(TurnStartC013MechanicalJadeDiscardChoiceKeyPrefix, StringComparison.Ordinal) ||
+                !seenChoiceKeys.Add(choiceKey))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public bool tryResumeTurnStartResponseQueue(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !actionChainState.localState.ContainsKey(LocalStateKeyTurnStartResponseNextSeatIndex))
+        {
+            return false;
+        }
+
+        if (tryOpenNextTurnStartResponseInSeatOrder(gameState, actionChainState, eventId))
+        {
+            return true;
+        }
+
+        finishTurnStartResponseQueue(actionChainState);
+        return false;
     }
 
     private void openTurnStartC001BarrierInputContext(
@@ -502,6 +852,50 @@ public sealed class TurnTransitionProcessor
         actionChainState.isCompleted = false;
     }
 
+    private void openTurnStartC013MechanicalJadeInputContext(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerState c013PlayerState,
+        IReadOnlyList<CardInstanceId> handCardInstanceIds,
+        CharacterInstance c013Instance,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null)
+        {
+            throw new InvalidOperationException("Turn-start C013 Mechanical Jade input requires gameState.currentInputContext to be null before opening.");
+        }
+
+        var inputContextId = new InputContextId(nextInputContextIdSupplier());
+        var inputContextState = new InputContextState
+        {
+            inputContextId = inputContextId,
+            requiredPlayerId = c013PlayerState.playerId,
+            sourceActionChainId = actionChainState.actionChainId,
+            inputTypeKey = TurnStartC013MechanicalJadeInputTypeKey,
+            contextKey = TurnStartC013MechanicalJadeContextKey,
+        };
+        inputContextState.choiceKeys.Add(TurnStartC013MechanicalJadeDeclineChoiceKey);
+        foreach (var cardInstanceId in handCardInstanceIds)
+        {
+            inputContextState.choiceKeys.Add(TurnStartC013MechanicalJadeDiscardChoiceKeyPrefix + cardInstanceId.Value);
+        }
+
+        gameState.currentInputContext = inputContextState;
+        actionChainState.pendingContinuationKey = ContinuationKeyTurnStartC013MechanicalJade;
+        actionChainState.producedEvents.Add(new InteractionWindowEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "inputContextOpened",
+            sourceActionChainId = actionChainState.actionChainId,
+            windowKindKey = "inputContext",
+            inputContextId = inputContextId,
+            isOpened = true,
+        });
+
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = false;
+    }
+
     private static bool tryFindAliveInPlayC001(
         RuleCore.GameState.GameState gameState,
         out CharacterInstance c001Instance,
@@ -532,6 +926,68 @@ public sealed class TurnTransitionProcessor
         c001Instance = null!;
         c001PlayerState = null!;
         return false;
+    }
+
+    private static bool tryFindAliveInPlayC013(
+        RuleCore.GameState.GameState gameState,
+        out CharacterInstance c013Instance,
+        out PlayerState c013PlayerState)
+    {
+        foreach (var instance in gameState.characterInstances.Values)
+        {
+            if (!instance.isAlive ||
+                !instance.isInPlay ||
+                !string.Equals(instance.definitionId, CharacterDefinitionIdC013, StringComparison.Ordinal) ||
+                !gameState.players.TryGetValue(instance.ownerPlayerId, out var playerState))
+            {
+                continue;
+            }
+
+            c013Instance = instance;
+            c013PlayerState = playerState;
+            return true;
+        }
+
+        c013Instance = null!;
+        c013PlayerState = null!;
+        return false;
+    }
+
+    private static bool tryFindFirstT016InSummonZone(
+        RuleCore.GameState.GameState gameState,
+        ZoneState summonZoneState,
+        out CardInstance mechanicalJadeCardInstance)
+    {
+        foreach (var cardInstanceId in summonZoneState.cardInstanceIds)
+        {
+            if (!gameState.cardInstances.TryGetValue(cardInstanceId, out var cardInstance) ||
+                !string.Equals(cardInstance.definitionId, TreasureDefinitionIdT016, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            mechanicalJadeCardInstance = cardInstance;
+            return true;
+        }
+
+        mechanicalJadeCardInstance = null!;
+        return false;
+    }
+
+    private static CardInstanceId parseCardChoiceKey(string choiceKey, string prefix)
+    {
+        if (!choiceKey.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Choice key must start with {prefix}.");
+        }
+
+        var cardIdSegment = choiceKey.Substring(prefix.Length);
+        if (!long.TryParse(cardIdSegment, out var cardNumericId))
+        {
+            throw new InvalidOperationException("Choice key must encode a valid CardInstanceId numeric value.");
+        }
+
+        return new CardInstanceId(cardNumericId);
     }
 
     private static bool tryFindAliveInPlayCharacterInstanceByOwner(
@@ -644,8 +1100,16 @@ public sealed class TurnTransitionProcessor
                 submitInputChoiceActionRequest.requestId);
 
             actionChainState.pendingContinuationKey = null;
-            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
-            actionChainState.isCompleted = true;
+            if (tryStartTurnStartResponseQueue(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest.requestId,
+                    actorPlayerId))
+            {
+                return;
+            }
+
+            finishTurnStartResponseQueue(actionChainState);
             return;
         }
 
@@ -692,16 +1156,16 @@ public sealed class TurnTransitionProcessor
 
         actionChainState.pendingContinuationKey = null;
 
-        if (tryHandleC001BarrierAtTurnStart(
+        if (tryStartTurnStartResponseQueue(
                 gameState,
                 actionChainState,
-                submitInputChoiceActionRequest.requestId))
+                submitInputChoiceActionRequest.requestId,
+                actorPlayerId))
         {
             return;
         }
 
-        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
-        actionChainState.isCompleted = true;
+        finishTurnStartResponseQueue(actionChainState);
     }
 
     public static bool isValidTurnStartShackleDiscardChoiceRequest(

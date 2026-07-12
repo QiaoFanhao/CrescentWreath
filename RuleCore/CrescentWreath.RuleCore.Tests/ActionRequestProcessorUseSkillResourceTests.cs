@@ -1,5 +1,6 @@
 ﻿using CrescentWreath.RuleCore.ActionSystem;
 using CrescentWreath.RuleCore.DamageSystem;
+using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -240,7 +241,7 @@ public class ActionRequestProcessorUseSkillResourceTests
             shouldRespond = false,
         });
 
-        Assert.Equal(4, gameState.characterInstances[opponentACharacterId].currentHp);
+        Assert.Equal(10, gameState.characterInstances[opponentACharacterId].currentHp);
         Assert.NotNull(gameState.currentResponseWindow);
         Assert.Equal(opponentBPlayerId, gameState.currentResponseWindow!.currentResponderPlayerId);
 
@@ -253,11 +254,12 @@ public class ActionRequestProcessorUseSkillResourceTests
         });
 
         Assert.Equal(4, gameState.characterInstances[opponentBCharacterId].currentHp);
+        Assert.Equal(4, gameState.characterInstances[opponentACharacterId].currentHp);
         Assert.Null(gameState.currentResponseWindow);
         Assert.True(gameState.currentActionChain!.isCompleted);
         Assert.Equal(0, actorState.mana);
         Assert.Equal(0, actorState.skillPoint);
-        Assert.Equal(2, gameState.teams[actorTeamId].leyline);
+        Assert.Equal(1, gameState.teams[actorTeamId].leyline);
     }
 
     [Fact]
@@ -549,6 +551,344 @@ public class ActionRequestProcessorUseSkillResourceTests
         Assert.Null(gameState.currentInputContext);
         Assert.Null(gameState.currentResponseWindow);
         Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void C011_1_WhenUnactivatedAndFullyDefendedWithoutDamage_ShouldApplyCharm()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorTeamId = new TeamId(1);
+        var opponentTeamId = new TeamId(2);
+        var actorState = createPlayerState(actorPlayerId, actorTeamId, 7080, mana: 5, skillPoint: 1);
+        var opponentState = createPlayerState(opponentPlayerId, opponentTeamId, 7090, mana: 0, skillPoint: 0);
+        var actorCharacterId = new CharacterInstanceId(708001);
+        var opponentCharacterId = new CharacterInstanceId(709001);
+        var defenseCardId = new CardInstanceId(709011);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorState;
+        gameState.players[opponentPlayerId] = opponentState;
+        gameState.teams[actorTeamId] = new TeamState { teamId = actorTeamId, killScore = 3, leyline = 1 };
+        gameState.teams[opponentTeamId] = new TeamState { teamId = opponentTeamId, killScore = 3 };
+        actorState.activeCharacterInstanceId = actorCharacterId;
+        opponentState.activeCharacterInstanceId = opponentCharacterId;
+        gameState.characterInstances[actorCharacterId] = createCharacter(actorCharacterId, "C011", actorPlayerId);
+        gameState.characterInstances[opponentCharacterId] =
+            createCharacter(opponentCharacterId, "C001", opponentPlayerId, currentHp: 4, maxHp: 4);
+        addPlayerOwnedZones(gameState, actorState);
+        addPlayerOwnedZones(gameState, opponentState);
+        addHandTreasureCard(gameState, opponentState, defenseCardId, "T011");
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorTeamId);
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 708001,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterId,
+            skillKey = "C011:1",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 708002,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = "player:2",
+        });
+
+        Assert.NotNull(gameState.currentResponseWindow);
+        Assert.Equal(3, gameState.currentResponseWindow!.pendingDamageBaseDamageValue);
+        Assert.Equal("spell", gameState.currentResponseWindow.pendingDamageTypeKey);
+
+        processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 708003,
+            actorPlayerId = opponentPlayerId,
+            defenseCardInstanceId = defenseCardId,
+            defenseTypeKey = "spell",
+        });
+
+        Assert.Equal(4, gameState.characterInstances[opponentCharacterId].currentHp);
+        Assert.True(StatusRuntime.hasStatusOnCharacter(gameState, opponentCharacterId, "Charm"));
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void C011_1_WhenPenetrateDealsDamageAfterDefense_ShouldNotApplyCharm()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorTeamId = new TeamId(1);
+        var opponentTeamId = new TeamId(2);
+        var actorState = createPlayerState(actorPlayerId, actorTeamId, 7081, mana: 5, skillPoint: 1);
+        var opponentState = createPlayerState(opponentPlayerId, opponentTeamId, 7091, mana: 0, skillPoint: 0);
+        var actorCharacterId = new CharacterInstanceId(708101);
+        var opponentCharacterId = new CharacterInstanceId(709101);
+        var defenseCardId = new CardInstanceId(709111);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorState;
+        gameState.players[opponentPlayerId] = opponentState;
+        gameState.teams[actorTeamId] = new TeamState { teamId = actorTeamId, killScore = 3, leyline = 1 };
+        gameState.teams[opponentTeamId] = new TeamState { teamId = opponentTeamId, killScore = 3 };
+        actorState.activeCharacterInstanceId = actorCharacterId;
+        opponentState.activeCharacterInstanceId = opponentCharacterId;
+        gameState.characterInstances[actorCharacterId] = createCharacter(actorCharacterId, "C011", actorPlayerId);
+        gameState.characterInstances[opponentCharacterId] =
+            createCharacter(opponentCharacterId, "C001", opponentPlayerId, currentHp: 4, maxHp: 4);
+        addPlayerOwnedZones(gameState, actorState);
+        addPlayerOwnedZones(gameState, opponentState);
+        addHandTreasureCard(gameState, opponentState, defenseCardId, "T011");
+        StatusRuntime.applyStatus(
+            gameState,
+            new StatusInstance
+            {
+                statusKey = "Penetrate",
+                targetPlayerId = actorPlayerId,
+                durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
+                stackCount = 1,
+            });
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorTeamId);
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 708101,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterId,
+            skillKey = "C011:1",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 708102,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = "player:2",
+        });
+
+        var finalEvents = processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 708103,
+            actorPlayerId = opponentPlayerId,
+            defenseCardInstanceId = defenseCardId,
+            defenseTypeKey = "spell",
+        });
+
+        Assert.Equal(3, gameState.characterInstances[opponentCharacterId].currentHp);
+        Assert.False(StatusRuntime.hasStatusOnCharacter(gameState, opponentCharacterId, "Charm"));
+        Assert.DoesNotContain(
+            gameState.statusInstances,
+            status => status.targetPlayerId == actorPlayerId &&
+                      string.Equals(status.statusKey, "Penetrate", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            finalEvents,
+            gameEvent =>
+                gameEvent is DamageResolvedEvent damageResolvedEvent &&
+                damageResolvedEvent.finalDamageValue == 1 &&
+                damageResolvedEvent.didDealDamage);
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void C011_2_WhenNotActivated_ShouldDealFourPhysicalDamageAndNotApplySelfShackle()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorTeamId = new TeamId(1);
+        var opponentTeamId = new TeamId(2);
+        var actorState = createPlayerState(actorPlayerId, actorTeamId, 7085, mana: 5, skillPoint: 1);
+        var opponentState = createPlayerState(opponentPlayerId, opponentTeamId, 7095, mana: 0, skillPoint: 0);
+        var actorCharacterId = new CharacterInstanceId(708501);
+        var opponentCharacterId = new CharacterInstanceId(709501);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorState;
+        gameState.players[opponentPlayerId] = opponentState;
+        gameState.teams[actorTeamId] = new TeamState { teamId = actorTeamId, killScore = 3 };
+        gameState.teams[opponentTeamId] = new TeamState { teamId = opponentTeamId, killScore = 3 };
+        gameState.characterInstances[actorCharacterId] = createCharacter(actorCharacterId, "C011", actorPlayerId);
+        gameState.characterInstances[opponentCharacterId] =
+            createCharacter(opponentCharacterId, "C001", opponentPlayerId, currentHp: 8, maxHp: 8);
+        addPlayerOwnedZones(gameState, actorState);
+        addPlayerOwnedZones(gameState, opponentState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorTeamId);
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 708501,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterId,
+            skillKey = "C011:2",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 708502,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = "player:2",
+        });
+
+        Assert.NotNull(gameState.currentResponseWindow);
+        Assert.Equal(4, gameState.currentResponseWindow!.pendingDamageBaseDamageValue);
+        Assert.Equal("physical", gameState.currentResponseWindow.pendingDamageTypeKey);
+
+        processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 708503,
+            actorPlayerId = opponentPlayerId,
+            responseWindowId = gameState.currentResponseWindow.responseWindowId,
+            shouldRespond = false,
+        });
+
+        Assert.Equal(4, gameState.characterInstances[opponentCharacterId].currentHp);
+        Assert.False(gameState.characterInstances[actorCharacterId].isActivated);
+        Assert.False(StatusRuntime.hasStatusOnCharacter(gameState, actorCharacterId, "Shackle"));
+        Assert.DoesNotContain(
+            gameState.statusInstances,
+            status => status.targetCharacterInstanceId == actorCharacterId &&
+                      string.Equals(status.statusKey, StatusRuntime.StatusKeyC011EndTurnSelfShackle, StringComparison.Ordinal));
+        Assert.Equal(0, actorState.mana);
+        Assert.Equal(0, actorState.skillPoint);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void C011_2_WhenActivated_ShouldDealSixPhysicalDamageThenDeactivate()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorTeamId = new TeamId(1);
+        var opponentTeamId = new TeamId(2);
+        var actorState = createPlayerState(actorPlayerId, actorTeamId, 7090, mana: 5, skillPoint: 1);
+        var opponentState = createPlayerState(opponentPlayerId, opponentTeamId, 7100, mana: 0, skillPoint: 0);
+        var actorCharacterId = new CharacterInstanceId(709001);
+        var opponentCharacterId = new CharacterInstanceId(710001);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorState;
+        gameState.players[opponentPlayerId] = opponentState;
+        gameState.teams[actorTeamId] = new TeamState { teamId = actorTeamId, killScore = 3 };
+        gameState.teams[opponentTeamId] = new TeamState { teamId = opponentTeamId, killScore = 3 };
+        gameState.characterInstances[actorCharacterId] = createCharacter(actorCharacterId, "C011", actorPlayerId);
+        gameState.characterInstances[actorCharacterId].isActivated = true;
+        gameState.characterInstances[opponentCharacterId] =
+            createCharacter(opponentCharacterId, "C001", opponentPlayerId, currentHp: 8, maxHp: 8);
+        addPlayerOwnedZones(gameState, actorState);
+        addPlayerOwnedZones(gameState, opponentState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorTeamId);
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 709001,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterId,
+            skillKey = "C011:2",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 709002,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = "player:2",
+        });
+
+        Assert.True(gameState.characterInstances[actorCharacterId].isActivated);
+        Assert.NotNull(gameState.currentResponseWindow);
+        Assert.Equal(6, gameState.currentResponseWindow!.pendingDamageBaseDamageValue);
+        Assert.Equal("physical", gameState.currentResponseWindow.pendingDamageTypeKey);
+
+        var producedEvents = processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 709003,
+            actorPlayerId = opponentPlayerId,
+            responseWindowId = gameState.currentResponseWindow.responseWindowId,
+            shouldRespond = false,
+        });
+
+        Assert.Equal(2, gameState.characterInstances[opponentCharacterId].currentHp);
+        Assert.False(gameState.characterInstances[actorCharacterId].isActivated);
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is CharacterActivationChangedEvent activationChangedEvent &&
+                         activationChangedEvent.targetCharacterInstanceId == actorCharacterId &&
+                         activationChangedEvent.wasActivated &&
+                         !activationChangedEvent.isActivated);
+        Assert.False(StatusRuntime.hasStatusOnCharacter(gameState, actorCharacterId, "Shackle"));
+        Assert.True(gameState.currentActionChain!.isCompleted);
+    }
+
+    [Fact]
+    public void C003_1_WhenDamageKillsTarget_ShouldStillHealAfterDamageResolution()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var opponentPlayerId = new PlayerId(2);
+        var actorTeamId = new TeamId(1);
+        var opponentTeamId = new TeamId(2);
+        var actorState = createPlayerState(actorPlayerId, actorTeamId, 7105, mana: 4, skillPoint: 1);
+        var opponentState = createPlayerState(opponentPlayerId, opponentTeamId, 7115, mana: 0, skillPoint: 0);
+        var actorCharacterId = new CharacterInstanceId(710501);
+        var opponentCharacterId = new CharacterInstanceId(711501);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorState;
+        gameState.players[opponentPlayerId] = opponentState;
+        gameState.teams[actorTeamId] = new TeamState { teamId = actorTeamId, killScore = 3 };
+        gameState.teams[opponentTeamId] = new TeamState { teamId = opponentTeamId, killScore = 3 };
+        gameState.characterInstances[actorCharacterId] =
+            createCharacter(actorCharacterId, "C003", actorPlayerId, currentHp: 2);
+        gameState.characterInstances[opponentCharacterId] =
+            createCharacter(opponentCharacterId, "C001", opponentPlayerId, currentHp: 1);
+        addPlayerOwnedZones(gameState, actorState);
+        addPlayerOwnedZones(gameState, opponentState);
+        setRunningTurnForPlayer(gameState, actorPlayerId, actorTeamId);
+        var processor = new ActionRequestProcessor();
+
+        processor.processActionRequest(gameState, new UseSkillActionRequest
+        {
+            requestId = 710501,
+            actorPlayerId = actorPlayerId,
+            characterInstanceId = actorCharacterId,
+            skillKey = "C003:1",
+        });
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 710502,
+            actorPlayerId = actorPlayerId,
+            inputContextId = gameState.currentInputContext!.inputContextId,
+            choiceKey = "player:2",
+        });
+
+        Assert.NotNull(gameState.currentResponseWindow);
+
+        var producedEvents = processor.processActionRequest(gameState, new SubmitResponseActionRequest
+        {
+            requestId = 710503,
+            actorPlayerId = opponentPlayerId,
+            responseWindowId = gameState.currentResponseWindow!.responseWindowId,
+            shouldRespond = false,
+        });
+
+        Assert.Contains(
+            producedEvents,
+            gameEvent => gameEvent is KillRecordedEvent killRecordedEvent &&
+                         killRecordedEvent.killedCharacterInstanceId == opponentCharacterId);
+        Assert.Equal(4, gameState.characterInstances[actorCharacterId].currentHp);
+        Assert.True(gameState.currentActionChain!.isCompleted);
+        Assert.Null(gameState.currentInputContext);
+        Assert.Null(gameState.currentResponseWindow);
+    }
+
+    [Fact]
+    public void C011_4_Definition_ShouldCostNineManaAndFiveLeyline()
+    {
+        var definition = CharacterDefinitionRepository.resolveByDefinitionId("C011");
+        var skill = definition.skills["C011:4"];
+
+        Assert.Equal("⑨，V", skill.skillCostRaw);
+        Assert.Equal(9, skill.manaCost);
+        Assert.Equal(5, skill.leylineCost);
     }
 
     [Fact]

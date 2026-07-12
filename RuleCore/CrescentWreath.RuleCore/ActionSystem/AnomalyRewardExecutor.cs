@@ -12,6 +12,7 @@ public static class AnomalyRewardExecutor
 {
     private const string DurationTypeUntilEndOfTurn = "untilEndOfTurn";
     private const string RaceTagNonHuman = "nonHuman";
+    private const int LeylineMaxValue = 5;
 
     public static bool tryValidateRewardContext(
         RuleCore.GameState.GameState gameState,
@@ -220,6 +221,11 @@ public static class AnomalyRewardExecutor
 
         foreach (var rewardAction in rewardActions)
         {
+            if (gameState.matchState == RuleCore.GameState.MatchState.ended)
+            {
+                return;
+            }
+
             if (string.Equals(
                     rewardAction.rewardActionKey,
                     AnomalyRewardActionFactory.RewardActionKeyTeamDelta,
@@ -434,9 +440,26 @@ public static class AnomalyRewardExecutor
             throw new InvalidOperationException("TryResolveAnomalyActionRequest requires opponent team state for reward application.");
         }
 
-        actorTeamState.leyline += rewardAction.actorTeamLeylineDelta;
+        actorTeamState.leyline = Math.Min(
+            LeylineMaxValue,
+            actorTeamState.leyline + rewardAction.actorTeamLeylineDelta);
         var nextOpponentKillScore = opponentTeamState.killScore + rewardAction.opponentTeamKillScoreDelta;
         opponentTeamState.killScore = Math.Max(0, nextOpponentKillScore);
+        applyMatchEndIfThresholdReached(gameState, actorPlayerState.teamId, opponentTeamState);
+    }
+
+    private static void applyMatchEndIfThresholdReached(
+        RuleCore.GameState.GameState gameState,
+        TeamId winnerTeamId,
+        RuleCore.GameState.TeamState losingTeamState)
+    {
+        if (losingTeamState.killScore > 0)
+        {
+            return;
+        }
+
+        gameState.matchState = RuleCore.GameState.MatchState.ended;
+        gameState.winnerTeamId = winnerTeamId;
     }
 
     private static void applyHealFriendlyNonHumanActiveCharactersToMaxHpAction(

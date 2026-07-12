@@ -338,7 +338,13 @@ public sealed class AnomalyA007A008Runtime
     {
         var actorTeamId = gameState.players[actorPlayerId].teamId;
         var opponentTeamId = resolveSingleOpponentTeamId(gameState, actorTeamId);
-        gameState.teams[opponentTeamId].killScore = Math.Max(0, gameState.teams[opponentTeamId].killScore - 1);
+        var opponentTeamState = gameState.teams[opponentTeamId];
+        opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        if (opponentTeamState.killScore <= 0)
+        {
+            gameState.matchState = RuleCore.GameState.MatchState.ended;
+            gameState.winnerTeamId = actorTeamId;
+        }
     }
 
     private bool tryOpenA007RinDiscardBanishInput(
@@ -439,7 +445,22 @@ public sealed class AnomalyA007A008Runtime
         SubmitInputChoiceActionRequest request,
         string contextKey)
     {
-        ensureSinglePlayerChoiceValid(inputContextState, request, contextKey);
+        if (!string.Equals(inputContextState.contextKey, contextKey, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Anomaly reward target requires matching currentInputContext.contextKey.");
+        }
+
+        if (!inputContextState.requiredPlayerId.HasValue ||
+            inputContextState.requiredPlayerId.Value != request.actorPlayerId)
+        {
+            throw new InvalidOperationException("Anomaly reward target requires actorPlayerId to equal currentInputContext.requiredPlayerId.");
+        }
+
+        if (!inputContextState.choiceKeys.Contains(request.choiceKey))
+        {
+            throw new InvalidOperationException("Anomaly reward target requires choiceKey to be one of currentInputContext.choiceKeys.");
+        }
+
         var targetPlayerId = parseOpponentPlayerChoiceKey(request.choiceKey);
         var actorTeamId = gameState.players[request.actorPlayerId].teamId;
         if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
@@ -463,6 +484,7 @@ public sealed class AnomalyA007A008Runtime
         {
             statusKey = statusKey,
             applierPlayerId = applierPlayerId,
+            targetPlayerId = targetPlayerId,
             targetCharacterInstanceId = targetCharacterInstanceId,
             stackCount = 1,
         });

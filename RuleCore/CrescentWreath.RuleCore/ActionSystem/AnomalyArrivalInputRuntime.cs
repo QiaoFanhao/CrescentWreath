@@ -1117,6 +1117,7 @@ public sealed class AnomalyArrivalInputRuntime
             actionChainState.actionChainId,
             submitInputChoiceActionRequest.requestId);
         actionChainState.producedEvents.Add(summonedEvent);
+        selectedCardInstance.ownerPlayerId = actorPlayerId;
 
         if (publicTreasureDeckZoneState.cardInstanceIds.Count == 0)
         {

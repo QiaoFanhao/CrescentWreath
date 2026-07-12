@@ -29,6 +29,7 @@ public sealed class ServerStateProjection
     public List<ServerPlayerProjection> players { get; } = new();
     public ServerPublicZonesProjection? publicZones { get; set; }
     public ServerAnomalyProjection? currentAnomaly { get; set; }
+    public List<string> resolvedAnomalyDefinitionIds { get; } = new();
     public List<ServerCharacterProjection> characters { get; } = new();
     public ServerCharacterSelectionProjection? characterSelection { get; set; }
     public List<ServerCharacterDefinitionProjection> characterDefinitions { get; } = new();
@@ -103,6 +104,15 @@ public sealed class ServerPlayerProjection
     public ServerZoneProjection discardZone { get; set; } = new();
     public ServerZoneProjection fieldZone { get; set; } = new();
     public ServerZoneProjection characterSetAsideZone { get; set; } = new();
+    public List<ServerOwnedCardKnowledgeProjection> ownedCardKnowledge { get; } = new();
+}
+
+public sealed class ServerOwnedCardKnowledgeProjection
+{
+    public string definitionId { get; set; } = string.Empty;
+    public string locationKey { get; set; } = string.Empty;
+    public bool isHiddenCandidate { get; set; }
+    public long? cardInstanceNumericId { get; set; }
 }
 
 public sealed class ServerPublicZonesProjection
@@ -177,6 +187,7 @@ public sealed class ServerCardProjection
     public long? overlayContainerCardInstanceNumericId { get; set; }
     public int? overlayOrderIndex { get; set; }
     public int overlayCardCount { get; set; }
+    public List<ServerCardProjection> overlayCards { get; } = new();
 }
 
 public sealed class ServerInteractionProjection
@@ -212,7 +223,15 @@ public sealed class ServerResponseWindowProjection
     public List<long> responderPlayerNumericIds { get; } = new();
     public string? pendingDamageResponseStageKey { get; set; }
     public string? pendingDamageTypeKey { get; set; }
+    public int? pendingDamageBaseDamageValue { get; set; }
+    public long? pendingDamageSourcePlayerNumericId { get; set; }
+    public long? pendingDamageSourceCharacterInstanceNumericId { get; set; }
+    public string? pendingDamageSourceCharacterDefinitionId { get; set; }
+    public long? pendingDamageSourceCardInstanceNumericId { get; set; }
+    public string? pendingDamageSourceCardDefinitionId { get; set; }
+    public string? pendingDamageSourceSkillKey { get; set; }
     public long? pendingDamageTargetCharacterInstanceNumericId { get; set; }
+    public string? pendingDamageTargetCharacterDefinitionId { get; set; }
     public long? pendingDamageDefenderPlayerNumericId { get; set; }
 }
 
@@ -369,6 +388,7 @@ internal static class ServerProjectionBuilder
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(statusKey => statusKey, StringComparer.Ordinal);
             playerProjection.statusKeys.AddRange(playerStatuses);
+            playerProjection.ownedCardKnowledge.AddRange(buildOwnedCardKnowledge(gameState, playerState));
             projection.players.Add(playerProjection);
         }
 
@@ -385,6 +405,10 @@ internal static class ServerProjectionBuilder
         }
 
         projection.currentAnomaly = buildCurrentAnomalyProjection(gameState);
+        projection.resolvedAnomalyDefinitionIds.AddRange(
+            gameState.resolvedAnomalyDefinitionIds
+                .Where(definitionId => !string.IsNullOrWhiteSpace(definitionId))
+                .OrderBy(definitionId => definitionId, StringComparer.Ordinal));
 
         foreach (var characterInstance in gameState.characterInstances.Values.OrderBy(character => character.characterInstanceId.Value))
         {
@@ -430,6 +454,78 @@ internal static class ServerProjectionBuilder
         }
 
         return projection;
+    }
+
+    private static List<ServerOwnedCardKnowledgeProjection> buildOwnedCardKnowledge(
+        GameState gameState,
+        PlayerState playerState)
+    {
+        var knowledge = new List<ServerOwnedCardKnowledgeProjection>();
+        foreach (var cardInstance in gameState.cardInstances.Values
+                     .Where(card => card.ownerPlayerId == playerState.playerId)
+                     .OrderBy(card => card.cardInstanceId.Value))
+        {
+            var locationKey = resolveOwnedCardKnowledgeLocationKey(gameState, playerState, cardInstance);
+            if (string.Equals(locationKey, "banished", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var isHiddenCandidate =
+                string.Equals(locationKey, "hiddenCandidate", StringComparison.Ordinal);
+            knowledge.Add(new ServerOwnedCardKnowledgeProjection
+            {
+                definitionId = cardInstance.definitionId,
+                locationKey = locationKey,
+                isHiddenCandidate = isHiddenCandidate,
+                cardInstanceNumericId = isHiddenCandidate ? null : cardInstance.cardInstanceId.Value,
+            });
+        }
+
+        return knowledge;
+    }
+
+    private static string resolveOwnedCardKnowledgeLocationKey(
+        GameState gameState,
+        PlayerState playerState,
+        CardInstance cardInstance)
+    {
+        if (cardInstance.zoneId == playerState.deckZoneId ||
+            cardInstance.zoneId == playerState.handZoneId)
+        {
+            return "hiddenCandidate";
+        }
+
+        if (cardInstance.zoneId == playerState.discardZoneId)
+        {
+            return "discard";
+        }
+
+        if (cardInstance.zoneId == playerState.fieldZoneId)
+        {
+            if (cardInstance.overlayContainerCardInstanceId.HasValue)
+            {
+                return "overlay";
+            }
+
+            return cardInstance.isDefensePlacedOnField
+                ? "defensePlacedField"
+                : "field";
+        }
+
+        if (cardInstance.zoneId == playerState.characterSetAsideZoneId ||
+            cardInstance.isSetAside)
+        {
+            return "characterSetAside";
+        }
+
+        if (gameState.publicState is not null &&
+            cardInstance.zoneId == gameState.publicState.gapZoneId)
+        {
+            return "banished";
+        }
+
+        return cardInstance.zoneKey.ToString();
     }
 
     private static ServerAnomalyProjection? buildCurrentAnomalyProjection(GameState gameState)
@@ -527,9 +623,29 @@ internal static class ServerProjectionBuilder
                 isViewerCurrentResponder = gameState.currentResponseWindow.currentResponderPlayerId == viewerPlayerId,
                 pendingDamageResponseStageKey = gameState.currentResponseWindow.pendingDamageResponseStageKey,
                 pendingDamageTypeKey = gameState.currentResponseWindow.pendingDamageTypeKey,
+                pendingDamageBaseDamageValue = gameState.currentResponseWindow.pendingDamageBaseDamageValue,
+                pendingDamageSourcePlayerNumericId = gameState.currentResponseWindow.pendingDamageSourcePlayerId?.Value,
+                pendingDamageSourceCharacterInstanceNumericId =
+                    gameState.currentResponseWindow.pendingDamageSourceCharacterInstanceId?.Value,
+                pendingDamageSourceCardInstanceNumericId =
+                    gameState.currentResponseWindow.pendingDamageSourceCardInstanceId?.Value,
                 pendingDamageTargetCharacterInstanceNumericId = gameState.currentResponseWindow.pendingDamageTargetCharacterInstanceId?.Value,
                 pendingDamageDefenderPlayerNumericId = gameState.currentResponseWindow.pendingDamageDefenderPlayerId?.Value,
             };
+            responseWindowProjection.pendingDamageSourceCharacterDefinitionId =
+                resolveCharacterDefinitionId(
+                    gameState,
+                    gameState.currentResponseWindow.pendingDamageSourceCharacterInstanceId);
+            responseWindowProjection.pendingDamageTargetCharacterDefinitionId =
+                resolveCharacterDefinitionId(
+                    gameState,
+                    gameState.currentResponseWindow.pendingDamageTargetCharacterInstanceId);
+            responseWindowProjection.pendingDamageSourceCardDefinitionId =
+                resolveCardDefinitionId(
+                    gameState,
+                    gameState.currentResponseWindow.pendingDamageSourceCardInstanceId);
+            responseWindowProjection.pendingDamageSourceSkillKey =
+                resolveResponseWindowSourceSkillKey(gameState, gameState.currentResponseWindow);
             foreach (var responderPlayerId in gameState.currentResponseWindow.responderPlayerIds)
             {
                 responseWindowProjection.responderPlayerNumericIds.Add(responderPlayerId.Value);
@@ -539,6 +655,47 @@ internal static class ServerProjectionBuilder
         }
 
         return interactionProjection;
+    }
+
+    private static string? resolveCharacterDefinitionId(
+        GameState gameState,
+        CharacterInstanceId? characterInstanceId)
+    {
+        if (!characterInstanceId.HasValue ||
+            !gameState.characterInstances.TryGetValue(characterInstanceId.Value, out var characterInstance))
+        {
+            return null;
+        }
+
+        return characterInstance.definitionId;
+    }
+
+    private static string? resolveCardDefinitionId(
+        GameState gameState,
+        CardInstanceId? cardInstanceId)
+    {
+        if (!cardInstanceId.HasValue ||
+            !gameState.cardInstances.TryGetValue(cardInstanceId.Value, out var cardInstance))
+        {
+            return null;
+        }
+
+        return cardInstance.definitionId;
+    }
+
+    private static string? resolveResponseWindowSourceSkillKey(
+        GameState gameState,
+        ResponseWindowState responseWindowState)
+    {
+        if (!responseWindowState.sourceActionChainId.HasValue ||
+            gameState.currentActionChain is null ||
+            gameState.currentActionChain.actionChainId != responseWindowState.sourceActionChainId.Value ||
+            gameState.currentActionChain.rootActionRequest is not UseSkillActionRequest useSkillActionRequest)
+        {
+            return null;
+        }
+
+        return useSkillActionRequest.skillKey;
     }
 
     public static List<ServerEventLogEntry> buildEventLog(List<GameEvent> producedEvents)
@@ -764,24 +921,48 @@ internal static class ServerProjectionBuilder
                 continue;
             }
 
-            var cardProjection = new ServerCardProjection
-            {
-                cardInstanceNumericId = cardInstance.cardInstanceId.Value,
-                definitionId = cardInstance.definitionId,
-                ownerPlayerNumericId = cardInstance.ownerPlayerId.Value,
-                zoneKey = cardInstance.zoneKey.ToString(),
-                isFaceUp = cardInstance.isFaceUp,
-                isSetAside = cardInstance.isSetAside,
-                isDefensePlacedOnField = cardInstance.isDefensePlacedOnField,
-                overlayContainerCardInstanceNumericId = cardInstance.overlayContainerCardInstanceId?.Value,
-                overlayOrderIndex = cardInstance.overlayOrderIndex,
-                overlayCardCount = OverlayRuntime.getOverlayCardCount(gameState, cardInstance.cardInstanceId),
-            };
-            applySummonAvailabilityProjection(gameState, viewerPlayerId, cardInstance, cardProjection);
-            zoneProjection.cards.Add(cardProjection);
+            zoneProjection.cards.Add(buildCardProjection(gameState, viewerPlayerId, cardInstance, includeOverlayCards: true));
         }
 
         return zoneProjection;
+    }
+
+    private static ServerCardProjection buildCardProjection(
+        GameState gameState,
+        PlayerId viewerPlayerId,
+        CardInstance cardInstance,
+        bool includeOverlayCards)
+    {
+        var cardProjection = new ServerCardProjection
+        {
+            cardInstanceNumericId = cardInstance.cardInstanceId.Value,
+            definitionId = cardInstance.definitionId,
+            ownerPlayerNumericId = cardInstance.ownerPlayerId.Value,
+            zoneKey = cardInstance.zoneKey.ToString(),
+            isFaceUp = cardInstance.isFaceUp,
+            isSetAside = cardInstance.isSetAside,
+            isDefensePlacedOnField = cardInstance.isDefensePlacedOnField,
+            overlayContainerCardInstanceNumericId = cardInstance.overlayContainerCardInstanceId?.Value,
+            overlayOrderIndex = cardInstance.overlayOrderIndex,
+            overlayCardCount = OverlayRuntime.getOverlayCardCount(gameState, cardInstance.cardInstanceId),
+        };
+        applySummonAvailabilityProjection(gameState, viewerPlayerId, cardInstance, cardProjection);
+
+        if (!includeOverlayCards || cardProjection.overlayCardCount <= 0)
+        {
+            return cardProjection;
+        }
+
+        foreach (var childCard in gameState.cardInstances.Values
+                     .Where(candidate => candidate.overlayContainerCardInstanceId == cardInstance.cardInstanceId)
+                     .OrderBy(candidate => candidate.overlayOrderIndex ?? int.MaxValue)
+                     .ThenBy(candidate => candidate.cardInstanceId.Value))
+        {
+            // Nested overlay chains are not expected today. Avoid recursion loops while still showing the immediate contents.
+            cardProjection.overlayCards.Add(buildCardProjection(gameState, viewerPlayerId, childCard, includeOverlayCards: false));
+        }
+
+        return cardProjection;
     }
 
     private static void applySummonAvailabilityProjection(

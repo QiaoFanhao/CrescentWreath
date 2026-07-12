@@ -10,6 +10,7 @@ public sealed class DamageContext
     public PlayerId? sourcePlayerId { get; set; }
     public CardInstanceId? sourceCardInstanceId { get; set; }
     public CharacterInstanceId? sourceCharacterInstanceId { get; set; }
+    public PlayerId? killCreditPlayerIdOverride { get; set; }
 
     public PlayerId? targetPlayerId { get; set; }
     public CardInstanceId? targetCardInstanceId { get; set; }

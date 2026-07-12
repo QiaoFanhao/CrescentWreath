@@ -11,6 +11,9 @@ public static class StatusRuntime
     public const string DurationTypeKeyNextMatchingDamageAttempt = "nextMatchingDamageAttempt";
     public const string StatusKeyPhysicalDamageBoostNext = "PhysicalDamageBoostNext";
     public const string StatusKeySpellDamageBoostNext = "SpellDamageBoostNext";
+    public const string StatusKeyPhysicalOrSpellDamageBoostNext = "PhysicalOrSpellDamageBoostNext";
+    public const string StatusKeyC011AllDamageBoostThisTurn = "C011AllDamageBoostThisTurn";
+    public const string StatusKeyC011EndTurnSelfShackle = "C011EndTurnSelfShackle";
     private static readonly HashSet<string> ShortStatusKeysClearedAtTurnEnd = new(StringComparer.Ordinal)
     {
         "Silence",
@@ -18,6 +21,9 @@ public static class StatusRuntime
         "Penetrate",
         StatusKeyPhysicalDamageBoostNext,
         StatusKeySpellDamageBoostNext,
+        StatusKeyPhysicalOrSpellDamageBoostNext,
+        StatusKeyC011AllDamageBoostThisTurn,
+        StatusKeyC011EndTurnSelfShackle,
     };
 
     public static StatusInstance applyStatus(
@@ -233,8 +239,12 @@ public static class StatusRuntime
         {
             var statusInstance = gameState.statusInstances[index];
             statusInstance.statusKey = StatusPolicyTable.normalizeStatusKey(statusInstance.statusKey);
+            var isMatchingBoost =
+                string.Equals(statusInstance.statusKey, matchingStatusKey, StringComparison.Ordinal) ||
+                (matchingStatusKey is not null &&
+                 string.Equals(statusInstance.statusKey, StatusKeyPhysicalOrSpellDamageBoostNext, StringComparison.Ordinal));
             if (statusInstance.targetPlayerId != sourcePlayerId ||
-                !string.Equals(statusInstance.statusKey, matchingStatusKey, StringComparison.Ordinal) ||
+                !isMatchingBoost ||
                 !string.Equals(
                     statusInstance.durationTypeKey,
                     DurationTypeKeyNextMatchingDamageAttempt,
@@ -249,6 +259,26 @@ public static class StatusRuntime
 
         consumedStatuses.Reverse();
         return consumedStatuses;
+    }
+
+    public static int getPersistentAllDamageBoostForAttempt(
+        GameState.GameState gameState,
+        PlayerId sourcePlayerId)
+    {
+        var boost = 0;
+        foreach (var statusInstance in gameState.statusInstances)
+        {
+            statusInstance.statusKey = StatusPolicyTable.normalizeStatusKey(statusInstance.statusKey);
+            if (statusInstance.targetPlayerId != sourcePlayerId ||
+                !string.Equals(statusInstance.statusKey, StatusKeyC011AllDamageBoostThisTurn, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            boost += Math.Max(1, statusInstance.stackCount);
+        }
+
+        return boost;
     }
 
     public static List<StatusInstance> clearShortStatusesAtTurnEnd(

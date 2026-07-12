@@ -172,7 +172,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillName = "绯色宿命",
                     skillOrder = 3,
                     skillTypeRaw = "启动",
-                    skillCostRaw = "",
+                    skillCostRaw = "⑥，III",
                     manaCost = 6,
                     leylineCost =3,
                     skillType = "active",
@@ -281,24 +281,24 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                 ["C005:2"] = new CharacterSkillDefinition
                 {
                     skillKey = "C005:2",
-                    skillName = "樱花闪闪",
-                    skillOrder = 2,
-                    skillTypeRaw = "通常",
-                    skillCostRaw = "④，X剑气",
-                    manaCost = 4,
-                    leylineCost =0,
-                    skillType = "active",
-                },
-                ["C005:3"] = new CharacterSkillDefinition
-                {
-                    skillKey = "C005:3",
                     skillName = "六根清净斩",
-                    skillOrder = 3,
+                    skillOrder = 2,
                     skillTypeRaw = "响应",
                     skillCostRaw = "当你完全防御对手一次伤害后，移除1剑气指示物",
                     manaCost = 0,
                     leylineCost =0,
                     skillType = "response",
+                },
+                ["C005:3"] = new CharacterSkillDefinition
+                {
+                    skillKey = "C005:3",
+                    skillName = "樱花闪闪",
+                    skillOrder = 3,
+                    skillTypeRaw = "通常",
+                    skillCostRaw = "④，X剑气",
+                    manaCost = 4,
+                    leylineCost =0,
+                    skillType = "active",
                 },
                 ["C005:4"] = new CharacterSkillDefinition
                 {
@@ -643,7 +643,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                 ["C011:3"] = new CharacterSkillDefinition
                 {
                     skillKey = "C011:3",
-                    skillName = "魔法少女白姬变身",
+                    skillName = "魔法少女变身",
                     skillOrder = 3,
                     skillTypeRaw = "启动",
                     skillCostRaw = "④，I",
@@ -657,8 +657,8 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillName = "空想具现化",
                     skillOrder = 4,
                     skillTypeRaw = "终结",
-                    skillCostRaw = "⑩，V",
-                    manaCost = 10,
+                    skillCostRaw = "⑨，V",
+                    manaCost = 9,
                     leylineCost =5,
                     skillType = "ultimate",
                 },
@@ -1883,7 +1883,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
         {
             characterDefinition.factionKey = resolveFactionKey(characterDefinition.definitionId);
             characterDefinition.isImplemented =
-                characterDefinition.definitionId is "C001" or "C007" or "C008" or "C018";
+                characterDefinition.definitionId is "C001" or "C003" or "C004" or "C005" or "C007" or "C008" or "C011" or "C013" or "C018";
             applyImplementedSkillEffectText(characterDefinition);
         }
     }
@@ -1916,6 +1916,18 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             ["C001:2"] = "任意玩家回合开始时，你可以弃1张防御值3或更高的牌，令当前回合玩家获得【结界】。",
             ["C001:3"] = "进入启动状态并直接解决当前异变，仍受每回合只能解决一次异变的限制。",
             ["C001:4"] = "你获得【结界】，并将牌库顶至多3张牌如同防御牌般放在阵地区。",
+            ["C003:1"] = "给予目标对手2点咒术伤害，然后你回复2生命；启动状态下伤害与回复各+2。",
+            ["C003:2"] = "你或C014队友给予对手非直接伤害前，可弃1张召唤费用3或更高的手牌，使本次伤害获得【穿透】。",
+            ["C003:3"] = "进入启动状态，然后给予目标对手6点体术伤害。",
+            ["C003:4"] = "抓2张牌并扣除对手队伍1灵脉；启动状态下额外抓1张。",
+            ["C004:1"] = "给予目标对手4点咒术伤害；若目标为C022爱丽丝或C017帕秋莉，伤害-1。",
+            ["C004:2"] = "每回合一次。你防御后未被击杀时，可以弃1张手牌，对伤害来源玩家造成1点直接伤害。",
+            ["C004:3"] = "本回合你下次给予的咒术或体术伤害+2。",
+            ["C004:4"] = "给予目标对手7点体术伤害；结算后从手牌或弃牌堆放逐1张牌。",
+            ["C005:1"] = "你给予对手体术伤害时，获得1个剑气指示物，最多3个。",
+            ["C005:2"] = "完全防御对手一次伤害后，移除1剑气，展示牌库顶牌，对伤害来源角色造成其召唤费用-1的体术伤害。",
+            ["C005:3"] = "选择消耗X剑气，对最多2个目标对手各造成1+X点体术伤害；对C018幽幽子伤害-1。",
+            ["C005:4"] = "选择消耗X剑气，获得【穿透】，对目标对手造成3+X点体术伤害。",
             ["C007:1"] = "获得1个梦境指示物，最多存在3个。",
             ["C007:2"] = "队友抓1张牌；若你的梦境指示物为3，你再抓1张牌。",
             ["C007:3"] = "移除3个梦境指示物，魅惑目标对手；对C011爱尔奎特无效。",
@@ -1924,6 +1936,14 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             ["C008:2"] = "你获得【结界】；本回合你下次给予的体术伤害+1，可叠加。",
             ["C008:3"] = "抓2张牌；本回合你下次给予的咒术伤害+1，可叠加。",
             ["C008:4"] = "给予所有对手6点咒术伤害。",
+            ["C011:1"] = "给予目标对手3点咒术伤害，若被卡牌完全防御则魅惑她；启动状态下直接魅惑目标。",
+            ["C011:2"] = "每回合一次。给予目标对手4点体术伤害；启动状态下伤害+2，然后解除启动。",
+            ["C011:3"] = "进入启动状态；本回合你给予的所有伤害+1。",
+            ["C011:4"] = "连续3次选择召唤区1张牌置入手中，每次均会补位并处理降临。",
+            ["C013:1"] = "任意玩家回合开始时，若召唤区有机械翡翠且你手牌至少2张，可以弃2张牌，将1张机械翡翠如同召唤般置入你的弃牌堆。",
+            ["C013:2"] = "对手使用牌防御后，你可以弃1张手牌并支付2灵脉，用弃牌防御值替换其本次防御值；若因此被队友击杀，视为你击杀。",
+            ["C013:3"] = "对手击杀分+1（最多10）；选择牌库非空的目标对手，翻看其牌库顶牌，造成7-该牌防御值的直接伤害。",
+            ["C013:4"] = "选择牌库非空的目标对手，翻看其牌库顶牌，造成该牌召唤费用-1的直接伤害；结算后目标可以将此牌置入手牌。",
             ["C018:1"] = "你的召唤阶段中，召唤宝具实际支付的灵符-1，但至少支付1。",
             ["C018:2"] = "给予除你以外所有玩家1点直接伤害。",
             ["C018:3"] = "直接击杀所有生命值为1的对手。",

@@ -61,6 +61,14 @@ public static class AnomalyResolveFinalizeHelper
         }
 
         gameState.turnState.hasResolvedAnomalyThisTurn = true;
+        if (gameState.matchState == GameState.MatchState.ended)
+        {
+            actionChainState.pendingContinuationKey = null;
+            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+            actionChainState.isCompleted = true;
+            return;
+        }
+
         var isSuspendedByArrivalInput = flipNextAnomalyAction();
         if (isSuspendedByArrivalInput)
         {

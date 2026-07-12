@@ -399,6 +399,44 @@ public sealed class EndPhaseProcessor
                 targetPlayerId = removedStatus.targetPlayerId,
                 isApplied = false,
             });
+
+            if (string.Equals(
+                    removedStatus.statusKey,
+                    StatusRuntime.StatusKeyC011EndTurnSelfShackle,
+                    StringComparison.Ordinal) &&
+                removedStatus.targetCharacterInstanceId.HasValue &&
+                gameState.characterInstances.TryGetValue(
+                    removedStatus.targetCharacterInstanceId.Value,
+                    out var targetCharacterInstance) &&
+                targetCharacterInstance.isAlive &&
+                targetCharacterInstance.isInPlay &&
+                !StatusRuntime.hasStatusOnCharacter(
+                    gameState,
+                    targetCharacterInstance.characterInstanceId,
+                    "Shackle"))
+            {
+                var appliedStatus = StatusRuntime.applyStatus(
+                    gameState,
+                    new StatusInstance
+                    {
+                        statusKey = "Shackle",
+                        applierPlayerId = removedStatus.applierPlayerId,
+                        applierCharacterInstanceId = removedStatus.applierCharacterInstanceId,
+                        targetPlayerId = targetCharacterInstance.ownerPlayerId,
+                        targetCharacterInstanceId = targetCharacterInstance.characterInstanceId,
+                        stackCount = 1,
+                    });
+                actionChainState.producedEvents.Add(new StatusChangedEvent
+                {
+                    eventId = eventId,
+                    eventTypeKey = "statusChanged",
+                    sourceActionChainId = actionChainState.actionChainId,
+                    statusKey = appliedStatus.statusKey,
+                    targetPlayerId = appliedStatus.targetPlayerId,
+                    targetCharacterInstanceId = appliedStatus.targetCharacterInstanceId,
+                    isApplied = true,
+                });
+            }
         }
 
         actorPlayerState.mana = 0;

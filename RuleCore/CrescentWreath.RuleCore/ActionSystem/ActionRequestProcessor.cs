@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using CrescentWreath.RuleCore.DamageSystem;
+using CrescentWreath.RuleCore.Definitions;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -27,7 +28,61 @@ public sealed class ActionRequestProcessor
     internal const string DamageResponseStageAwaitCounter = "awaitCounter";
     private const string DamageCounterTypeKeyCancelFixedReduce1 = "cancelFixedReduce1";
     private const string SkillKeyC002_2 = "C002:2";
+    private const string SkillKeyC003_1 = "C003:1";
+    private const string SkillKeyC003_2 = "C003:2";
+    private const string SkillKeyC003_3 = "C003:3";
+    private const string SkillKeyC003_4 = "C003:4";
+    private const string ContinuationKeyC003RedNightTarget = "continuation:character:C003:1:targetOpponent";
+    private const string ContinuationKeyC003GungnirDiscard = "continuation:character:C003:2:discardForPenetrate";
+    private const string ContinuationKeyC003ScarletDestinyTarget = "continuation:character:C003:3:targetOpponent";
+    private const string InputTypeKeyC003TargetPlayer = "character:C003:targetPlayer";
+    private const string InputTypeKeyC003GungnirDiscard = "character:C003:gungnirDiscard";
+    private const string ContextKeyC003RedNightTarget = "character:C003:1:targetOpponent";
+    private const string ContextKeyC003GungnirDiscard = "character:C003:2:discardForPenetrate";
+    private const string ContextKeyC003ScarletDestinyTarget = "character:C003:3:targetOpponent";
+    private const string LocalStateKeyC003RedNightHealAmount = "character:C003:1:healAmount";
+    private const string LocalStateKeyC003GungnirSourcePlayerId = "character:C003:2:sourcePlayerId";
+    private const string LocalStateKeyC003GungnirSourceCardInstanceId = "character:C003:2:sourceCardInstanceId";
+    private const string LocalStateKeyC003GungnirSourceCharacterInstanceId = "character:C003:2:sourceCharacterInstanceId";
+    private const string LocalStateKeyC003GungnirTargetCharacterInstanceId = "character:C003:2:targetCharacterInstanceId";
+    private const string LocalStateKeyC003GungnirBaseDamageValue = "character:C003:2:baseDamageValue";
+    private const string LocalStateKeyC003GungnirDamageType = "character:C003:2:damageType";
     private const string SkillKeyC004_1 = "C004:1";
+    private const string SkillKeyC004_2 = "C004:2";
+    private const string SkillKeyC004_3 = "C004:3";
+    private const string SkillKeyC004_4 = "C004:4";
+    private const string ContinuationKeyC004MasterSparkTarget = "continuation:character:C004:1:targetOpponent";
+    private const string ContinuationKeyC004StardustDiscard = "continuation:character:C004:2:discardForDirectDamage";
+    private const string ContinuationKeyC004BlazingCometTarget = "continuation:character:C004:4:targetOpponent";
+    private const string ContinuationKeyC004BlazingCometBanish = "continuation:character:C004:4:banishCard";
+    private const string InputTypeKeyC004TargetPlayer = "character:C004:targetPlayer";
+    private const string InputTypeKeyC004DiscardCard = "character:C004:discardCard";
+    private const string InputTypeKeyC004BanishCard = "character:C004:banishCard";
+    private const string ContextKeyC004MasterSparkTarget = "character:C004:1:targetOpponent";
+    private const string ContextKeyC004StardustDiscard = "character:C004:2:discardForDirectDamage";
+    private const string ContextKeyC004BlazingCometTarget = "character:C004:4:targetOpponent";
+    private const string ContextKeyC004BlazingCometBanish = "character:C004:4:banishCard";
+    private const string LocalStateKeyC004StardustSourcePlayerId = "character:C004:2:sourcePlayerId";
+    private const string LocalStateKeyC004BlazingCometSequence = "character:C004:4:sequence";
+    private const string SkillKeyC005_3 = "C005:3";
+    private const string SkillKeyC005_4 = "C005:4";
+    private const string ContinuationKeyC005SakuraSparkSelectSwordAura = "continuation:character:C005:3:selectSwordAura";
+    private const string ContinuationKeyC005SakuraSparkTargets = "continuation:character:C005:3:targets";
+    private const string ContinuationKeyC005SpringWindSelectSwordAura = "continuation:character:C005:4:selectSwordAura";
+    private const string ContinuationKeyC005SpringWindTarget = "continuation:character:C005:4:target";
+    private const string InputTypeKeyC005SwordAuraAmount = "character:C005:swordAuraAmount";
+    private const string InputTypeKeyC005TargetPlayer = "character:C005:targetPlayer";
+    private const string ContextKeyC005SakuraSparkSwordAura = "character:C005:3:swordAura";
+    private const string ContextKeyC005SakuraSparkTargets = "character:C005:3:targets";
+    private const string ContextKeyC005SpringWindSwordAura = "character:C005:4:swordAura";
+    private const string ContextKeyC005SpringWindTarget = "character:C005:4:target";
+    private const string ChoiceKeyC005SwordAuraPrefix = "swordAura:";
+    private const string LocalStateKeyC005ConsumedSwordAura = "character:C005:consumedSwordAura";
+    private const string LocalStateKeyC005SakuraSparkRemainingDamages = "character:C005:3:remainingDamages";
+    private const string RevealReasonKeyC005SixRealms = "character:C005:2:sixRealms";
+    private const string ChoiceKeyDecline = "decline";
+    private const string ChoiceKeyDiscardCardPrefix = "discardCard:";
+    private const string ChoiceKeyBanishCardPrefix = "banishCard:";
     private const string SkillKeyC001_1 = "C001:1";
     private const string SkillKeyC001_3 = "C001:3";
     private const string SkillKeyC001_4 = "C001:4";
@@ -61,6 +116,49 @@ public sealed class ActionRequestProcessor
     private const string LocalStateKeyC008WindKingTargetPlayerId = "character:C008:1:targetPlayerId";
     private const string LocalStateKeyC008RemainingTargetCharacterIds = "character:C008:4:remainingTargetCharacterIds";
     private const string LocalStateKeyC008ExcaliburSequence = "character:C008:4:sequence";
+    private const string LocalStateKeyC008QueuedDamageContexts = "character:C008:4:queuedDamageContexts";
+    private const string C008ExcaliburSequenceCollecting = "collecting";
+    private const string C008ExcaliburSequenceFinalizing = "finalizing";
+    private const string SkillKeyC011_1 = "C011:1";
+    private const string SkillKeyC011_2 = "C011:2";
+    private const string SkillKeyC011_3 = "C011:3";
+    private const string SkillKeyC011_4 = "C011:4";
+    private const string ContinuationKeyC011MysticEyesTarget = "continuation:character:C011:1:targetOpponent";
+    private const string ContinuationKeyC011TrueAncestorCombatTarget = "continuation:character:C011:2:targetOpponent";
+    private const string ContinuationKeyC011RealityMarbleSelectSummon = "continuation:character:C011:4:selectSummon";
+    private const string InputTypeKeyC011TargetPlayer = "character:C011:targetPlayer";
+    private const string InputTypeKeyC011SelectSummon = "character:C011:selectSummon";
+    private const string ContextKeyC011MysticEyesTarget = "character:C011:1:targetOpponent";
+    private const string ContextKeyC011TrueAncestorCombatTarget = "character:C011:2:targetOpponent";
+    private const string ContextKeyC011RealityMarbleSelectSummon = "character:C011:4:selectSummon";
+    private const string ChoiceKeySummonZoneCardPrefix = "summonZoneCard:";
+    private const string LocalStateKeyC011RealityMarbleRemainingCount = "character:C011:4:remainingCount";
+    private const string LocalStateKeyC011MysticEyesPendingFullDefenseCharm = "character:C011:1:pendingFullDefenseCharm";
+    private const string LocalStateKeyC011TrueAncestorCombatDeactivateAfterDamage = "character:C011:2:deactivateAfterDamage";
+    private const string SkillKeyC013_2 = "C013:2";
+    private const string SkillKeyC013_3 = "C013:3";
+    private const string SkillKeyC013_4 = "C013:4";
+    private const string ContinuationKeyC013AbnormalTasteDiscard = "continuation:character:C013:2:discardForDefenseValue";
+    private const string ContinuationKeyC013DarkJadeFistTarget = "continuation:character:C013:3:targetOpponentDeck";
+    private const string ContinuationKeyC013CriminalTarget = "continuation:character:C013:4:targetOpponentDeck";
+    private const string ContinuationKeyC013CriminalTakeRevealed = "continuation:character:C013:4:takeRevealed";
+    private const string InputTypeKeyC013DiscardCard = "character:C013:discardCard";
+    private const string InputTypeKeyC013TargetPlayer = "character:C013:targetPlayer";
+    private const string InputTypeKeyC013TakeRevealed = "character:C013:takeRevealed";
+    private const string ContextKeyC013AbnormalTasteDiscard = "character:C013:2:discardForDefenseValue";
+    private const string ContextKeyC013DarkJadeFistTarget = "character:C013:3:targetOpponentDeck";
+    private const string ContextKeyC013CriminalTarget = "character:C013:4:targetOpponentDeck";
+    private const string ContextKeyC013CriminalTakeRevealed = "character:C013:4:takeRevealed";
+    private const string ChoiceKeyC013TakeRevealed = "c013Criminal:take";
+    private const string ChoiceKeyC013KeepRevealed = "c013Criminal:decline";
+    private const string LocalStateKeyC013CriminalTargetPlayerId = "character:C013:4:targetPlayerId";
+    private const string LocalStateKeyC013CriminalRevealedCardInstanceId = "character:C013:4:revealedCardInstanceId";
+    private const string LocalStateKeyC013AbnormalTasteDefenseCardInstanceId = "character:C013:2:defenseCardInstanceId";
+    private const string LocalStateKeyC013AbnormalTasteDefenderPlayerId = "character:C013:2:defenderPlayerId";
+    private const string LocalStateKeyC013AbnormalTasteDefenderCharacterInstanceId = "character:C013:2:defenderCharacterInstanceId";
+    private const string LocalStateKeyC013AbnormalTasteProducedStartIndex = "character:C013:2:producedStartIndex";
+    private const string RevealReasonKeyC013DarkJadeFist = "character:C013:3:darkJadeFist";
+    private const string RevealReasonKeyC013Criminal = "character:C013:4:criminal";
     private const string SkillKeyC018_2 = "C018:2";
     private const string SkillKeyC018_3 = "C018:3";
     private const string SkillKeyC018_4 = "C018:4";
@@ -71,11 +169,19 @@ public sealed class ActionRequestProcessor
     private const string SkillKeyC021_1 = "C021:1";
     private const string SkillKeyC029_4 = "C029:4";
     private const string MarkerTypeDream = "dream";
+    private const string MarkerTypeSwordAura = "swordAura";
     private const string CharacterDefinitionIdC001 = "C001";
+    private const string CharacterDefinitionIdC003 = "C003";
+    private const string CharacterDefinitionIdC005 = "C005";
+    private const string CharacterDefinitionIdC014 = "C014";
     private const string CharacterDefinitionIdC011 = "C011";
+    private const string CharacterDefinitionIdC013 = "C013";
+    private const string CharacterDefinitionIdC017 = "C017";
+    private const string CharacterDefinitionIdC022 = "C022";
     private const string StatusKeyBarrier = "Barrier";
     private const string StatusKeySeal = "Seal";
     private const string StatusKeyCharm = "Charm";
+    private const string StatusKeySilence = "Silence";
     private const string StatusKeyPenetrate = "Penetrate";
     private const string TreasureDefinitionIdT014 = "T014";
     private const string TreasureDefinitionIdT015 = "T015";
@@ -97,13 +203,19 @@ public sealed class ActionRequestProcessor
         public readonly bool isEndPhaseHandDiscardContinuation;
         public readonly bool isTurnStartShackleDiscardContinuation;
         public readonly bool isTurnStartC001BarrierContinuation;
+        public readonly bool isTurnStartC013MechanicalJadeContinuation;
         public readonly bool isAnomalyContinuation;
         public readonly bool isMechanicalJadeContinuation;
         public readonly bool isTreasureDefenseContinuation;
         public readonly bool isT029DamageImmunityContinuation;
         public readonly bool isC001SkillContinuation;
+        public readonly bool isC003SkillContinuation;
         public readonly bool isC007SkillContinuation;
         public readonly bool isC008SkillContinuation;
+        public readonly bool isC004SkillContinuation;
+        public readonly bool isC005SkillContinuation;
+        public readonly bool isC011SkillContinuation;
+        public readonly bool isC013SkillContinuation;
 
         public SubmitInputChoiceContinuationState(string? pendingContinuationKey)
         {
@@ -120,14 +232,21 @@ public sealed class ActionRequestProcessor
                 pendingContinuationKey == TurnTransitionProcessor.ContinuationKeyTurnStartShackleDiscard;
             isTurnStartC001BarrierContinuation =
                 pendingContinuationKey == TurnTransitionProcessor.ContinuationKeyTurnStartC001Barrier;
+            isTurnStartC013MechanicalJadeContinuation =
+                pendingContinuationKey == TurnTransitionProcessor.ContinuationKeyTurnStartC013MechanicalJade;
             isAnomalyContinuation = AnomalyProcessor.isAnomalyContinuationKey(pendingContinuationKey);
             isMechanicalJadeContinuation = MechanicalJadeRuntime.isMechanicalJadeContinuationKey(pendingContinuationKey);
             isTreasureDefenseContinuation = TreasureDefenseEffectRuntime.isTreasureDefenseContinuationKey(pendingContinuationKey);
             isT029DamageImmunityContinuation =
                 pendingContinuationKey == DamageProcessor.ContinuationKeyT029DamageImmunity;
             isC001SkillContinuation = isC001SkillContinuationKey(pendingContinuationKey);
+            isC003SkillContinuation = isC003SkillContinuationKey(pendingContinuationKey);
             isC007SkillContinuation = isC007SkillContinuationKey(pendingContinuationKey);
             isC008SkillContinuation = isC008SkillContinuationKey(pendingContinuationKey);
+            isC004SkillContinuation = isC004SkillContinuationKey(pendingContinuationKey);
+            isC005SkillContinuation = isC005SkillContinuationKey(pendingContinuationKey);
+            isC011SkillContinuation = isC011SkillContinuationKey(pendingContinuationKey);
+            isC013SkillContinuation = isC013SkillContinuationKey(pendingContinuationKey);
         }
     }
 
@@ -168,7 +287,8 @@ public sealed class ActionRequestProcessor
             nextResponseWindowIdSupplier,
             zoneMovementService,
             this.damageProcessor,
-            anomalyProcessor.forceResolveCurrentAnomalyFromExternalEffect);
+            anomalyProcessor.forceResolveCurrentAnomalyFromExternalEffect,
+            tryOpenC003GungnirBeforeDefense);
         treasureArrivalEffectRuntime = new TreasureArrivalEffectRuntime(
             nextInputContextIdSupplier,
             zoneMovementService);
@@ -185,6 +305,7 @@ public sealed class ActionRequestProcessor
         turnTransitionProcessor = new TurnTransitionProcessor(
             zoneMovementService,
             endPhaseProcessor,
+            treasureArrivalEffectRuntime,
             nextInputContextIdSupplier);
     }
 
@@ -817,6 +938,53 @@ public sealed class ActionRequestProcessor
             throw new InvalidOperationException("UseSkillActionRequest C008:1 requires at least one alive opponent target.");
         }
 
+        if ((string.Equals(useSkillActionRequest.skillKey, SkillKeyC003_1, StringComparison.Ordinal) ||
+             string.Equals(useSkillActionRequest.skillKey, SkillKeyC003_3, StringComparison.Ordinal)) &&
+            collectOpponentPlayerChoiceKeys(gameState, actorPlayerState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C003 targeted damage skill requires at least one alive opponent target.");
+        }
+
+        if ((string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_1, StringComparison.Ordinal) ||
+              string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_4, StringComparison.Ordinal)) &&
+            collectOpponentPlayerChoiceKeys(gameState, actorPlayerState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C004 targeted damage skill requires at least one alive opponent target.");
+        }
+
+        if ((string.Equals(useSkillActionRequest.skillKey, SkillKeyC005_3, StringComparison.Ordinal) ||
+             string.Equals(useSkillActionRequest.skillKey, SkillKeyC005_4, StringComparison.Ordinal)) &&
+            collectOpponentPlayerChoiceKeys(gameState, actorPlayerState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C005 targeted damage skill requires at least one alive opponent target.");
+        }
+
+        if ((string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_1, StringComparison.Ordinal) ||
+              string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_2, StringComparison.Ordinal)) &&
+            collectOpponentPlayerChoiceKeys(gameState, actorPlayerState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C011 targeted skill requires at least one alive opponent target.");
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_3, StringComparison.Ordinal) &&
+            characterInstance.isActivated)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C011:3 requires character to not already be activated.");
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_4, StringComparison.Ordinal) &&
+            collectSummonZoneCardChoiceKeys(gameState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C011:4 requires at least one summonZone card.");
+        }
+
+        if ((string.Equals(useSkillActionRequest.skillKey, SkillKeyC013_3, StringComparison.Ordinal) ||
+             string.Equals(useSkillActionRequest.skillKey, SkillKeyC013_4, StringComparison.Ordinal)) &&
+            collectOpponentPlayerWithNonEmptyDeckChoiceKeys(gameState, actorPlayerState).Count == 0)
+        {
+            throw new InvalidOperationException("UseSkillActionRequest C013 deck-top skill requires at least one opponent with non-empty deck.");
+        }
+
         if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC001_3, StringComparison.Ordinal))
         {
             if (gameState.turnState.hasResolvedAnomalyThisTurn)
@@ -907,16 +1075,30 @@ public sealed class ActionRequestProcessor
     {
         if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_1, StringComparison.Ordinal))
         {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC004TargetPlayer,
+                ContextKeyC004MasterSparkTarget,
+                ContinuationKeyC004MasterSparkTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_3, StringComparison.Ordinal))
+        {
             var appliedStatus = StatusRuntime.applyStatus(
                 gameState,
                 new StatusInstance
                 {
-                    statusKey = StatusKeyPenetrate,
+                    statusKey = StatusRuntime.StatusKeyPhysicalOrSpellDamageBoostNext,
                     applierPlayerId = useSkillActionRequest.actorPlayerId,
                     applierCharacterInstanceId = useSkillActionRequest.characterInstanceId,
                     targetPlayerId = useSkillActionRequest.actorPlayerId,
-                    stackCount = 1,
-                    durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
+                    stackCount = 2,
+                    durationTypeKey = StatusRuntime.DurationTypeKeyNextMatchingDamageAttempt,
                 });
             actionChainState.producedEvents.Add(new StatusChangedEvent
             {
@@ -927,6 +1109,48 @@ public sealed class ActionRequestProcessor
                 targetPlayerId = appliedStatus.targetPlayerId,
                 isApplied = true,
             });
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC004_4, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC004TargetPlayer,
+                ContextKeyC004BlazingCometTarget,
+                ContinuationKeyC004BlazingCometTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC005_3, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC005SwordAuraAmount,
+                ContextKeyC005SakuraSparkSwordAura,
+                ContinuationKeyC005SakuraSparkSelectSwordAura,
+                collectC005SwordAuraAmountChoiceKeys(sourceCharacterInstance));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC005_4, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC005SwordAuraAmount,
+                ContextKeyC005SpringWindSwordAura,
+                ContinuationKeyC005SpringWindSelectSwordAura,
+                collectC005SwordAuraAmountChoiceKeys(sourceCharacterInstance));
             return;
         }
 
@@ -1117,6 +1341,66 @@ public sealed class ActionRequestProcessor
             return;
         }
 
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC003_1, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC003TargetPlayer,
+                ContextKeyC003RedNightTarget,
+                ContinuationKeyC003RedNightTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC003_3, StringComparison.Ordinal))
+        {
+            actionChainState.producedEvents.Add(CharacterActivationRuntime.setActivated(
+                gameState,
+                useSkillActionRequest.characterInstanceId,
+                true,
+                actionChainState.actionChainId,
+                useSkillActionRequest.requestId));
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC003TargetPlayer,
+                ContextKeyC003ScarletDestinyTarget,
+                ContinuationKeyC003ScarletDestinyTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC003_4, StringComparison.Ordinal))
+        {
+            var drawCount = sourceCharacterInstance.isActivated ? 3 : 2;
+            for (var drawIndex = 0; drawIndex < drawCount; drawIndex++)
+            {
+                appendDrawOneCardEffectEventsForPlayer(
+                    gameState,
+                    actionChainState,
+                    actorPlayerState,
+                    useSkillActionRequest.requestId);
+            }
+
+            foreach (var teamState in gameState.teams.Values)
+            {
+                if (teamState.teamId == actorPlayerState.teamId ||
+                    teamState.leyline <= 0)
+                {
+                    continue;
+                }
+
+                teamState.leyline -= 1;
+            }
+
+            return;
+        }
+
         if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC007_1, StringComparison.Ordinal))
         {
             if (MarkerRuntime.canAddMarker(sourceCharacterInstance, MarkerTypeDream))
@@ -1256,6 +1540,90 @@ public sealed class ActionRequestProcessor
                 actionChainState,
                 useSkillActionRequest,
                 actorPlayerState);
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_1, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC011TargetPlayer,
+                ContextKeyC011MysticEyesTarget,
+                ContinuationKeyC011MysticEyesTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_2, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC011TargetPlayer,
+                ContextKeyC011TrueAncestorCombatTarget,
+                ContinuationKeyC011TrueAncestorCombatTarget,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_3, StringComparison.Ordinal))
+        {
+            actionChainState.producedEvents.Add(CharacterActivationRuntime.setActivated(
+                gameState,
+                useSkillActionRequest.characterInstanceId,
+                true,
+                actionChainState.actionChainId,
+                useSkillActionRequest.requestId));
+            applyCharacterStatus(
+                gameState,
+                actionChainState,
+                useSkillActionRequest,
+                StatusRuntime.StatusKeyC011AllDamageBoostThisTurn,
+                targetPlayerId: useSkillActionRequest.actorPlayerId,
+                durationTypeKey: "turnEnd");
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC011_4, StringComparison.Ordinal))
+        {
+            actionChainState.localState[LocalStateKeyC011RealityMarbleRemainingCount] = "3";
+            continueC011RealityMarbleSequence(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId);
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC013_3, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC013TargetPlayer,
+                ContextKeyC013DarkJadeFistTarget,
+                ContinuationKeyC013DarkJadeFistTarget,
+                collectOpponentPlayerWithNonEmptyDeckChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(useSkillActionRequest.skillKey, SkillKeyC013_4, StringComparison.Ordinal))
+        {
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                useSkillActionRequest.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC013TargetPlayer,
+                ContextKeyC013CriminalTarget,
+                ContinuationKeyC013CriminalTarget,
+                collectOpponentPlayerWithNonEmptyDeckChoiceKeys(gameState, actorPlayerState));
             return;
         }
 
@@ -1714,6 +2082,1174 @@ public sealed class ActionRequestProcessor
                string.Equals(continuationKey, ContinuationKeyC007DaydreamDamageTarget, StringComparison.Ordinal);
     }
 
+    private void continueC003SkillInput(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string continuationKey)
+    {
+        if (string.Equals(continuationKey, ContinuationKeyC003GungnirDiscard, StringComparison.Ordinal))
+        {
+            continueC003GungnirDiscard(
+                gameState,
+                actionChainState,
+                request);
+            return;
+        }
+
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState) ||
+            !gameState.characterInstances.TryGetValue(useSkillActionRequest.characterInstanceId, out var sourceCharacterInstance))
+        {
+            throw new InvalidOperationException("C003 skill continuation requires a valid UseSkillActionRequest root.");
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC003RedNightTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C003:1 requires selected player to be an alive opponent.");
+            }
+
+            var amount = sourceCharacterInstance.isActivated ? 4 : 2;
+            actionChainState.localState[LocalStateKeyC003RedNightHealAmount] = amount.ToString();
+            actionChainState.pendingContinuationKey = null;
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                amount,
+                DamageTypeKeySpell);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC003ScarletDestinyTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C003:3 requires selected player to be an alive opponent.");
+            }
+
+            actionChainState.pendingContinuationKey = null;
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                6,
+                DamageTypeKeyPhysical);
+            return;
+        }
+
+        throw new InvalidOperationException("C003 skill continuation key is unsupported.");
+    }
+
+    private static bool isC003SkillContinuationKey(string? continuationKey)
+    {
+        return string.Equals(continuationKey, ContinuationKeyC003RedNightTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC003GungnirDiscard, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC003ScarletDestinyTarget, StringComparison.Ordinal);
+    }
+
+    private void tryResumeC003RedNightHealSequence(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC003RedNightHealAmount, out var healAmountRaw) ||
+            !int.TryParse(healAmountRaw, out var healAmount) ||
+            healAmount <= 0 ||
+            gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey) ||
+            actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.characterInstances.TryGetValue(useSkillActionRequest.characterInstanceId, out var sourceCharacterInstance) ||
+            !sourceCharacterInstance.isAlive ||
+            !sourceCharacterInstance.isInPlay)
+        {
+            return;
+        }
+
+        appendHealOnCharacter(
+            actionChainState,
+            eventId,
+            sourceCharacterInstance,
+            healAmount);
+        actionChainState.localState.Remove(LocalStateKeyC003RedNightHealAmount);
+    }
+
+    private bool tryOpenC003GungnirBeforeDefense(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        DamageContext stagedDamageContext)
+    {
+        if (gameState.turnState is null ||
+            gameState.currentInputContext is not null ||
+            stagedDamageContext.sourcePlayerId is null ||
+            !stagedDamageContext.targetCharacterInstanceId.HasValue ||
+            string.Equals(stagedDamageContext.damageType, DamageTypeKeyDirect, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!gameState.players.TryGetValue(stagedDamageContext.sourcePlayerId.Value, out var sourcePlayerState) ||
+            !gameState.characterInstances.TryGetValue(stagedDamageContext.targetCharacterInstanceId.Value, out var targetCharacterInstance) ||
+            !gameState.players.TryGetValue(targetCharacterInstance.ownerPlayerId, out var targetPlayerState) ||
+            sourcePlayerState.teamId == targetPlayerState.teamId ||
+            StatusRuntime.hasStatusOnPlayer(gameState, targetCharacterInstance.ownerPlayerId, StatusKeyCharm))
+        {
+            return false;
+        }
+
+        if (!tryFindAliveInPlayCharacterInstanceByOwner(
+                gameState,
+                stagedDamageContext.sourcePlayerId.Value,
+                out var sourceActiveCharacter))
+        {
+            return false;
+        }
+
+        PlayerId? remiliaPlayerId = null;
+        CharacterInstance? remiliaCharacter = null;
+        if (string.Equals(sourceActiveCharacter.definitionId, CharacterDefinitionIdC003, StringComparison.Ordinal))
+        {
+            remiliaPlayerId = sourceActiveCharacter.ownerPlayerId;
+            remiliaCharacter = sourceActiveCharacter;
+        }
+        else if (string.Equals(sourceActiveCharacter.definitionId, CharacterDefinitionIdC014, StringComparison.Ordinal))
+        {
+            foreach (var characterInstance in gameState.characterInstances.Values)
+            {
+                if (!characterInstance.isAlive ||
+                    !characterInstance.isInPlay ||
+                    !string.Equals(characterInstance.definitionId, CharacterDefinitionIdC003, StringComparison.Ordinal) ||
+                    !gameState.players.TryGetValue(characterInstance.ownerPlayerId, out var candidatePlayerState) ||
+                    candidatePlayerState.teamId != sourcePlayerState.teamId)
+                {
+                    continue;
+                }
+
+                remiliaPlayerId = characterInstance.ownerPlayerId;
+                remiliaCharacter = characterInstance;
+                break;
+            }
+        }
+
+        if (!remiliaPlayerId.HasValue ||
+            remiliaCharacter is null ||
+            StatusRuntime.hasStatusOnPlayer(gameState, remiliaPlayerId.Value, StatusKeySilence) ||
+            gameState.turnState.usedOncePerTurnSkillKeys.Contains(SkillKeyC003_2) ||
+            !gameState.players.TryGetValue(remiliaPlayerId.Value, out var remiliaPlayerState) ||
+            !gameState.zones.TryGetValue(remiliaPlayerState.handZoneId, out var handZoneState))
+        {
+            return false;
+        }
+
+        var choiceKeys = new List<string> { ChoiceKeyDecline };
+        foreach (var cardInstanceId in handZoneState.cardInstanceIds)
+        {
+            if (!gameState.cardInstances.TryGetValue(cardInstanceId, out var cardInstance))
+            {
+                continue;
+            }
+
+            var summonCost = TreasureDefinitionRepository
+                .resolveByDefinitionId(cardInstance.definitionId)
+                .summonSigilCost;
+            if (summonCost.HasValue && summonCost.Value >= 3)
+            {
+                choiceKeys.Add(ChoiceKeyDiscardCardPrefix + cardInstanceId.Value);
+            }
+        }
+
+        if (choiceKeys.Count <= 1)
+        {
+            return false;
+        }
+
+        saveC003GungnirDamageContext(actionChainState, stagedDamageContext);
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            remiliaPlayerId.Value,
+            InputTypeKeyC003GungnirDiscard,
+            ContextKeyC003GungnirDiscard,
+            ContinuationKeyC003GungnirDiscard,
+            choiceKeys);
+        return true;
+    }
+
+    private void continueC003GungnirDiscard(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        SubmitInputChoiceActionRequest request)
+    {
+        var damageContext = restoreC003GungnirDamageContext(actionChainState, request.requestId);
+        clearC003GungnirDamageContext(actionChainState);
+
+        if (!string.Equals(request.choiceKey, ChoiceKeyDecline, StringComparison.Ordinal))
+        {
+            var selectedCardInstanceId = parseCardChoiceKey(request.choiceKey, ChoiceKeyDiscardCardPrefix);
+            if (!gameState.players.TryGetValue(request.actorPlayerId, out var remiliaPlayerState) ||
+                !gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance) ||
+                selectedCardInstance.ownerPlayerId != request.actorPlayerId ||
+                selectedCardInstance.zoneId != remiliaPlayerState.handZoneId ||
+                !isSummonCostAtLeast(selectedCardInstance.definitionId, 3))
+            {
+                throw new InvalidOperationException("C003:2 requires selected discard card to be a hand card with summon cost at least 3.");
+            }
+
+            actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                gameState,
+                selectedCardInstance,
+                remiliaPlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                request.requestId));
+            gameState.turnState!.usedOncePerTurnSkillKeys.Add(SkillKeyC003_2);
+            if (damageContext.sourcePlayerId.HasValue)
+            {
+                applyPenetrateToSourceForGungnir(
+                    gameState,
+                    actionChainState,
+                    request.requestId,
+                    request.actorPlayerId,
+                    damageContext.sourcePlayerId.Value,
+                    damageContext.sourceCharacterInstanceId);
+            }
+        }
+
+        actionChainState.pendingContinuationKey = null;
+        openDamageResponseWindowWithPendingDamage(
+            gameState,
+            actionChainState,
+            request.requestId,
+            damageContext.sourcePlayerId!.Value,
+            damageContext.sourceCardInstanceId,
+            damageContext.sourceCharacterInstanceId,
+            damageContext.targetCharacterInstanceId!.Value,
+            damageContext.baseDamageValue,
+            damageContext.damageType,
+            hasAppliedSourceDamageBonuses: true,
+            suppressC003Gungnir: true);
+    }
+
+    private void applyPenetrateToSourceForGungnir(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        PlayerId remiliaPlayerId,
+        PlayerId sourcePlayerId,
+        CharacterInstanceId? sourceCharacterInstanceId)
+    {
+        var appliedStatus = StatusRuntime.applyStatus(
+            gameState,
+            new StatusInstance
+            {
+                statusKey = StatusKeyPenetrate,
+                applierPlayerId = remiliaPlayerId,
+                targetPlayerId = sourcePlayerId,
+                targetCharacterInstanceId = sourceCharacterInstanceId,
+                stackCount = 1,
+                durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
+            });
+        actionChainState.producedEvents.Add(new StatusChangedEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "statusChanged",
+            sourceActionChainId = actionChainState.actionChainId,
+            statusKey = appliedStatus.statusKey,
+            targetPlayerId = appliedStatus.targetPlayerId,
+            targetCharacterInstanceId = appliedStatus.targetCharacterInstanceId,
+            isApplied = true,
+        });
+    }
+
+    private static bool isSummonCostAtLeast(string definitionId, int minCost)
+    {
+        var summonCost = TreasureDefinitionRepository.resolveByDefinitionId(definitionId).summonSigilCost;
+        return summonCost.HasValue && summonCost.Value >= minCost;
+    }
+
+    private static void saveC003GungnirDamageContext(
+        ActionChainState actionChainState,
+        DamageContext damageContext)
+    {
+        actionChainState.localState[LocalStateKeyC003GungnirSourcePlayerId] =
+            damageContext.sourcePlayerId!.Value.Value.ToString();
+        if (damageContext.sourceCardInstanceId.HasValue)
+        {
+            actionChainState.localState[LocalStateKeyC003GungnirSourceCardInstanceId] =
+                damageContext.sourceCardInstanceId.Value.Value.ToString();
+        }
+        else
+        {
+            actionChainState.localState.Remove(LocalStateKeyC003GungnirSourceCardInstanceId);
+        }
+
+        if (damageContext.sourceCharacterInstanceId.HasValue)
+        {
+            actionChainState.localState[LocalStateKeyC003GungnirSourceCharacterInstanceId] =
+                damageContext.sourceCharacterInstanceId.Value.Value.ToString();
+        }
+        else
+        {
+            actionChainState.localState.Remove(LocalStateKeyC003GungnirSourceCharacterInstanceId);
+        }
+
+        actionChainState.localState[LocalStateKeyC003GungnirTargetCharacterInstanceId] =
+            damageContext.targetCharacterInstanceId!.Value.Value.ToString();
+        actionChainState.localState[LocalStateKeyC003GungnirBaseDamageValue] =
+            damageContext.baseDamageValue.ToString();
+        actionChainState.localState[LocalStateKeyC003GungnirDamageType] =
+            damageContext.damageType;
+    }
+
+    private static DamageContext restoreC003GungnirDamageContext(
+        ActionChainState actionChainState,
+        long requestId)
+    {
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirSourcePlayerId, out var sourcePlayerRaw) ||
+            !long.TryParse(sourcePlayerRaw, out var sourcePlayerNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirTargetCharacterInstanceId, out var targetCharacterRaw) ||
+            !long.TryParse(targetCharacterRaw, out var targetCharacterNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirBaseDamageValue, out var baseDamageRaw) ||
+            !int.TryParse(baseDamageRaw, out var baseDamageValue) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirDamageType, out var damageTypeKey))
+        {
+            throw new InvalidOperationException("C003:2 requires saved pending damage context.");
+        }
+
+        CardInstanceId? sourceCardInstanceId = null;
+        if (actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirSourceCardInstanceId, out var sourceCardRaw) &&
+            long.TryParse(sourceCardRaw, out var sourceCardNumericId))
+        {
+            sourceCardInstanceId = new CardInstanceId(sourceCardNumericId);
+        }
+
+        CharacterInstanceId? sourceCharacterInstanceId = null;
+        if (actionChainState.localState.TryGetValue(LocalStateKeyC003GungnirSourceCharacterInstanceId, out var sourceCharacterRaw) &&
+            long.TryParse(sourceCharacterRaw, out var sourceCharacterNumericId))
+        {
+            sourceCharacterInstanceId = new CharacterInstanceId(sourceCharacterNumericId);
+        }
+
+        return new DamageContext
+        {
+            damageContextId = new DamageContextId(requestId),
+            sourcePlayerId = new PlayerId(sourcePlayerNumericId),
+            sourceCardInstanceId = sourceCardInstanceId,
+            sourceCharacterInstanceId = sourceCharacterInstanceId,
+            targetCharacterInstanceId = new CharacterInstanceId(targetCharacterNumericId),
+            baseDamageValue = baseDamageValue,
+            damageType = damageTypeKey,
+            hasAppliedSourceDamageBonuses = true,
+        };
+    }
+
+    private static void clearC003GungnirDamageContext(ActionChainState actionChainState)
+    {
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirSourcePlayerId);
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirSourceCardInstanceId);
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirSourceCharacterInstanceId);
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirTargetCharacterInstanceId);
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirBaseDamageValue);
+        actionChainState.localState.Remove(LocalStateKeyC003GungnirDamageType);
+    }
+
+    private void continueC004SkillInput(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string continuationKey)
+    {
+        if (string.Equals(continuationKey, ContinuationKeyC004StardustDiscard, StringComparison.Ordinal))
+        {
+            continueC004StardustCarnival(
+                gameState,
+                actionChainState,
+                inputContextState,
+                request);
+            return;
+        }
+
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("C004 skill continuation requires a valid UseSkillActionRequest root.");
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC004MasterSparkTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C004:1 requires selected player to be an alive opponent.");
+            }
+
+            var damageValue =
+                string.Equals(targetCharacterInstance.definitionId, CharacterDefinitionIdC017, StringComparison.Ordinal) ||
+                string.Equals(targetCharacterInstance.definitionId, CharacterDefinitionIdC022, StringComparison.Ordinal)
+                    ? 3
+                    : 4;
+            actionChainState.pendingContinuationKey = null;
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                damageValue,
+                DamageTypeKeySpell);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC004BlazingCometTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C004:4 requires selected player to be an alive opponent.");
+            }
+
+            actionChainState.localState[LocalStateKeyC004BlazingCometSequence] = "awaitBanishAfterDamage";
+            actionChainState.pendingContinuationKey = null;
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                7,
+                DamageTypeKeyPhysical);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC004BlazingCometBanish, StringComparison.Ordinal))
+        {
+            continueC004BlazingCometBanish(
+                gameState,
+                actionChainState,
+                inputContextState,
+                request);
+            return;
+        }
+
+        throw new InvalidOperationException("C004 skill continuation key is unsupported.");
+    }
+
+    private static bool isC004SkillContinuationKey(string? continuationKey)
+    {
+        return string.Equals(continuationKey, ContinuationKeyC004MasterSparkTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC004StardustDiscard, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC004BlazingCometTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC004BlazingCometBanish, StringComparison.Ordinal);
+    }
+
+    private void continueC005SkillInput(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string continuationKey)
+    {
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState) ||
+            !gameState.characterInstances.TryGetValue(useSkillActionRequest.characterInstanceId, out var sourceCharacterInstance))
+        {
+            throw new InvalidOperationException("C005 skill continuation requires a valid UseSkillActionRequest root.");
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC005SakuraSparkSelectSwordAura, StringComparison.Ordinal) ||
+            string.Equals(continuationKey, ContinuationKeyC005SpringWindSelectSwordAura, StringComparison.Ordinal))
+        {
+            var consumedSwordAura = parseC005SwordAuraChoiceKey(request.choiceKey);
+            if (consumedSwordAura > MarkerRuntime.getMarkerCount(sourceCharacterInstance, MarkerTypeSwordAura))
+            {
+                throw new InvalidOperationException("C005 skill requires selected swordAura cost to be available.");
+            }
+
+            if (consumedSwordAura > 0)
+            {
+                actionChainState.producedEvents.Add(MarkerRuntime.removeMarker(
+                    sourceCharacterInstance,
+                    MarkerTypeSwordAura,
+                    consumedSwordAura,
+                    actionChainState.actionChainId,
+                    request.requestId));
+            }
+
+            actionChainState.localState[LocalStateKeyC005ConsumedSwordAura] = consumedSwordAura.ToString();
+            var targetContinuation = string.Equals(
+                    continuationKey,
+                    ContinuationKeyC005SakuraSparkSelectSwordAura,
+                    StringComparison.Ordinal)
+                ? ContinuationKeyC005SakuraSparkTargets
+                : ContinuationKeyC005SpringWindTarget;
+            var targetContext = string.Equals(
+                    continuationKey,
+                    ContinuationKeyC005SakuraSparkSelectSwordAura,
+                    StringComparison.Ordinal)
+                ? ContextKeyC005SakuraSparkTargets
+                : ContextKeyC005SpringWindTarget;
+
+            openCharacterSkillChoiceInput(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                InputTypeKeyC005TargetPlayer,
+                targetContext,
+                targetContinuation,
+                collectOpponentPlayerChoiceKeys(gameState, actorPlayerState));
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC005SakuraSparkTargets, StringComparison.Ordinal))
+        {
+            var consumedSwordAura = consumeSavedC005SwordAura(actionChainState);
+            var selectedTargetChoiceKeys = getC005SelectedTargetChoiceKeys(request);
+            if (selectedTargetChoiceKeys.Count is < 1 or > 2)
+            {
+                throw new InvalidOperationException("C005:3 requires selecting one or two opponent targets.");
+            }
+
+            var damageEntries = new List<string>();
+            foreach (var targetChoiceKey in selectedTargetChoiceKeys)
+            {
+                var targetPlayerId = parsePlayerChoiceKey(targetChoiceKey);
+                if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                    targetPlayerState.teamId == actorPlayerState.teamId ||
+                    !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+                {
+                    throw new InvalidOperationException("C005:3 requires every selected target to be an alive opponent.");
+                }
+
+                var damageValue = 1 + consumedSwordAura;
+                if (string.Equals(targetCharacterInstance.definitionId, "C018", StringComparison.Ordinal))
+                {
+                    damageValue = Math.Max(0, damageValue - 1);
+                }
+
+                damageEntries.Add(targetCharacterInstance.characterInstanceId.Value + ":" + damageValue);
+            }
+
+            actionChainState.localState[LocalStateKeyC005SakuraSparkRemainingDamages] = string.Join(",", damageEntries);
+            actionChainState.pendingContinuationKey = null;
+            tryResumeC005SakuraSparkSequence(gameState, actionChainState, request.requestId);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC005SpringWindTarget, StringComparison.Ordinal))
+        {
+            var consumedSwordAura = consumeSavedC005SwordAura(actionChainState);
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C005:4 requires selected player to be an alive opponent.");
+            }
+
+            var appliedStatus = StatusRuntime.applyStatus(
+                gameState,
+                new StatusInstance
+                {
+                    statusKey = StatusKeyPenetrate,
+                    applierPlayerId = useSkillActionRequest.actorPlayerId,
+                    applierCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                    targetPlayerId = useSkillActionRequest.actorPlayerId,
+                    targetCharacterInstanceId = useSkillActionRequest.characterInstanceId,
+                    stackCount = 1,
+                    durationTypeKey = StatusRuntime.DurationTypeKeyNextDamageAttempt,
+                });
+            actionChainState.producedEvents.Add(new StatusChangedEvent
+            {
+                eventId = request.requestId,
+                eventTypeKey = "statusChanged",
+                sourceActionChainId = actionChainState.actionChainId,
+                statusKey = appliedStatus.statusKey,
+                targetPlayerId = appliedStatus.targetPlayerId,
+                targetCharacterInstanceId = appliedStatus.targetCharacterInstanceId,
+                isApplied = true,
+            });
+
+            actionChainState.pendingContinuationKey = null;
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                3 + consumedSwordAura,
+                DamageTypeKeyPhysical);
+            return;
+        }
+
+        throw new InvalidOperationException("C005 skill continuation key is unsupported.");
+    }
+
+    private void tryResumeC005SakuraSparkSequence(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC005SakuraSparkRemainingDamages, out var serializedDamages) ||
+            gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey) ||
+            actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest)
+        {
+            return;
+        }
+
+        var entries = new List<string>();
+        foreach (var rawEntry in serializedDamages.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            entries.Add(rawEntry);
+        }
+
+        if (entries.Count == 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC005SakuraSparkRemainingDamages);
+            return;
+        }
+
+        var currentEntry = entries[0];
+        entries.RemoveAt(0);
+        actionChainState.localState[LocalStateKeyC005SakuraSparkRemainingDamages] = string.Join(",", entries);
+        if (!tryParseC005DamageEntry(currentEntry, out var targetCharacterInstanceId, out var damageValue))
+        {
+            throw new InvalidOperationException("C005:3 stored damage entry is invalid.");
+        }
+
+        if (!gameState.characterInstances.TryGetValue(targetCharacterInstanceId, out var targetCharacterInstance) ||
+            !targetCharacterInstance.isAlive ||
+            !targetCharacterInstance.isInPlay)
+        {
+            tryResumeC005SakuraSparkSequence(gameState, actionChainState, eventId);
+            return;
+        }
+
+        openDamageResponseWindowWithPendingDamage(
+            gameState,
+            actionChainState,
+            eventId,
+            useSkillActionRequest.actorPlayerId,
+            null,
+            useSkillActionRequest.characterInstanceId,
+            targetCharacterInstance.characterInstanceId,
+            damageValue,
+            DamageTypeKeyPhysical);
+    }
+
+    private static bool isC005SkillContinuationKey(string? continuationKey)
+    {
+        return string.Equals(continuationKey, ContinuationKeyC005SakuraSparkSelectSwordAura, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC005SakuraSparkTargets, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC005SpringWindSelectSwordAura, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC005SpringWindTarget, StringComparison.Ordinal);
+    }
+
+    private static bool isValidC005ChoiceRequest(
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string? continuationKey)
+    {
+        if (string.Equals(continuationKey, ContinuationKeyC005SakuraSparkTargets, StringComparison.Ordinal))
+        {
+            var selectedTargetChoiceKeys = getC005SelectedTargetChoiceKeys(request);
+            if (selectedTargetChoiceKeys.Count is < 1 or > 2)
+            {
+                return false;
+            }
+
+            foreach (var selectedTargetChoiceKey in selectedTargetChoiceKeys)
+            {
+                if (!inputContextState.choiceKeys.Contains(selectedTargetChoiceKey))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return inputContextState.choiceKeys.Contains(request.choiceKey);
+    }
+
+    private static List<string> collectC005SwordAuraAmountChoiceKeys(CharacterInstance characterInstance)
+    {
+        var markerCount = MarkerRuntime.getMarkerCount(characterInstance, MarkerTypeSwordAura);
+        var choiceKeys = new List<string>();
+        for (var amount = 0; amount <= markerCount; amount++)
+        {
+            choiceKeys.Add(ChoiceKeyC005SwordAuraPrefix + amount);
+        }
+
+        return choiceKeys;
+    }
+
+    private static int parseC005SwordAuraChoiceKey(string choiceKey)
+    {
+        if (!choiceKey.StartsWith(ChoiceKeyC005SwordAuraPrefix, StringComparison.Ordinal) ||
+            !int.TryParse(choiceKey.Substring(ChoiceKeyC005SwordAuraPrefix.Length), out var amount) ||
+            amount < 0)
+        {
+            throw new InvalidOperationException("C005 swordAura choice requires swordAura:{amount} format.");
+        }
+
+        return amount;
+    }
+
+    private static int consumeSavedC005SwordAura(ActionChainState actionChainState)
+    {
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC005ConsumedSwordAura, out var rawAmount) ||
+            !int.TryParse(rawAmount, out var amount) ||
+            amount < 0)
+        {
+            throw new InvalidOperationException("C005 skill requires saved swordAura amount.");
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyC005ConsumedSwordAura);
+        return amount;
+    }
+
+    private static List<string> getC005SelectedTargetChoiceKeys(SubmitInputChoiceActionRequest request)
+    {
+        var choiceKeys = new List<string>();
+        foreach (var choiceKey in request.choiceKeys)
+        {
+            if (!choiceKeys.Contains(choiceKey))
+            {
+                choiceKeys.Add(choiceKey);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.choiceKey) &&
+            !choiceKeys.Contains(request.choiceKey))
+        {
+            choiceKeys.Add(request.choiceKey);
+        }
+
+        return choiceKeys;
+    }
+
+    private static bool tryParseC005DamageEntry(
+        string serializedEntry,
+        out CharacterInstanceId targetCharacterInstanceId,
+        out int damageValue)
+    {
+        targetCharacterInstanceId = default;
+        damageValue = 0;
+        var parts = serializedEntry.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 ||
+            !long.TryParse(parts[0], out var characterNumericId) ||
+            !int.TryParse(parts[1], out damageValue) ||
+            damageValue < 0)
+        {
+            return false;
+        }
+
+        targetCharacterInstanceId = new CharacterInstanceId(characterNumericId);
+        return true;
+    }
+
+    private void tryApplyC005SwordAuraBeforePhysicalDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        DamageContext damageContext,
+        long eventId)
+    {
+        if (!string.Equals(damageContext.damageType, DamageTypeKeyPhysical, StringComparison.Ordinal) ||
+            !damageContext.sourcePlayerId.HasValue ||
+            !damageContext.targetPlayerId.HasValue ||
+            !gameState.players.TryGetValue(damageContext.sourcePlayerId.Value, out var sourcePlayerState) ||
+            !gameState.players.TryGetValue(damageContext.targetPlayerId.Value, out var targetPlayerState) ||
+            sourcePlayerState.teamId == targetPlayerState.teamId ||
+            StatusRuntime.hasStatusOnPlayer(gameState, sourcePlayerState.playerId, StatusKeySilence))
+        {
+            return;
+        }
+
+        CharacterInstance? sourceCharacterInstance = null;
+        if (damageContext.sourceCharacterInstanceId.HasValue &&
+            gameState.characterInstances.TryGetValue(damageContext.sourceCharacterInstanceId.Value, out var explicitSourceCharacter))
+        {
+            sourceCharacterInstance = explicitSourceCharacter;
+        }
+        else if (tryFindAliveInPlayCharacterInstanceByOwner(gameState, sourcePlayerState.playerId, out var activeSourceCharacter))
+        {
+            sourceCharacterInstance = activeSourceCharacter;
+        }
+
+        if (sourceCharacterInstance is null ||
+            !sourceCharacterInstance.isAlive ||
+            !sourceCharacterInstance.isInPlay ||
+            !string.Equals(sourceCharacterInstance.definitionId, CharacterDefinitionIdC005, StringComparison.Ordinal) ||
+            !MarkerRuntime.canAddMarker(sourceCharacterInstance, MarkerTypeSwordAura))
+        {
+            return;
+        }
+
+        actionChainState.producedEvents.Add(MarkerRuntime.addMarker(
+            sourceCharacterInstance,
+            MarkerTypeSwordAura,
+            1,
+            actionChainState.actionChainId,
+            eventId));
+    }
+
+    private void tryOpenC005SixRealmsAfterFullDefense(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        ResponseWindowState responseWindowState,
+        DamageContext damageContext,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            damageContext.didDealDamage ||
+            !responseWindowState.pendingDamageDefenderPlayerId.HasValue ||
+            !responseWindowState.pendingDamageSourcePlayerId.HasValue ||
+            !responseWindowState.pendingDamageTargetCharacterInstanceId.HasValue ||
+            !tryParseCardDefenseDeclarationKey(
+                responseWindowState.pendingDamageDefenseDeclarationKey ?? string.Empty,
+                out _,
+                out _))
+        {
+            return;
+        }
+
+        var defenderPlayerId = responseWindowState.pendingDamageDefenderPlayerId.Value;
+        var sourcePlayerId = responseWindowState.pendingDamageSourcePlayerId.Value;
+        if (!gameState.players.TryGetValue(defenderPlayerId, out var defenderPlayerState) ||
+            !gameState.players.TryGetValue(sourcePlayerId, out var sourcePlayerState) ||
+            defenderPlayerState.teamId == sourcePlayerState.teamId ||
+            StatusRuntime.hasStatusOnPlayer(gameState, defenderPlayerId, StatusKeySilence))
+        {
+            return;
+        }
+
+        if (!gameState.characterInstances.TryGetValue(
+                responseWindowState.pendingDamageTargetCharacterInstanceId.Value,
+                out var defenderCharacterInstance) ||
+            !defenderCharacterInstance.isAlive ||
+            !defenderCharacterInstance.isInPlay ||
+            !string.Equals(defenderCharacterInstance.definitionId, CharacterDefinitionIdC005, StringComparison.Ordinal) ||
+            MarkerRuntime.getMarkerCount(defenderCharacterInstance, MarkerTypeSwordAura) <= 0 ||
+            !gameState.zones.TryGetValue(defenderPlayerState.deckZoneId, out var defenderDeckZoneState) ||
+            defenderDeckZoneState.cardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        var sourceCharacterInstance = default(CharacterInstance);
+        if (responseWindowState.pendingDamageSourceCharacterInstanceId.HasValue)
+        {
+            gameState.characterInstances.TryGetValue(
+                responseWindowState.pendingDamageSourceCharacterInstanceId.Value,
+                out sourceCharacterInstance);
+        }
+
+        if (sourceCharacterInstance is null &&
+            !tryFindAliveInPlayCharacterInstanceByOwner(gameState, sourcePlayerId, out sourceCharacterInstance))
+        {
+            return;
+        }
+
+        if (sourceCharacterInstance is null ||
+            !sourceCharacterInstance.isAlive ||
+            !sourceCharacterInstance.isInPlay)
+        {
+            return;
+        }
+
+        actionChainState.producedEvents.Add(MarkerRuntime.removeMarker(
+            defenderCharacterInstance,
+            MarkerTypeSwordAura,
+            1,
+            actionChainState.actionChainId,
+            eventId));
+
+        var revealedCardInstance = gameState.cardInstances[defenderDeckZoneState.cardInstanceIds[0]];
+        actionChainState.producedEvents.Add(new CardRevealedEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "cardRevealed",
+            sourceActionChainId = actionChainState.actionChainId,
+            cardInstanceId = revealedCardInstance.cardInstanceId,
+            ownerPlayerId = revealedCardInstance.ownerPlayerId,
+            definitionId = revealedCardInstance.definitionId,
+            revealReasonKey = RevealReasonKeyC005SixRealms,
+        });
+
+        var summonCost = TreasureDefinitionRepository
+            .resolveByDefinitionId(revealedCardInstance.definitionId)
+            .summonSigilCost ?? 0;
+        var damageValue = Math.Max(0, summonCost - 1);
+        if (damageValue <= 0)
+        {
+            return;
+        }
+
+        openDamageResponseWindowWithPendingDamage(
+            gameState,
+            actionChainState,
+            eventId,
+            defenderPlayerId,
+            null,
+            defenderCharacterInstance.characterInstanceId,
+            sourceCharacterInstance.characterInstanceId,
+            damageValue,
+            DamageTypeKeyPhysical);
+    }
+
+    private void tryOpenC004StardustCarnivalAfterDefense(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        ResponseWindowState responseWindowState,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            gameState.turnState is null ||
+            gameState.turnState.usedOncePerTurnSkillKeys.Contains(SkillKeyC004_2) ||
+            responseWindowState.pendingDamageDefenseDeclarationKey is null ||
+            !responseWindowState.pendingDamageDefenderPlayerId.HasValue ||
+            !responseWindowState.pendingDamageSourcePlayerId.HasValue ||
+            !responseWindowState.pendingDamageTargetCharacterInstanceId.HasValue)
+        {
+            return;
+        }
+
+        var defenderPlayerId = responseWindowState.pendingDamageDefenderPlayerId.Value;
+        var sourcePlayerId = responseWindowState.pendingDamageSourcePlayerId.Value;
+        if (StatusRuntime.hasStatusOnPlayer(gameState, defenderPlayerId, StatusKeySilence))
+        {
+            return;
+        }
+
+        if (!gameState.characterInstances.TryGetValue(
+                responseWindowState.pendingDamageTargetCharacterInstanceId.Value,
+                out var defenderCharacter) ||
+            !defenderCharacter.isAlive ||
+            !defenderCharacter.isInPlay ||
+            !string.Equals(defenderCharacter.definitionId, "C004", StringComparison.Ordinal) ||
+            !gameState.players.TryGetValue(defenderPlayerId, out var defenderPlayerState) ||
+            !gameState.zones.TryGetValue(defenderPlayerState.handZoneId, out var handZoneState) ||
+            handZoneState.cardInstanceIds.Count == 0)
+        {
+            return;
+        }
+
+        var choiceKeys = new List<string> { ChoiceKeyDecline };
+        foreach (var cardInstanceId in handZoneState.cardInstanceIds)
+        {
+            choiceKeys.Add(ChoiceKeyDiscardCardPrefix + cardInstanceId.Value);
+        }
+
+        actionChainState.localState[LocalStateKeyC004StardustSourcePlayerId] = sourcePlayerId.Value.ToString();
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            defenderPlayerId,
+            InputTypeKeyC004DiscardCard,
+            ContextKeyC004StardustDiscard,
+            ContinuationKeyC004StardustDiscard,
+            choiceKeys);
+    }
+
+    private void continueC004StardustCarnival(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request)
+    {
+        if (request.choiceKey == ChoiceKeyDecline)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC004StardustSourcePlayerId);
+            actionChainState.pendingContinuationKey = null;
+            return;
+        }
+
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC004StardustSourcePlayerId, out var sourcePlayerIdRaw) ||
+            !long.TryParse(sourcePlayerIdRaw, out var sourcePlayerNumericId))
+        {
+            throw new InvalidOperationException("C004:2 requires saved damage source player id.");
+        }
+
+        var selectedCardInstanceId = parseCardChoiceKey(request.choiceKey, ChoiceKeyDiscardCardPrefix);
+        if (!gameState.players.TryGetValue(request.actorPlayerId, out var actorPlayerState) ||
+            !gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance) ||
+            selectedCardInstance.ownerPlayerId != request.actorPlayerId ||
+            selectedCardInstance.zoneId != actorPlayerState.handZoneId)
+        {
+            throw new InvalidOperationException("C004:2 requires selected discard card to remain in actor hand.");
+        }
+
+        actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+            gameState,
+            selectedCardInstance,
+            actorPlayerState.discardZoneId,
+            CardMoveReason.discard,
+            actionChainState.actionChainId,
+            request.requestId));
+        gameState.turnState!.usedOncePerTurnSkillKeys.Add(SkillKeyC004_2);
+        actionChainState.localState.Remove(LocalStateKeyC004StardustSourcePlayerId);
+        actionChainState.pendingContinuationKey = null;
+
+        var sourcePlayerId = new PlayerId(sourcePlayerNumericId);
+        if (!tryFindAliveInPlayCharacterInstanceByOwner(gameState, sourcePlayerId, out var sourceCharacterInstance))
+        {
+            return;
+        }
+
+        tryFindAliveInPlayCharacterInstanceByOwner(
+            gameState,
+            request.actorPlayerId,
+            out var stardustSourceCharacterInstance);
+        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(
+            gameState,
+            new DamageContext
+            {
+                damageContextId = new DamageContextId(request.requestId),
+                sourcePlayerId = request.actorPlayerId,
+                sourceCharacterInstanceId = stardustSourceCharacterInstance?.characterInstanceId,
+                targetPlayerId = sourcePlayerId,
+                targetCharacterInstanceId = sourceCharacterInstance.characterInstanceId,
+                baseDamageValue = 1,
+                damageType = DamageTypeKeyDirect,
+            }));
+    }
+
+    private void tryResumeC004BlazingCometSequence(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.ContainsKey(LocalStateKeyC004BlazingCometSequence) ||
+            gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey) ||
+            actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState))
+        {
+            return;
+        }
+
+        var choiceKeys = collectC004BanishChoiceKeys(gameState, actorPlayerState);
+        if (choiceKeys.Count == 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC004BlazingCometSequence);
+            return;
+        }
+
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            useSkillActionRequest.actorPlayerId,
+            InputTypeKeyC004BanishCard,
+            ContextKeyC004BlazingCometBanish,
+            ContinuationKeyC004BlazingCometBanish,
+            choiceKeys);
+    }
+
+    private void continueC004BlazingCometBanish(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request)
+    {
+        var selectedCardInstanceId = parseCardChoiceKey(request.choiceKey, ChoiceKeyBanishCardPrefix);
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState) ||
+            request.actorPlayerId != useSkillActionRequest.actorPlayerId ||
+            !gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance) ||
+            selectedCardInstance.ownerPlayerId != useSkillActionRequest.actorPlayerId ||
+            (selectedCardInstance.zoneId != actorPlayerState.handZoneId &&
+             selectedCardInstance.zoneId != actorPlayerState.discardZoneId) ||
+            gameState.publicState is null)
+        {
+            throw new InvalidOperationException("C004:4 requires selected banish card to remain in actor hand or discard.");
+        }
+
+        actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+            gameState,
+            selectedCardInstance,
+            gameState.publicState.gapZoneId,
+            CardMoveReason.banish,
+            actionChainState.actionChainId,
+            request.requestId));
+        actionChainState.localState.Remove(LocalStateKeyC004BlazingCometSequence);
+        actionChainState.pendingContinuationKey = null;
+    }
+
+    private static List<string> collectC004BanishChoiceKeys(
+        GameState.GameState gameState,
+        GameState.PlayerState actorPlayerState)
+    {
+        var choiceKeys = new List<string>();
+        if (gameState.zones.TryGetValue(actorPlayerState.handZoneId, out var handZoneState))
+        {
+            foreach (var cardInstanceId in handZoneState.cardInstanceIds)
+            {
+                choiceKeys.Add(ChoiceKeyBanishCardPrefix + cardInstanceId.Value);
+            }
+        }
+
+        if (gameState.zones.TryGetValue(actorPlayerState.discardZoneId, out var discardZoneState))
+        {
+            foreach (var cardInstanceId in discardZoneState.cardInstanceIds)
+            {
+                choiceKeys.Add(ChoiceKeyBanishCardPrefix + cardInstanceId.Value);
+            }
+        }
+
+        return choiceKeys;
+    }
+
+    private static CardInstanceId parseCardChoiceKey(string choiceKey, string prefix)
+    {
+        if (!choiceKey.StartsWith(prefix, StringComparison.Ordinal) ||
+            !long.TryParse(choiceKey.Substring(prefix.Length), out var cardInstanceNumericId) ||
+            cardInstanceNumericId <= 0)
+        {
+            throw new InvalidOperationException("Card choice key has invalid format.");
+        }
+
+        return new CardInstanceId(cardInstanceNumericId);
+    }
+
     private static List<string> collectOpponentPlayerChoiceKeys(
         GameState.GameState gameState,
         GameState.PlayerState actorPlayerState)
@@ -1913,6 +3449,850 @@ public sealed class ActionRequestProcessor
         });
     }
 
+    private void continueC011SkillInput(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string continuationKey)
+    {
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("C011 skill continuation requires a valid UseSkillActionRequest root.");
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC011MysticEyesTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C011:1 requires selected player to be an alive opponent.");
+            }
+
+            if (!gameState.characterInstances.TryGetValue(
+                    useSkillActionRequest.characterInstanceId,
+                    out var sourceCharacterInstance))
+            {
+                throw new InvalidOperationException("C011:1 requires source character to exist.");
+            }
+
+            actionChainState.pendingContinuationKey = null;
+            if (sourceCharacterInstance.isActivated)
+            {
+                applyCharmStatusToTarget(
+                    gameState,
+                    actionChainState,
+                    request.requestId,
+                    useSkillActionRequest.actorPlayerId,
+                    useSkillActionRequest.characterInstanceId,
+                    targetPlayerId,
+                    targetCharacterInstance.characterInstanceId);
+                return;
+            }
+
+            actionChainState.localState[LocalStateKeyC011MysticEyesPendingFullDefenseCharm] =
+                targetCharacterInstance.characterInstanceId.Value.ToString();
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                3,
+                DamageTypeKeySpell);
+            if (gameState.currentResponseWindow is null &&
+                !string.Equals(
+                    actionChainState.pendingContinuationKey,
+                    ContinuationKeyC003GungnirDiscard,
+                    StringComparison.Ordinal))
+            {
+                actionChainState.localState.Remove(LocalStateKeyC011MysticEyesPendingFullDefenseCharm);
+            }
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC011TrueAncestorCombatTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                targetPlayerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, targetPlayerId, out var targetCharacterInstance))
+            {
+                throw new InvalidOperationException("C011:2 requires selected player to be an alive opponent.");
+            }
+
+            actionChainState.pendingContinuationKey = null;
+            if (!gameState.characterInstances.TryGetValue(
+                    useSkillActionRequest.characterInstanceId,
+                    out var sourceCharacterInstance))
+            {
+                throw new InvalidOperationException("C011:2 requires source character to exist.");
+            }
+
+            var damageValue = sourceCharacterInstance.isActivated ? 6 : 4;
+            if (sourceCharacterInstance.isActivated)
+            {
+                actionChainState.localState[LocalStateKeyC011TrueAncestorCombatDeactivateAfterDamage] =
+                    useSkillActionRequest.characterInstanceId.Value.ToString();
+            }
+
+            openDamageResponseWindowWithPendingDamage(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                null,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                damageValue,
+                DamageTypeKeyPhysical);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC011RealityMarbleSelectSummon, StringComparison.Ordinal))
+        {
+            continueC011RealityMarbleSelectedSummon(
+                gameState,
+                actionChainState,
+                inputContextState,
+                request);
+            return;
+        }
+
+        throw new InvalidOperationException("C011 skill continuation key is unsupported.");
+    }
+
+    private void continueC013SkillInput(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request,
+        string continuationKey)
+    {
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState))
+        {
+            if (string.Equals(continuationKey, ContinuationKeyC013AbnormalTasteDiscard, StringComparison.Ordinal))
+            {
+                continueC013AbnormalTasteDiscard(gameState, actionChainState, request);
+                return;
+            }
+
+            throw new InvalidOperationException("C013 skill continuation requires a valid UseSkillActionRequest root.");
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC013AbnormalTasteDiscard, StringComparison.Ordinal))
+        {
+            continueC013AbnormalTasteDiscard(gameState, actionChainState, request);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC013DarkJadeFistTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            var revealedCardInstance = getOpponentDeckTopCardOrThrow(gameState, actorPlayerState, targetPlayerId, "C013:3");
+            var targetCharacterInstance = getAliveInPlayCharacterByOwnerOrThrow(gameState, targetPlayerId, "C013:3");
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState))
+            {
+                throw new InvalidOperationException("C013:3 requires target player to exist.");
+            }
+
+            if (gameState.matchMeta is null)
+            {
+                throw new InvalidOperationException("C013:3 requires match meta.");
+            }
+
+            var targetTeamState = gameState.teams[targetPlayerState.teamId];
+            targetTeamState.killScore = Math.Min(gameState.matchMeta.baseKillScore, targetTeamState.killScore + 1);
+            actionChainState.producedEvents.Add(new CardRevealedEvent
+            {
+                eventId = request.requestId,
+                eventTypeKey = "cardRevealed",
+                sourceActionChainId = actionChainState.actionChainId,
+                cardInstanceId = revealedCardInstance.cardInstanceId,
+                ownerPlayerId = revealedCardInstance.ownerPlayerId,
+                definitionId = revealedCardInstance.definitionId,
+                revealReasonKey = RevealReasonKeyC013DarkJadeFist,
+            });
+
+            var defenseValue = TreasureResourceValueResolver.resolveDefenseValue(revealedCardInstance.definitionId) ?? 0;
+            var damageValue = Math.Max(0, 7 - defenseValue);
+            actionChainState.pendingContinuationKey = null;
+            appendDirectDamageFromCharacter(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                damageValue);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC013CriminalTarget, StringComparison.Ordinal))
+        {
+            var targetPlayerId = parsePlayerChoiceKey(request.choiceKey);
+            var revealedCardInstance = getOpponentDeckTopCardOrThrow(gameState, actorPlayerState, targetPlayerId, "C013:4");
+            var targetCharacterInstance = getAliveInPlayCharacterByOwnerOrThrow(gameState, targetPlayerId, "C013:4");
+            var summonCost = TreasureDefinitionRepository
+                .resolveByDefinitionId(revealedCardInstance.definitionId)
+                .summonSigilCost ?? 0;
+            var damageValue = Math.Max(0, summonCost);
+
+            actionChainState.localState[LocalStateKeyC013CriminalTargetPlayerId] = targetPlayerId.Value.ToString();
+            actionChainState.localState[LocalStateKeyC013CriminalRevealedCardInstanceId] =
+                revealedCardInstance.cardInstanceId.Value.ToString();
+            actionChainState.producedEvents.Add(new CardRevealedEvent
+            {
+                eventId = request.requestId,
+                eventTypeKey = "cardRevealed",
+                sourceActionChainId = actionChainState.actionChainId,
+                cardInstanceId = revealedCardInstance.cardInstanceId,
+                ownerPlayerId = revealedCardInstance.ownerPlayerId,
+                definitionId = revealedCardInstance.definitionId,
+                revealReasonKey = RevealReasonKeyC013Criminal,
+            });
+            actionChainState.pendingContinuationKey = null;
+            appendDirectDamageFromCharacter(
+                gameState,
+                actionChainState,
+                request.requestId,
+                useSkillActionRequest.actorPlayerId,
+                useSkillActionRequest.characterInstanceId,
+                targetCharacterInstance.characterInstanceId,
+                damageValue);
+            return;
+        }
+
+        if (string.Equals(continuationKey, ContinuationKeyC013CriminalTakeRevealed, StringComparison.Ordinal))
+        {
+            continueC013CriminalTakeRevealed(gameState, actionChainState, request);
+            return;
+        }
+
+        throw new InvalidOperationException("C013 skill continuation key is unsupported.");
+    }
+
+    private bool tryOpenC013AbnormalTasteAfterDefense(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        ResponseWindowState responseWindowState,
+        long eventId,
+        CardInstance formalDefenseCardInstance,
+        GameState.PlayerState defenderPlayerState,
+        CharacterInstanceId defenderActiveCharacterInstanceIdBeforeResolution,
+        int producedEventsCountBeforeDamageResolution)
+    {
+        if (!responseWindowState.pendingDamageSourcePlayerId.HasValue ||
+            gameState.currentInputContext is not null ||
+            !gameState.players.TryGetValue(responseWindowState.pendingDamageSourcePlayerId.Value, out var sourcePlayerState))
+        {
+            return false;
+        }
+
+        var candidate = findAliveInPlayC013OnTeam(gameState, sourcePlayerState.teamId);
+        if (candidate.characterInstance is null ||
+            candidate.playerState is null ||
+            StatusRuntime.hasStatusOnPlayer(gameState, candidate.playerState.playerId, StatusKeySilence) ||
+            candidate.playerState.teamId == defenderPlayerState.teamId ||
+            !gameState.zones.TryGetValue(candidate.playerState.handZoneId, out var c013HandZoneState) ||
+            c013HandZoneState.cardInstanceIds.Count == 0 ||
+            !gameState.teams.TryGetValue(candidate.playerState.teamId, out var c013TeamState) ||
+            c013TeamState.leyline < 2)
+        {
+            return false;
+        }
+
+        var choiceKeys = new List<string> { ChoiceKeyDecline };
+        foreach (var cardInstanceId in c013HandZoneState.cardInstanceIds)
+        {
+            choiceKeys.Add(ChoiceKeyDiscardCardPrefix + cardInstanceId.Value);
+        }
+
+        actionChainState.localState[LocalStateKeyC013AbnormalTasteDefenseCardInstanceId] =
+            formalDefenseCardInstance.cardInstanceId.Value.ToString();
+        actionChainState.localState[LocalStateKeyC013AbnormalTasteDefenderPlayerId] =
+            defenderPlayerState.playerId.Value.ToString();
+        actionChainState.localState[LocalStateKeyC013AbnormalTasteDefenderCharacterInstanceId] =
+            defenderActiveCharacterInstanceIdBeforeResolution.Value.ToString();
+        actionChainState.localState[LocalStateKeyC013AbnormalTasteProducedStartIndex] =
+            producedEventsCountBeforeDamageResolution.ToString();
+
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            candidate.playerState.playerId,
+            InputTypeKeyC013DiscardCard,
+            ContextKeyC013AbnormalTasteDiscard,
+            ContinuationKeyC013AbnormalTasteDiscard,
+            choiceKeys);
+        return true;
+    }
+
+    private void continueC013AbnormalTasteDiscard(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        SubmitInputChoiceActionRequest request)
+    {
+        var responseWindowState = gameState.currentResponseWindow;
+        if (responseWindowState is null ||
+            !responseWindowState.pendingDamageSourcePlayerId.HasValue ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013AbnormalTasteDefenseCardInstanceId, out var defenseCardRaw) ||
+            !long.TryParse(defenseCardRaw, out var defenseCardNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013AbnormalTasteDefenderPlayerId, out var defenderRaw) ||
+            !long.TryParse(defenderRaw, out var defenderNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013AbnormalTasteDefenderCharacterInstanceId, out var defenderCharacterRaw) ||
+            !long.TryParse(defenderCharacterRaw, out var defenderCharacterNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013AbnormalTasteProducedStartIndex, out var producedStartRaw) ||
+            !int.TryParse(producedStartRaw, out var producedStartIndex))
+        {
+            clearC013AbnormalTasteState(actionChainState);
+            throw new InvalidOperationException("C013:2 continuation requires saved defense response state.");
+        }
+
+        var defenderPlayerId = new PlayerId(defenderNumericId);
+        var defenderCharacterInstanceId = new CharacterInstanceId(defenderCharacterNumericId);
+        var defenseCardInstanceId = new CardInstanceId(defenseCardNumericId);
+        if (!gameState.players.TryGetValue(request.actorPlayerId, out var c013PlayerState) ||
+            !gameState.teams.TryGetValue(c013PlayerState.teamId, out var c013TeamState))
+        {
+            clearC013AbnormalTasteState(actionChainState);
+            throw new InvalidOperationException("C013:2 continuation requires C013 player state.");
+        }
+
+        if (!string.Equals(request.choiceKey, ChoiceKeyDecline, StringComparison.Ordinal))
+        {
+            var selectedCardInstanceId = parseCardChoiceKey(request.choiceKey, ChoiceKeyDiscardCardPrefix);
+            if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance) ||
+                selectedCardInstance.ownerPlayerId != request.actorPlayerId ||
+                selectedCardInstance.zoneId != c013PlayerState.handZoneId ||
+                c013TeamState.leyline < 2)
+            {
+                clearC013AbnormalTasteState(actionChainState);
+                throw new InvalidOperationException("C013:2 requires selected card to be in C013 player's hand and team to have 2 leyline.");
+            }
+
+            actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                gameState,
+                selectedCardInstance,
+                c013PlayerState.discardZoneId,
+                CardMoveReason.discard,
+                actionChainState.actionChainId,
+                request.requestId));
+            c013TeamState.leyline -= 2;
+
+            var replacementDefenseValue =
+                TreasureResourceValueResolver.resolveDefenseValue(selectedCardInstance.definitionId) ?? 0;
+            if (!tryParseCardDefenseDeclarationKey(
+                    responseWindowState.pendingDamageDefenseDeclarationKey ?? string.Empty,
+                    out var originalDefenseTypeKey,
+                    out _))
+            {
+                clearC013AbnormalTasteState(actionChainState);
+                throw new InvalidOperationException("C013:2 requires current defense declaration to be a card defense declaration.");
+            }
+
+            responseWindowState.pendingDamageDefenseDeclarationKey =
+                createCardDefenseDeclarationKey(originalDefenseTypeKey, replacementDefenseValue);
+            responseWindowState.pendingDamageKillCreditPlayerIdOverride = request.actorPlayerId;
+        }
+
+        clearC013AbnormalTasteState(actionChainState);
+        actionChainState.pendingContinuationKey = ContinuationKeyStagedResponseDamage;
+        closeDamageResponseWindowAndResolveDamage(
+            gameState,
+            actionChainState,
+            responseWindowState,
+            request.requestId);
+
+        if (gameState.players.TryGetValue(defenderPlayerId, out var defenderPlayerState) &&
+            gameState.cardInstances.TryGetValue(defenseCardInstanceId, out var defenseCardInstance))
+        {
+            if (string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT014, StringComparison.Ordinal))
+            {
+                applyT014OnDefensePostResolution(
+                    gameState,
+                    actionChainState,
+                    request.requestId,
+                    defenderPlayerState,
+                    defenseCardInstance,
+                    producedStartIndex,
+                    defenderCharacterInstanceId);
+            }
+
+            if (string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT015, StringComparison.Ordinal))
+            {
+                applyT015OnDefensePostResolution(
+                    gameState,
+                    actionChainState,
+                    request.requestId,
+                    defenderPlayerState,
+                    responseWindowState.pendingDamageSourcePlayerId.Value,
+                    defenseCardInstance,
+                    producedStartIndex,
+                    defenderCharacterInstanceId);
+            }
+
+            if (string.Equals(defenseCardInstance.definitionId, TreasureDefinitionIdT020, StringComparison.Ordinal))
+            {
+                moveDefensePlacedCardToDiscardPostResolution(
+                    gameState,
+                    actionChainState,
+                    request.requestId,
+                    defenderPlayerState,
+                    defenseCardInstance);
+            }
+        }
+
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            request.requestId,
+            producedStartIndex);
+        tryResumeCharacterSkillSequences(gameState, actionChainState, request.requestId);
+    }
+
+    private static (CharacterInstance? characterInstance, GameState.PlayerState? playerState) findAliveInPlayC013OnTeam(
+        GameState.GameState gameState,
+        TeamId teamId)
+    {
+        foreach (var characterInstance in gameState.characterInstances.Values)
+        {
+            if (!characterInstance.isAlive ||
+                !characterInstance.isInPlay ||
+                !string.Equals(characterInstance.definitionId, CharacterDefinitionIdC013, StringComparison.Ordinal) ||
+                !gameState.players.TryGetValue(characterInstance.ownerPlayerId, out var playerState) ||
+                playerState.teamId != teamId)
+            {
+                continue;
+            }
+
+            return (characterInstance, playerState);
+        }
+
+        return (null, null);
+    }
+
+    private static void clearC013AbnormalTasteState(ActionChainState actionChainState)
+    {
+        actionChainState.localState.Remove(LocalStateKeyC013AbnormalTasteDefenseCardInstanceId);
+        actionChainState.localState.Remove(LocalStateKeyC013AbnormalTasteDefenderPlayerId);
+        actionChainState.localState.Remove(LocalStateKeyC013AbnormalTasteDefenderCharacterInstanceId);
+        actionChainState.localState.Remove(LocalStateKeyC013AbnormalTasteProducedStartIndex);
+    }
+
+    private static bool isC013SkillContinuationKey(string? continuationKey)
+    {
+        return string.Equals(continuationKey, ContinuationKeyC013AbnormalTasteDiscard, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC013DarkJadeFistTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC013CriminalTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC013CriminalTakeRevealed, StringComparison.Ordinal);
+    }
+
+    private static List<string> collectOpponentPlayerWithNonEmptyDeckChoiceKeys(
+        GameState.GameState gameState,
+        GameState.PlayerState actorPlayerState)
+    {
+        var choiceKeys = new List<string>();
+        foreach (var playerId in getPlayersInSeatOrder(gameState))
+        {
+            if (!gameState.players.TryGetValue(playerId, out var playerState) ||
+                playerState.teamId == actorPlayerState.teamId ||
+                !tryFindAliveInPlayCharacterInstanceByOwner(gameState, playerId, out _) ||
+                !gameState.zones.TryGetValue(playerState.deckZoneId, out var deckZoneState) ||
+                deckZoneState.cardInstanceIds.Count == 0)
+            {
+                continue;
+            }
+
+            choiceKeys.Add(ChoiceKeyPlayerPrefix + playerId.Value);
+        }
+
+        return choiceKeys;
+    }
+
+    private static CardInstance getOpponentDeckTopCardOrThrow(
+        GameState.GameState gameState,
+        GameState.PlayerState actorPlayerState,
+        PlayerId targetPlayerId,
+        string effectKey)
+    {
+        if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+            targetPlayerState.teamId == actorPlayerState.teamId ||
+            !gameState.zones.TryGetValue(targetPlayerState.deckZoneId, out var targetDeckZoneState) ||
+            targetDeckZoneState.cardInstanceIds.Count == 0)
+        {
+            throw new InvalidOperationException($"{effectKey} requires selected opponent to have a non-empty deck.");
+        }
+
+        var topCardInstanceId = targetDeckZoneState.cardInstanceIds[0];
+        if (!gameState.cardInstances.TryGetValue(topCardInstanceId, out var topCardInstance))
+        {
+            throw new InvalidOperationException($"{effectKey} requires target deck top card to exist.");
+        }
+
+        return topCardInstance;
+    }
+
+    private static CharacterInstance getAliveInPlayCharacterByOwnerOrThrow(
+        GameState.GameState gameState,
+        PlayerId ownerPlayerId,
+        string effectKey)
+    {
+        if (!tryFindAliveInPlayCharacterInstanceByOwner(gameState, ownerPlayerId, out var characterInstance))
+        {
+            throw new InvalidOperationException($"{effectKey} requires selected target to control an alive character.");
+        }
+
+        return characterInstance;
+    }
+
+    private void appendDirectDamageFromCharacter(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId,
+        PlayerId sourcePlayerId,
+        CharacterInstanceId sourceCharacterInstanceId,
+        CharacterInstanceId targetCharacterInstanceId,
+        int baseDamageValue)
+    {
+        var damageContext = new DamageContext
+        {
+            damageContextId = new DamageContextId(requestId),
+            sourcePlayerId = sourcePlayerId,
+            sourceCharacterInstanceId = sourceCharacterInstanceId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = baseDamageValue,
+            damageType = DamageTypeKeyDirect,
+        };
+
+        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
+    }
+
+    private void tryResumeC013CriminalTakeRevealed(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.ContainsKey(LocalStateKeyC013CriminalRevealedCardInstanceId) ||
+            gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            return;
+        }
+
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC013CriminalTargetPlayerId, out var targetPlayerRaw) ||
+            !long.TryParse(targetPlayerRaw, out var targetPlayerNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013CriminalRevealedCardInstanceId, out var cardRaw) ||
+            !long.TryParse(cardRaw, out var cardNumericId))
+        {
+            clearC013CriminalRevealedState(actionChainState);
+            throw new InvalidOperationException("C013:4 revealed-card state is invalid.");
+        }
+
+        var targetPlayerId = new PlayerId(targetPlayerNumericId);
+        var revealedCardInstanceId = new CardInstanceId(cardNumericId);
+        if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+            !gameState.zones.TryGetValue(targetPlayerState.deckZoneId, out var targetDeckZoneState) ||
+            targetDeckZoneState.cardInstanceIds.Count == 0 ||
+            targetDeckZoneState.cardInstanceIds[0] != revealedCardInstanceId ||
+            !gameState.cardInstances.ContainsKey(revealedCardInstanceId))
+        {
+            clearC013CriminalRevealedState(actionChainState);
+            return;
+        }
+
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            targetPlayerId,
+            InputTypeKeyC013TakeRevealed,
+            ContextKeyC013CriminalTakeRevealed,
+            ContinuationKeyC013CriminalTakeRevealed,
+            new List<string> { ChoiceKeyC013KeepRevealed, ChoiceKeyC013TakeRevealed });
+    }
+
+    private void continueC013CriminalTakeRevealed(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        SubmitInputChoiceActionRequest request)
+    {
+        if (!actionChainState.localState.TryGetValue(LocalStateKeyC013CriminalTargetPlayerId, out var targetPlayerRaw) ||
+            !long.TryParse(targetPlayerRaw, out var targetPlayerNumericId) ||
+            !actionChainState.localState.TryGetValue(LocalStateKeyC013CriminalRevealedCardInstanceId, out var cardRaw) ||
+            !long.TryParse(cardRaw, out var cardNumericId))
+        {
+            clearC013CriminalRevealedState(actionChainState);
+            throw new InvalidOperationException("C013:4 take-revealed continuation requires saved revealed-card state.");
+        }
+
+        var targetPlayerId = new PlayerId(targetPlayerNumericId);
+        var revealedCardInstanceId = new CardInstanceId(cardNumericId);
+        if (request.actorPlayerId != targetPlayerId)
+        {
+            throw new InvalidOperationException("C013:4 take-revealed choice must be submitted by the target player.");
+        }
+
+        if (string.Equals(request.choiceKey, ChoiceKeyC013TakeRevealed, StringComparison.Ordinal))
+        {
+            if (!gameState.players.TryGetValue(targetPlayerId, out var targetPlayerState) ||
+                !gameState.zones.TryGetValue(targetPlayerState.deckZoneId, out var targetDeckZoneState) ||
+                targetDeckZoneState.cardInstanceIds.Count == 0 ||
+                targetDeckZoneState.cardInstanceIds[0] != revealedCardInstanceId ||
+                !gameState.cardInstances.TryGetValue(revealedCardInstanceId, out var revealedCardInstance))
+            {
+                throw new InvalidOperationException("C013:4 take-revealed card must remain on target deck top.");
+            }
+
+            actionChainState.producedEvents.Add(zoneMovementService.moveCard(
+                gameState,
+                revealedCardInstance,
+                targetPlayerState.handZoneId,
+                CardMoveReason.draw,
+                actionChainState.actionChainId,
+                request.requestId));
+        }
+
+        clearC013CriminalRevealedState(actionChainState);
+        actionChainState.pendingContinuationKey = null;
+    }
+
+    private static void clearC013CriminalRevealedState(ActionChainState actionChainState)
+    {
+        actionChainState.localState.Remove(LocalStateKeyC013CriminalTargetPlayerId);
+        actionChainState.localState.Remove(LocalStateKeyC013CriminalRevealedCardInstanceId);
+    }
+
+    private static bool isC011SkillContinuationKey(string? continuationKey)
+    {
+        return string.Equals(continuationKey, ContinuationKeyC011MysticEyesTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC011TrueAncestorCombatTarget, StringComparison.Ordinal) ||
+               string.Equals(continuationKey, ContinuationKeyC011RealityMarbleSelectSummon, StringComparison.Ordinal);
+    }
+
+    private void applyCharmStatusToTarget(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        PlayerId applierPlayerId,
+        CharacterInstanceId applierCharacterInstanceId,
+        PlayerId targetPlayerId,
+        CharacterInstanceId targetCharacterInstanceId)
+    {
+        var appliedStatus = StatusRuntime.applyStatus(
+            gameState,
+            new StatusInstance
+            {
+                statusKey = StatusKeyCharm,
+                applierPlayerId = applierPlayerId,
+                applierCharacterInstanceId = applierCharacterInstanceId,
+                targetPlayerId = targetPlayerId,
+                targetCharacterInstanceId = targetCharacterInstanceId,
+                stackCount = 1,
+            });
+        actionChainState.producedEvents.Add(new StatusChangedEvent
+        {
+            eventId = eventId,
+            eventTypeKey = "statusChanged",
+            sourceActionChainId = actionChainState.actionChainId,
+            statusKey = appliedStatus.statusKey,
+            targetPlayerId = appliedStatus.targetPlayerId,
+            targetCharacterInstanceId = appliedStatus.targetCharacterInstanceId,
+            isApplied = true,
+        });
+    }
+
+    private void tryApplyC011MysticEyesCharmAfterFullDefense(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        ResponseWindowState responseWindowState,
+        DamageContext damageContext,
+        long eventId)
+    {
+        if (!actionChainState.localState.TryGetValue(
+                LocalStateKeyC011MysticEyesPendingFullDefenseCharm,
+                out var pendingTargetCharacterIdRaw))
+        {
+            return;
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyC011MysticEyesPendingFullDefenseCharm);
+        if (!long.TryParse(pendingTargetCharacterIdRaw, out var pendingTargetCharacterNumericId))
+        {
+            throw new InvalidOperationException("C011:1 full-defense charm marker contains an invalid target character id.");
+        }
+
+        var pendingTargetCharacterInstanceId = new CharacterInstanceId(pendingTargetCharacterNumericId);
+        if (responseWindowState.pendingDamageTargetCharacterInstanceId != pendingTargetCharacterInstanceId ||
+            responseWindowState.pendingDamageDefenseDeclarationKey is null ||
+            !tryParseCardDefenseDeclarationKey(
+                responseWindowState.pendingDamageDefenseDeclarationKey,
+                out _,
+                out _) ||
+            damageContext.didDealDamage ||
+            !responseWindowState.pendingDamageSourcePlayerId.HasValue ||
+            !responseWindowState.pendingDamageSourceCharacterInstanceId.HasValue ||
+            !gameState.characterInstances.TryGetValue(pendingTargetCharacterInstanceId, out var targetCharacterInstance) ||
+            !targetCharacterInstance.isAlive ||
+            !targetCharacterInstance.isInPlay)
+        {
+            return;
+        }
+
+        applyCharmStatusToTarget(
+            gameState,
+            actionChainState,
+            eventId,
+            responseWindowState.pendingDamageSourcePlayerId.Value,
+            responseWindowState.pendingDamageSourceCharacterInstanceId.Value,
+            targetCharacterInstance.ownerPlayerId,
+            targetCharacterInstance.characterInstanceId);
+    }
+
+    private void continueC011RealityMarbleSequence(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            return;
+        }
+
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC011RealityMarbleRemainingCount);
+            return;
+        }
+
+        if (!actionChainState.localState.TryGetValue(
+                LocalStateKeyC011RealityMarbleRemainingCount,
+                out var remainingCountRaw) ||
+            !int.TryParse(remainingCountRaw, out var remainingCount) ||
+            remainingCount <= 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC011RealityMarbleRemainingCount);
+            return;
+        }
+
+        var choiceKeys = collectSummonZoneCardChoiceKeys(gameState);
+        if (choiceKeys.Count == 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC011RealityMarbleRemainingCount);
+            return;
+        }
+
+        openCharacterSkillChoiceInput(
+            gameState,
+            actionChainState,
+            eventId,
+            useSkillActionRequest.actorPlayerId,
+            InputTypeKeyC011SelectSummon,
+            ContextKeyC011RealityMarbleSelectSummon,
+            ContinuationKeyC011RealityMarbleSelectSummon,
+            choiceKeys);
+    }
+
+    private void continueC011RealityMarbleSelectedSummon(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        InputContextState inputContextState,
+        SubmitInputChoiceActionRequest request)
+    {
+        if (actionChainState.rootActionRequest is not UseSkillActionRequest useSkillActionRequest ||
+            !gameState.players.TryGetValue(useSkillActionRequest.actorPlayerId, out var actorPlayerState) ||
+            gameState.publicState is null ||
+            !gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState))
+        {
+            throw new InvalidOperationException("C011:4 continuation requires summonZone and actor player state.");
+        }
+
+        var selectedCardInstanceId = parseCardChoiceKey(request.choiceKey, ChoiceKeySummonZoneCardPrefix);
+        if (!gameState.cardInstances.TryGetValue(selectedCardInstanceId, out var selectedCardInstance) ||
+            selectedCardInstance.zoneId != gameState.publicState.summonZoneId ||
+            !summonZoneState.cardInstanceIds.Contains(selectedCardInstanceId))
+        {
+            throw new InvalidOperationException("C011:4 requires selected card to remain in summonZone.");
+        }
+
+        var movedEvent = zoneMovementService.moveCard(
+            gameState,
+            selectedCardInstance,
+            actorPlayerState.handZoneId,
+            CardMoveReason.returnToSource,
+            actionChainState.actionChainId,
+            request.requestId);
+        actionChainState.producedEvents.Add(movedEvent);
+        selectedCardInstance.ownerPlayerId = useSkillActionRequest.actorPlayerId;
+
+        var remainingCount = 0;
+        if (actionChainState.localState.TryGetValue(
+                LocalStateKeyC011RealityMarbleRemainingCount,
+                out var remainingCountRaw) &&
+            int.TryParse(remainingCountRaw, out var parsedRemainingCount))
+        {
+            remainingCount = Math.Max(0, parsedRemainingCount - 1);
+        }
+
+        if (remainingCount <= 0)
+        {
+            actionChainState.localState.Remove(LocalStateKeyC011RealityMarbleRemainingCount);
+        }
+        else
+        {
+            actionChainState.localState[LocalStateKeyC011RealityMarbleRemainingCount] = remainingCount.ToString();
+        }
+
+        actionChainState.pendingContinuationKey = null;
+        treasureArrivalEffectRuntime.tryRefillSummonZoneFromPublicTreasureDeck(
+            gameState,
+            actionChainState,
+            request.requestId);
+    }
+
+    private void tryResumeC011RealityMarbleSequence(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.ContainsKey(LocalStateKeyC011RealityMarbleRemainingCount) ||
+            gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            return;
+        }
+
+        continueC011RealityMarbleSequence(gameState, actionChainState, eventId);
+    }
+
+    private static List<string> collectSummonZoneCardChoiceKeys(GameState.GameState gameState)
+    {
+        var choiceKeys = new List<string>();
+        if (gameState.publicState is null ||
+            !gameState.zones.TryGetValue(gameState.publicState.summonZoneId, out var summonZoneState))
+        {
+            return choiceKeys;
+        }
+
+        foreach (var cardInstanceId in summonZoneState.cardInstanceIds)
+        {
+            choiceKeys.Add(ChoiceKeySummonZoneCardPrefix + cardInstanceId.Value);
+        }
+
+        return choiceKeys;
+    }
+
     private void startC008ExcaliburSequence(
         GameState.GameState gameState,
         ActionChainState actionChainState,
@@ -1935,7 +4315,8 @@ public sealed class ActionRequestProcessor
             targetCharacterInstanceIds.Add(targetCharacterInstance.characterInstanceId);
         }
 
-        actionChainState.localState[LocalStateKeyC008ExcaliburSequence] = "active";
+        actionChainState.localState[LocalStateKeyC008ExcaliburSequence] = C008ExcaliburSequenceCollecting;
+        actionChainState.localState[LocalStateKeyC008QueuedDamageContexts] = string.Empty;
         saveC008RemainingTargetCharacterIds(actionChainState, targetCharacterInstanceIds);
         continueC008ExcaliburSequence(gameState, actionChainState, useSkillActionRequest.requestId);
     }
@@ -1967,6 +4348,15 @@ public sealed class ActionRequestProcessor
             return;
         }
 
+        if (actionChainState.localState.TryGetValue(
+                LocalStateKeyC008ExcaliburSequence,
+                out var sequenceState) &&
+            string.Equals(sequenceState, C008ExcaliburSequenceFinalizing, StringComparison.Ordinal))
+        {
+            continueC008ExcaliburFinalDamage(gameState, actionChainState, eventId);
+            return;
+        }
+
         while (gameState.matchState == GameState.MatchState.running &&
                gameState.currentInputContext is null &&
                gameState.currentResponseWindow is null &&
@@ -1975,7 +4365,8 @@ public sealed class ActionRequestProcessor
             var remainingTargetCharacterIds = loadC008RemainingTargetCharacterIds(actionChainState);
             if (remainingTargetCharacterIds.Count == 0)
             {
-                clearC008ExcaliburSequence(actionChainState);
+                actionChainState.localState[LocalStateKeyC008ExcaliburSequence] = C008ExcaliburSequenceFinalizing;
+                continueC008ExcaliburFinalDamage(gameState, actionChainState, eventId);
                 return;
             }
 
@@ -2040,10 +4431,218 @@ public sealed class ActionRequestProcessor
         return result;
     }
 
+    private void queueOrResolveStagedDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        DamageContext damageContext,
+        long eventId,
+        int producedEventsStartIndex)
+    {
+        if (shouldQueueC008ExcaliburDamage(actionChainState))
+        {
+            enqueueC008QueuedDamageContext(actionChainState, damageContext);
+            actionChainState.pendingContinuationKey = null;
+            tryResumeC008ExcaliburSequence(gameState, actionChainState, eventId);
+            return;
+        }
+
+        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
+        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+            gameState,
+            actionChainState,
+            eventId,
+            producedEventsStartIndex);
+        tryResumeCharacterSkillSequences(gameState, actionChainState, eventId);
+    }
+
+    private static bool shouldQueueC008ExcaliburDamage(ActionChainState actionChainState)
+    {
+        return actionChainState.localState.TryGetValue(
+                   LocalStateKeyC008ExcaliburSequence,
+                   out var sequenceState) &&
+               string.Equals(sequenceState, C008ExcaliburSequenceCollecting, StringComparison.Ordinal);
+    }
+
+    private void continueC008ExcaliburFinalDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        while (gameState.matchState == GameState.MatchState.running &&
+               gameState.currentInputContext is null &&
+               gameState.currentResponseWindow is null &&
+               string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            var queuedDamageContexts = loadC008QueuedDamageContexts(actionChainState);
+            if (queuedDamageContexts.Count == 0)
+            {
+                clearC008ExcaliburSequence(actionChainState);
+                return;
+            }
+
+            var damageContext = queuedDamageContexts[0];
+            queuedDamageContexts.RemoveAt(0);
+            saveC008QueuedDamageContexts(actionChainState, queuedDamageContexts);
+
+            if (!damageContext.targetCharacterInstanceId.HasValue ||
+                !gameState.characterInstances.TryGetValue(
+                    damageContext.targetCharacterInstanceId.Value,
+                    out var targetCharacterInstance) ||
+                !targetCharacterInstance.isAlive ||
+                !targetCharacterInstance.isInPlay)
+            {
+                continue;
+            }
+
+            var producedEventsStartIndex = actionChainState.producedEvents.Count;
+            actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
+            tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+                gameState,
+                actionChainState,
+                eventId,
+                producedEventsStartIndex);
+        }
+
+        if (gameState.matchState != GameState.MatchState.running)
+        {
+            clearC008ExcaliburSequence(actionChainState);
+        }
+    }
+
+    private static void enqueueC008QueuedDamageContext(
+        ActionChainState actionChainState,
+        DamageContext damageContext)
+    {
+        var queuedDamageContexts = loadC008QueuedDamageContexts(actionChainState);
+        queuedDamageContexts.Add(damageContext);
+        saveC008QueuedDamageContexts(actionChainState, queuedDamageContexts);
+    }
+
+    private static void saveC008QueuedDamageContexts(
+        ActionChainState actionChainState,
+        List<DamageContext> damageContexts)
+    {
+        var serializedContexts = new List<string>();
+        foreach (var damageContext in damageContexts)
+        {
+            serializedContexts.Add(string.Join(
+                ";",
+                damageContext.damageContextId.Value,
+                serializeNullableId(damageContext.sourcePlayerId?.Value),
+                serializeNullableId(damageContext.sourceCardInstanceId?.Value),
+                serializeNullableId(damageContext.sourceCharacterInstanceId?.Value),
+                serializeNullableId(damageContext.killCreditPlayerIdOverride?.Value),
+                serializeNullableId(damageContext.targetPlayerId?.Value),
+                serializeNullableId(damageContext.targetCardInstanceId?.Value),
+                serializeNullableId(damageContext.targetCharacterInstanceId?.Value),
+                damageContext.baseDamageValue,
+                damageContext.damageType,
+                damageContext.defenseDeclarationKey ?? string.Empty,
+                damageContext.hasAppliedSourceDamageBonuses,
+                damageContext.suppressT029DamageImmunityPrompt,
+                damageContext.isPrevented,
+                damageContext.isImmune));
+        }
+
+        actionChainState.localState[LocalStateKeyC008QueuedDamageContexts] =
+            string.Join("|", serializedContexts);
+    }
+
+    private static List<DamageContext> loadC008QueuedDamageContexts(ActionChainState actionChainState)
+    {
+        var result = new List<DamageContext>();
+        if (!actionChainState.localState.TryGetValue(
+                LocalStateKeyC008QueuedDamageContexts,
+                out var serializedContexts) ||
+            string.IsNullOrWhiteSpace(serializedContexts))
+        {
+            return result;
+        }
+
+        foreach (var serializedContext in serializedContexts.Split('|', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var segments = serializedContext.Split(';');
+            if (segments.Length != 15 ||
+                !long.TryParse(segments[0], out var damageContextNumericId) ||
+                !int.TryParse(segments[8], out var baseDamageValue) ||
+                !bool.TryParse(segments[11], out var hasAppliedSourceDamageBonuses) ||
+                !bool.TryParse(segments[12], out var suppressT029DamageImmunityPrompt) ||
+                !bool.TryParse(segments[13], out var isPrevented) ||
+                !bool.TryParse(segments[14], out var isImmune))
+            {
+                throw new InvalidOperationException("C008:4 queued damage context is malformed.");
+            }
+
+            var damageContext = new DamageContext
+            {
+                damageContextId = new DamageContextId(damageContextNumericId),
+                baseDamageValue = baseDamageValue,
+                damageType = segments[9],
+                defenseDeclarationKey = string.IsNullOrWhiteSpace(segments[10]) ? null : segments[10],
+                hasAppliedSourceDamageBonuses = hasAppliedSourceDamageBonuses,
+                suppressT029DamageImmunityPrompt = suppressT029DamageImmunityPrompt,
+                isPrevented = isPrevented,
+                isImmune = isImmune,
+            };
+
+            if (tryDeserializeNullableId(segments[1], out var sourcePlayerId))
+            {
+                damageContext.sourcePlayerId = new PlayerId(sourcePlayerId);
+            }
+
+            if (tryDeserializeNullableId(segments[2], out var sourceCardInstanceId))
+            {
+                damageContext.sourceCardInstanceId = new CardInstanceId(sourceCardInstanceId);
+            }
+
+            if (tryDeserializeNullableId(segments[3], out var sourceCharacterInstanceId))
+            {
+                damageContext.sourceCharacterInstanceId = new CharacterInstanceId(sourceCharacterInstanceId);
+            }
+
+            if (tryDeserializeNullableId(segments[4], out var killCreditPlayerIdOverride))
+            {
+                damageContext.killCreditPlayerIdOverride = new PlayerId(killCreditPlayerIdOverride);
+            }
+
+            if (tryDeserializeNullableId(segments[5], out var targetPlayerId))
+            {
+                damageContext.targetPlayerId = new PlayerId(targetPlayerId);
+            }
+
+            if (tryDeserializeNullableId(segments[6], out var targetCardInstanceId))
+            {
+                damageContext.targetCardInstanceId = new CardInstanceId(targetCardInstanceId);
+            }
+
+            if (tryDeserializeNullableId(segments[7], out var targetCharacterInstanceId))
+            {
+                damageContext.targetCharacterInstanceId = new CharacterInstanceId(targetCharacterInstanceId);
+            }
+
+            result.Add(damageContext);
+        }
+
+        return result;
+    }
+
+    private static string serializeNullableId(long? value)
+    {
+        return value.HasValue ? value.Value.ToString() : "-";
+    }
+
+    private static bool tryDeserializeNullableId(string value, out long numericId)
+    {
+        numericId = 0;
+        return !string.Equals(value, "-", StringComparison.Ordinal) &&
+               long.TryParse(value, out numericId);
+    }
+
     private static void clearC008ExcaliburSequence(ActionChainState actionChainState)
     {
         actionChainState.localState.Remove(LocalStateKeyC008ExcaliburSequence);
         actionChainState.localState.Remove(LocalStateKeyC008RemainingTargetCharacterIds);
+        actionChainState.localState.Remove(LocalStateKeyC008QueuedDamageContexts);
     }
 
     private void tryResumeCharacterSkillSequences(
@@ -2051,8 +4650,52 @@ public sealed class ActionRequestProcessor
         ActionChainState actionChainState,
         long eventId)
     {
+        tryResumeC003RedNightHealSequence(gameState, actionChainState, eventId);
         tryResumeC018SkillSequence(gameState, actionChainState, eventId);
         tryResumeC008ExcaliburSequence(gameState, actionChainState, eventId);
+        tryResumeC004BlazingCometSequence(gameState, actionChainState, eventId);
+        tryResumeC005SakuraSparkSequence(gameState, actionChainState, eventId);
+        tryResumeC011TrueAncestorCombatDeactivateAfterDamage(gameState, actionChainState, eventId);
+        tryResumeC011RealityMarbleSequence(gameState, actionChainState, eventId);
+        tryResumeC013CriminalTakeRevealed(gameState, actionChainState, eventId);
+        turnTransitionProcessor.tryResumeTurnStartResponseQueue(gameState, actionChainState, eventId);
+    }
+
+    private static void tryResumeC011TrueAncestorCombatDeactivateAfterDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        if (!actionChainState.localState.TryGetValue(
+                LocalStateKeyC011TrueAncestorCombatDeactivateAfterDamage,
+                out var serializedCharacterInstanceId))
+        {
+            return;
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyC011TrueAncestorCombatDeactivateAfterDamage);
+        if (!long.TryParse(serializedCharacterInstanceId, out var characterInstanceNumericId))
+        {
+            throw new InvalidOperationException("C011:2 deactivate-after-damage marker contains an invalid characterInstanceId.");
+        }
+
+        var characterInstanceId = new CharacterInstanceId(characterInstanceNumericId);
+        if (!gameState.characterInstances.TryGetValue(characterInstanceId, out var characterInstance))
+        {
+            throw new InvalidOperationException("C011:2 deactivate-after-damage marker requires characterInstanceId to exist.");
+        }
+
+        if (!characterInstance.isActivated)
+        {
+            return;
+        }
+
+        actionChainState.producedEvents.Add(CharacterActivationRuntime.setActivated(
+            gameState,
+            characterInstanceId,
+            false,
+            actionChainState.actionChainId,
+            eventId));
     }
 
     private void appendDrawOneCardEffectEventsForPlayer(
@@ -2380,6 +5023,11 @@ public sealed class ActionRequestProcessor
                 gameState.currentActionChain,
                 tryResolveAnomalyActionRequest.requestId,
                 producedEventsStartIndex: 0);
+            tryOpenTreasureArrivalEffectsFromProducedEvents(
+                gameState,
+                gameState.currentActionChain,
+                tryResolveAnomalyActionRequest.requestId,
+                producedEventsStartIndex: 0);
         }
 
         return producedEvents;
@@ -2395,12 +5043,22 @@ public sealed class ActionRequestProcessor
     private static bool isOncePerTurnSkill(string skillKey)
     {
         return string.Equals(skillKey, SkillKeyC018_2, StringComparison.Ordinal) ||
-               string.Equals(skillKey, SkillKeyC001_4, StringComparison.Ordinal);
+               string.Equals(skillKey, SkillKeyC001_4, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC011_2, StringComparison.Ordinal);
     }
 
     private static bool isSequencedSkill(string skillKey)
     {
         return string.Equals(skillKey, SkillKeyC001_1, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC003_1, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC003_3, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC004_1, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC004_4, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC005_3, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC005_4, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC011_1, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC011_2, StringComparison.Ordinal) ||
+               string.Equals(skillKey, SkillKeyC011_4, StringComparison.Ordinal) ||
                string.Equals(skillKey, SkillKeyC018_2, StringComparison.Ordinal) ||
                string.Equals(skillKey, SkillKeyC018_3, StringComparison.Ordinal) ||
                string.Equals(skillKey, SkillKeyC008_4, StringComparison.Ordinal);
@@ -2696,7 +5354,9 @@ public sealed class ActionRequestProcessor
         CharacterInstanceId? sourceCharacterInstanceId,
         CharacterInstanceId targetCharacterInstanceId,
         int baseDamageValue,
-        string? damageTypeKey)
+        string? damageTypeKey,
+        bool hasAppliedSourceDamageBonuses = false,
+        bool suppressC003Gungnir = false)
     {
         if (gameState.currentResponseWindow is not null)
         {
@@ -2719,9 +5379,20 @@ public sealed class ActionRequestProcessor
             targetCharacterInstanceId = targetCharacterInstanceId,
             baseDamageValue = baseDamageValue,
             damageType = normalizePendingDamageTypeKey(damageTypeKey),
+            hasAppliedSourceDamageBonuses = hasAppliedSourceDamageBonuses,
         };
         actionChainState.producedEvents.AddRange(
             damageProcessor.applySourceMatchingDamageBonuses(gameState, stagedDamageContext));
+        tryApplyC005SwordAuraBeforePhysicalDamage(
+            gameState,
+            actionChainState,
+            stagedDamageContext,
+            requestId);
+        var wasCharmConsumedBeforeDefense = damageProcessor.tryConsumeCharmBeforeDefense(
+            gameState,
+            stagedDamageContext,
+            out var charmPreDefenseEvents);
+        actionChainState.producedEvents.AddRange(charmPreDefenseEvents);
         if (damageProcessor.tryResolveBarrierBeforeDefense(
                 gameState,
                 stagedDamageContext,
@@ -2735,6 +5406,28 @@ public sealed class ActionRequestProcessor
                 requestId,
                 producedEventsStartIndex);
             tryResumeCharacterSkillSequences(gameState, actionChainState, requestId);
+            return;
+        }
+
+        if (wasCharmConsumedBeforeDefense)
+        {
+            var producedEventsStartIndex = actionChainState.producedEvents.Count;
+            queueOrResolveStagedDamage(
+                gameState,
+                actionChainState,
+                stagedDamageContext,
+                requestId,
+                producedEventsStartIndex);
+            return;
+        }
+
+        if (!suppressC003Gungnir &&
+            tryOpenC003GungnirBeforeDefense(
+                gameState,
+                actionChainState,
+                requestId,
+                stagedDamageContext))
+        {
             return;
         }
 
@@ -2871,7 +5564,7 @@ public sealed class ActionRequestProcessor
         if (responseWindowState.windowTypeKey == "damageResponse")
         {
             if (submitResponseActionRequest.shouldRespond &&
-                StatusRuntime.hasStatusOnPlayer(gameState, submitResponseActionRequest.actorPlayerId, "Silence"))
+                StatusRuntime.hasStatusOnPlayer(gameState, submitResponseActionRequest.actorPlayerId, StatusKeySilence))
             {
                 throw new InvalidOperationException("SubmitResponseActionRequest actorPlayerId cannot respond while Silence status is active.");
             }
@@ -2986,6 +5679,10 @@ public sealed class ActionRequestProcessor
             throw new InvalidOperationException("SubmitDefenseActionRequest requires actorPlayerId to exist in gameState.players.");
         }
         var defenderActiveCharacterInstanceIdBeforeResolution = actorPlayerState.activeCharacterInstanceId;
+        if (!defenderActiveCharacterInstanceIdBeforeResolution.HasValue)
+        {
+            throw new InvalidOperationException("SubmitDefenseActionRequest requires defender player to have an active character.");
+        }
 
         var pendingDamageSourcePlayerId = responseWindowState.pendingDamageSourcePlayerId;
         if (!pendingDamageSourcePlayerId.HasValue)
@@ -3092,6 +5789,20 @@ public sealed class ActionRequestProcessor
                 submitDefenseActionRequest.requestId,
                 actorPlayerState,
                 formalDefenseCardInstance.cardInstanceId);
+            return actionChainState.producedEvents;
+        }
+
+        if (formalDefenseCardInstance is not null &&
+            tryOpenC013AbnormalTasteAfterDefense(
+                gameState,
+                actionChainState,
+                responseWindowState,
+                submitDefenseActionRequest.requestId,
+                formalDefenseCardInstance,
+                actorPlayerState,
+                defenderActiveCharacterInstanceIdBeforeResolution.Value,
+                producedEventsCountBeforeDamageResolution))
+        {
             return actionChainState.producedEvents;
         }
 
@@ -3285,6 +5996,7 @@ public sealed class ActionRequestProcessor
             sourcePlayerId = responseWindowState.pendingDamageSourcePlayerId,
             sourceCardInstanceId = responseWindowState.pendingDamageSourceCardInstanceId,
             sourceCharacterInstanceId = responseWindowState.pendingDamageSourceCharacterInstanceId,
+            killCreditPlayerIdOverride = responseWindowState.pendingDamageKillCreditPlayerIdOverride,
             targetCharacterInstanceId = pendingDamageTargetCharacterInstanceId.Value,
             baseDamageValue = effectiveDamage,
             damageType = pendingDamageTypeKey,
@@ -3293,22 +6005,53 @@ public sealed class ActionRequestProcessor
         };
 
         var producedEventsStartIndex = actionChainState.producedEvents.Count;
-        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
+        var isQueuedAoeDamage = shouldQueueC008ExcaliburDamage(actionChainState);
+        queueOrResolveStagedDamage(
+            gameState,
+            actionChainState,
+            damageContext,
+            requestId,
+            producedEventsStartIndex);
+        if (!isQueuedAoeDamage)
+        {
+            tryApplyC011MysticEyesCharmAfterFullDefense(
+                gameState,
+                actionChainState,
+                responseWindowState,
+                damageContext,
+                requestId);
+            tryOpenC005SixRealmsAfterFullDefense(
+                gameState,
+                actionChainState,
+                responseWindowState,
+                damageContext,
+                requestId);
+            tryOpenC004StardustCarnivalAfterDefense(
+                gameState,
+                actionChainState,
+                responseWindowState,
+                requestId);
+        }
+        var clearedStagedDamageContinuation = false;
         if (gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
             string.Equals(
                 actionChainState.pendingContinuationKey,
                 ContinuationKeyStagedResponseDamage,
                 StringComparison.Ordinal))
         {
             actionChainState.pendingContinuationKey = null;
+            clearedStagedDamageContinuation = true;
         }
 
-        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
-            gameState,
-            actionChainState,
-            requestId,
-            producedEventsStartIndex);
-        tryResumeCharacterSkillSequences(gameState, actionChainState, requestId);
+        if (clearedStagedDamageContinuation &&
+            gameState.currentInputContext is null &&
+            gameState.currentResponseWindow is null &&
+            string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            tryResumeCharacterSkillSequences(gameState, actionChainState, requestId);
+        }
+
         actionChainState.isCompleted =
             gameState.currentInputContext is null &&
             gameState.currentResponseWindow is null &&
@@ -3869,6 +6612,14 @@ public sealed class ActionRequestProcessor
                 actionChainState,
                 submitInputChoiceActionRequest.requestId,
                 producedEventsCountBeforeContinuation);
+            if (isA010ContinuationThatMayHaveDeferredMechanicalJade(continuationState.pendingContinuationKey))
+            {
+                tryOpenMechanicalJadeOverlayOnlyFromProducedEvents(
+                    gameState,
+                    actionChainState,
+                    submitInputChoiceActionRequest.requestId,
+                    0);
+            }
             tryResumeCharacterSkillSequences(
                 gameState,
                 actionChainState,
@@ -3960,6 +6711,35 @@ public sealed class ActionRequestProcessor
             return;
         }
 
+        mechanicalJadeRuntime.tryOpenOverlayAfterKillInputContextFromProducedEvents(
+            gameState,
+            actionChainState,
+            eventId,
+            producedEventsStartIndex);
+    }
+
+    private static bool isA010ContinuationThatMayHaveDeferredMechanicalJade(string? pendingContinuationKey)
+    {
+        return string.Equals(
+                   pendingContinuationKey,
+                   AnomalyProcessor.ContinuationKeyA010KillBanishSetAside,
+                   StringComparison.Ordinal) ||
+               string.Equals(
+                   pendingContinuationKey,
+                   AnomalyProcessor.ContinuationKeyA010RewardChooseTwo,
+                   StringComparison.Ordinal) ||
+               string.Equals(
+                   pendingContinuationKey,
+                   AnomalyProcessor.ContinuationKeyA010RewardSelectSummonToHand,
+                   StringComparison.Ordinal);
+    }
+
+    private void tryOpenMechanicalJadeOverlayOnlyFromProducedEvents(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId,
+        int producedEventsStartIndex)
+    {
         mechanicalJadeRuntime.tryOpenOverlayAfterKillInputContextFromProducedEvents(
             gameState,
             actionChainState,
@@ -4067,11 +6847,11 @@ public sealed class ActionRequestProcessor
 
         damageContext.suppressT029DamageImmunityPrompt = true;
         var producedEventsStartIndex = actionChainState.producedEvents.Count;
-        actionChainState.producedEvents.AddRange(damageProcessor.resolveDamage(gameState, damageContext));
         actionChainState.pendingContinuationKey = null;
-        tryOpenMechanicalJadeOverlayAfterKillFromProducedEvents(
+        queueOrResolveStagedDamage(
             gameState,
             actionChainState,
+            damageContext,
             submitInputChoiceActionRequest.requestId,
             producedEventsStartIndex);
     }
@@ -4251,11 +7031,53 @@ public sealed class ActionRequestProcessor
             return false;
         }
 
+        if (continuationState.isTurnStartC013MechanicalJadeContinuation)
+        {
+            if (!TurnTransitionProcessor.isValidTurnStartC013MechanicalJadeChoiceRequest(
+                    inputContextState,
+                    submitInputChoiceActionRequest))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C013 turn-start choice must decline or select exactly two hand cards.");
+            }
+
+            return false;
+        }
+
         if (continuationState.isC001SkillContinuation)
         {
             if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
             {
                 throw new InvalidOperationException("SubmitInputChoiceActionRequest C001 target choice must be one of currentInputContext.choiceKeys.");
+            }
+
+            return false;
+        }
+
+        if (continuationState.isC003SkillContinuation)
+        {
+            if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C003 choice must be one of currentInputContext.choiceKeys.");
+            }
+
+            return false;
+        }
+
+        if (continuationState.isC004SkillContinuation)
+        {
+            if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C004 choice must be one of currentInputContext.choiceKeys.");
+            }
+
+            return false;
+        }
+
+        if (continuationState.isC005SkillContinuation)
+        {
+            if (!isValidC005ChoiceRequest(inputContextState, submitInputChoiceActionRequest, continuationState.pendingContinuationKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C005 choice must match the current C005 input context.");
             }
 
             return false;
@@ -4276,6 +7098,26 @@ public sealed class ActionRequestProcessor
             if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
             {
                 throw new InvalidOperationException("SubmitInputChoiceActionRequest C008 choice must be one of currentInputContext.choiceKeys.");
+            }
+
+            return false;
+        }
+
+        if (continuationState.isC011SkillContinuation)
+        {
+            if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C011 choice must be one of currentInputContext.choiceKeys.");
+            }
+
+            return false;
+        }
+
+        if (continuationState.isC013SkillContinuation)
+        {
+            if (!inputContextState.choiceKeys.Contains(submitInputChoiceActionRequest.choiceKey))
+            {
+                throw new InvalidOperationException("SubmitInputChoiceActionRequest C013 choice must be one of currentInputContext.choiceKeys.");
             }
 
             return false;
@@ -4408,11 +7250,54 @@ public sealed class ActionRequestProcessor
             return true;
         }
 
+        if (continuationState.isTurnStartC013MechanicalJadeContinuation)
+        {
+            turnTransitionProcessor.continueTurnStartC013MechanicalJadeContinuation(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest);
+            return true;
+        }
+
         if (continuationState.isC001SkillContinuation)
         {
             continueC001SkillInput(
                 gameState,
                 actionChainState,
+                submitInputChoiceActionRequest,
+                continuationState.pendingContinuationKey!);
+            return true;
+        }
+
+        if (continuationState.isC003SkillContinuation)
+        {
+            continueC003SkillInput(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                continuationState.pendingContinuationKey!);
+            return true;
+        }
+
+        if (continuationState.isC004SkillContinuation)
+        {
+            continueC004SkillInput(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                continuationState.pendingContinuationKey!);
+            return true;
+        }
+
+        if (continuationState.isC005SkillContinuation)
+        {
+            continueC005SkillInput(
+                gameState,
+                actionChainState,
+                inputContextState,
                 submitInputChoiceActionRequest,
                 continuationState.pendingContinuationKey!);
             return true;
@@ -4434,6 +7319,28 @@ public sealed class ActionRequestProcessor
             continueC008SkillInput(
                 gameState,
                 actionChainState,
+                submitInputChoiceActionRequest,
+                continuationState.pendingContinuationKey!);
+            return true;
+        }
+
+        if (continuationState.isC011SkillContinuation)
+        {
+            continueC011SkillInput(
+                gameState,
+                actionChainState,
+                inputContextState,
+                submitInputChoiceActionRequest,
+                continuationState.pendingContinuationKey!);
+            return true;
+        }
+
+        if (continuationState.isC013SkillContinuation)
+        {
+            continueC013SkillInput(
+                gameState,
+                actionChainState,
+                inputContextState,
                 submitInputChoiceActionRequest,
                 continuationState.pendingContinuationKey!);
             return true;

@@ -17,6 +17,7 @@ public sealed class ResponseWindowState
     public PlayerId? pendingDamageSourcePlayerId { get; set; }
     public CardInstanceId? pendingDamageSourceCardInstanceId { get; set; }
     public CharacterInstanceId? pendingDamageSourceCharacterInstanceId { get; set; }
+    public PlayerId? pendingDamageKillCreditPlayerIdOverride { get; set; }
     public string? pendingDamageTypeKey { get; set; }
     public string? pendingDamageResponseStageKey { get; set; }
     public string? pendingDamageDefenseDeclarationKey { get; set; }

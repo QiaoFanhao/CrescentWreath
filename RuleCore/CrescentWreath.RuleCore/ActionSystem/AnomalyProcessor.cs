@@ -2718,6 +2718,11 @@ public sealed class AnomalyProcessor
         }
 
         opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        applyMatchEndIfThresholdReached(gameState, actorPlayerState.teamId, opponentTeamState);
+        if (gameState.matchState == MatchState.ended)
+        {
+            return false;
+        }
 
         var requiredDiscardPlayerIds = anomalyA006Runtime.collectOpponentHumanPlayersWithHandCards(
             gameState,
@@ -2815,6 +2820,12 @@ public sealed class AnomalyProcessor
         }
 
         opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        applyMatchEndIfThresholdReached(gameState, actorPlayerState.teamId, opponentTeamState);
+        if (gameState.matchState == MatchState.ended)
+        {
+            return;
+        }
+
         actorTeamState.leyline = Math.Min(LeylineMaxValue, actorTeamState.leyline + 2);
     }
 
@@ -2834,6 +2845,12 @@ public sealed class AnomalyProcessor
         }
 
         opponentTeamState.killScore = Math.Max(0, opponentTeamState.killScore - 1);
+        applyMatchEndIfThresholdReached(gameState, actorPlayerState.teamId, opponentTeamState);
+        if (gameState.matchState == MatchState.ended)
+        {
+            return;
+        }
+
         ExtraTurnRuntime.grantExtraTurn(gameState, actorPlayerId);
     }
 
@@ -2863,6 +2880,20 @@ public sealed class AnomalyProcessor
         }
 
         return opponentTeamId.Value;
+    }
+
+    private static void applyMatchEndIfThresholdReached(
+        RuleCore.GameState.GameState gameState,
+        TeamId winnerTeamId,
+        TeamState losingTeamState)
+    {
+        if (losingTeamState.killScore > 0)
+        {
+            return;
+        }
+
+        gameState.matchState = MatchState.ended;
+        gameState.winnerTeamId = winnerTeamId;
     }
 
     private bool tryOpenA005RewardInputAfterCostsAndReward(

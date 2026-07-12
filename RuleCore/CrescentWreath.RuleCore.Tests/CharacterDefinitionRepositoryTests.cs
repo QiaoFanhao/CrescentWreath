@@ -12,7 +12,7 @@ public class CharacterDefinitionRepositoryTests
 
         Assert.Equal(31, definitions.Count);
         Assert.Equal(
-            new[] { "C001", "C007", "C008", "C018" },
+            new[] { "C001", "C003", "C004", "C005", "C007", "C008", "C011", "C013", "C018" },
             definitions.Where(definition => definition.isImplemented)
                 .Select(definition => definition.definitionId)
                 .ToArray());
