@@ -87,7 +87,7 @@ public sealed class DamageProcessor
             damageContext.appliedShortEffectKeys.Add(shortEffectKey);
         }
 
-        var hasPenetrate = containsPenetrateEffect(consumedShortEffectKeys);
+        var hasPenetrate = damageContext.forcePenetrate || containsPenetrateEffect(consumedShortEffectKeys);
 
         var hpBefore = targetCharacter.currentHp;
         var finalDamageValue = damageContext.baseDamageValue;

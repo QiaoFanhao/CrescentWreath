@@ -102,6 +102,47 @@ public class ActionRequestProcessorEnterSummonPhaseTests
     }
 
     [Fact]
+    public void HappyPath_WhenFieldContainsDefensePlacedCards_ShouldNotCountTheirSigil()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var teamId = new TeamId(1);
+        var actorPlayerState = createPlayerState(actorPlayerId, teamId, 6160);
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players[actorPlayerId] = actorPlayerState;
+        addFieldZone(gameState, actorPlayerState);
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(61601), "starter:kourindouCoupon");
+        addFieldTreasureCard(gameState, actorPlayerState, new CardInstanceId(61602), "starter:kourindouCoupon");
+        gameState.cardInstances[new CardInstanceId(61602)].isDefensePlacedOnField = true;
+        actorPlayerState.sigilPreview = 99;
+        actorPlayerState.lockedSigil = null;
+        actorPlayerState.isSigilLocked = false;
+        gameState.matchState = MatchState.running;
+        gameState.turnState = new TurnState
+        {
+            turnNumber = 1,
+            currentPlayerId = actorPlayerId,
+            currentTeamId = teamId,
+            currentPhase = TurnPhase.action,
+            phaseStepIndex = 7,
+        };
+
+        var request = new EnterSummonPhaseActionRequest
+        {
+            requestId = 40108,
+            actorPlayerId = actorPlayerId,
+        };
+
+        var processor = new ActionRequestProcessor();
+        var producedEvents = processor.processActionRequest(gameState, request);
+
+        Assert.Empty(producedEvents);
+        Assert.Equal(TurnPhase.summon, gameState.turnState.currentPhase);
+        Assert.Equal(0, gameState.players[actorPlayerId].sigilPreview);
+        Assert.Equal(1, gameState.players[actorPlayerId].lockedSigil);
+        Assert.True(gameState.players[actorPlayerId].isSigilLocked);
+    }
+
+    [Fact]
     public void WhenActorIsNotCurrentTurnPlayer_ShouldThrowAndKeepStateUnchanged()
     {
         var actorPlayerId = new PlayerId(1);

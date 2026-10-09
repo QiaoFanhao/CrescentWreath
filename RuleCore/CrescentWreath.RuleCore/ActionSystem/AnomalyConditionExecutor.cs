@@ -160,7 +160,15 @@ public static class AnomalyConditionExecutor
                 AnomalyValidationFailureKeys.ResolveManaCostMissing);
         }
 
-        if (actorPlayerState.mana < anomalyDefinition.resolveManaCost.Value)
+        var requiredMana = AnomalyResolveCostResolver.resolveManaCost(gameState, actorPlayerId, anomalyDefinition);
+        if (!requiredMana.HasValue)
+        {
+            return AnomalyValidationResult.failed(
+                AnomalyValidationFailureStage.condition,
+                AnomalyValidationFailureKeys.ResolveManaCostMissing);
+        }
+
+        if (actorPlayerState.mana < requiredMana.Value)
         {
             return AnomalyValidationResult.failed(
                 AnomalyValidationFailureStage.condition,
@@ -222,7 +230,7 @@ public static class AnomalyConditionExecutor
                     AnomalyValidationFailureKeys.ActiveCharacterMissing);
             }
 
-            if (activeCharacterInstance.currentHp <= hpCostPerPlayer)
+            if (activeCharacterInstance.currentHp < hpCostPerPlayer)
             {
                 return AnomalyValidationResult.failed(
                     AnomalyValidationFailureStage.condition,

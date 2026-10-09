@@ -14,6 +14,7 @@ public sealed class MatchEndOverlayView : MonoBehaviour
     private BattlefieldUiTheme? theme;
     private TMP_Text? titleText;
     private TMP_Text? bodyText;
+    private OverlayCollapseToggle? collapseToggle;
 
     public void Configure(ProjectionViewState newProjectionViewState, BattlefieldUiTheme newTheme)
     {
@@ -83,6 +84,9 @@ public sealed class MatchEndOverlayView : MonoBehaviour
         bodyText.rectTransform.anchorMax = new Vector2(0.92f, 0.54f);
         bodyText.rectTransform.offsetMin = Vector2.zero;
         bodyText.rectTransform.offsetMax = Vector2.zero;
+
+        collapseToggle = GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
     }
 
     private TMP_Text getOrCreateText(RectTransform parent, string name, float fontSize, TextAlignmentOptions alignment)
@@ -137,9 +141,11 @@ public sealed class MatchEndOverlayView : MonoBehaviour
     private void setVisible(bool visible)
     {
         canvasGroup = canvasGroup != null ? canvasGroup : GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
-        canvasGroup.alpha = visible ? 1f : 0f;
-        canvasGroup.interactable = visible;
-        canvasGroup.blocksRaycasts = visible;
+        collapseToggle = collapseToggle != null
+            ? collapseToggle
+            : GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
+        collapseToggle.SetVisible(visible);
     }
 }
 }

@@ -1,10 +1,10 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CrescentWreath.Client.Net;
 using CrescentWreath.Client.Presentation;
 using CrescentWreath.Client.UI;
 using NUnit.Framework;
-using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -34,13 +34,14 @@ public sealed class WorldCardViewEditModeTests
         {
             var view = WorldCardViewFactory.Create("WorldCardView", root.transform);
 
-            Assert.That(view.transform.Find("CardBody"), Is.Not.Null);
-            Assert.That(view.transform.Find("FrontSurface"), Is.Not.Null);
-            Assert.That(view.transform.Find("BackSurface"), Is.Not.Null);
-            Assert.That(view.transform.Find("SelectionOutline"), Is.Not.Null);
-            Assert.That(view.transform.Find("HoverHighlight"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot/CardBody"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot/FrontSurface"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot/BackSurface"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot/SelectionOutline"), Is.Not.Null);
+            Assert.That(view.transform.Find("VisualRoot/HoverHighlight"), Is.Not.Null);
             Assert.That(view.GetComponent<BoxCollider>(), Is.Not.Null);
-            Assert.That(view.transform.Find("CardBody").localScale, Is.EqualTo(WorldCardView.CardBodyLocalScale));
+            Assert.That(view.transform.Find("VisualRoot/CardBody").localScale, Is.EqualTo(WorldCardView.CardBodyLocalScale));
         }
         finally
         {
@@ -60,6 +61,39 @@ public sealed class WorldCardViewEditModeTests
     }
 
     [Test]
+    public void WorldCardView_EaseOutCubic_HasStableEndpoints()
+    {
+        Assert.That(WorldCardView.EaseOutCubic(0f), Is.EqualTo(0f).Within(0.001f));
+        Assert.That(WorldCardView.EaseOutCubic(1f), Is.EqualTo(1f).Within(0.001f));
+        Assert.That(WorldCardView.EaseOutCubic(-1f), Is.EqualTo(0f).Within(0.001f));
+        Assert.That(WorldCardView.EaseOutCubic(2f), Is.EqualTo(1f).Within(0.001f));
+    }
+
+    [Test]
+    public void WorldCardView_SnapTo_AppliesCardPoseExactly()
+    {
+        var root = new GameObject("CardPoseSnapRoot");
+        try
+        {
+            var view = WorldCardViewFactory.Create("WorldCardView", root.transform);
+            var pose = new CardPose(
+                new Vector3(1.25f, 0.35f, -2.5f),
+                Quaternion.Euler(0f, 45f, 0f),
+                new Vector3(0.6f, 0.02f, 0.84f));
+
+            view.SnapTo(pose);
+
+            Assert.That(view.transform.localPosition, Is.EqualTo(pose.Position));
+            Assert.That(view.transform.localRotation.eulerAngles.y, Is.EqualTo(45f).Within(0.001f));
+            Assert.That(view.transform.localScale, Is.EqualTo(pose.Scale));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
     public void WorldCardView_BindTogglesFrontAndBackSurfaces()
     {
         var catalog = loadCatalog();
@@ -76,13 +110,13 @@ public sealed class WorldCardViewEditModeTests
                 isInteractable = true,
             });
 
-            Assert.That(view.transform.Find("FrontSurface").gameObject.activeSelf, Is.True);
-            Assert.That(view.transform.Find("BackSurface").gameObject.activeSelf, Is.False);
+            Assert.That(view.transform.Find("VisualRoot/FrontSurface").gameObject.activeSelf, Is.True);
+            Assert.That(view.transform.Find("VisualRoot/BackSurface").gameObject.activeSelf, Is.False);
 
             view.SetFaceUp(false);
 
-            Assert.That(view.transform.Find("FrontSurface").gameObject.activeSelf, Is.False);
-            Assert.That(view.transform.Find("BackSurface").gameObject.activeSelf, Is.True);
+            Assert.That(view.transform.Find("VisualRoot/FrontSurface").gameObject.activeSelf, Is.False);
+            Assert.That(view.transform.Find("VisualRoot/BackSurface").gameObject.activeSelf, Is.True);
         }
         finally
         {
@@ -229,10 +263,74 @@ public sealed class WorldCardViewEditModeTests
 
             Assert.That(arrangedPosition, Is.Not.EqualTo(Vector3.zero));
             firstView.SetHighlighted(true);
-            Assert.That(firstView.transform.localPosition, Is.EqualTo(arrangedPosition + Vector3.up * 0.12f));
+            Assert.That(firstView.transform.localPosition, Is.EqualTo(arrangedPosition));
+            Assert.That(firstView.transform.Find("VisualRoot").localPosition, Is.EqualTo(Vector3.up * 0.12f));
 
             firstView.SetHighlighted(false);
             Assert.That(firstView.transform.localPosition, Is.EqualTo(arrangedPosition));
+            Assert.That(firstView.transform.Find("VisualRoot").localPosition, Is.EqualTo(Vector3.zero));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void ZoneLayout_SharedRegistryReusesCardViewAcrossZones()
+    {
+        var root = new GameObject("ZoneLayoutRegistryRoot");
+        try
+        {
+            var sourceLayout = createTestLayout(root.transform, "playerField:bottom", new Vector3(-2f, 0f, 0f));
+            var targetLayout = createTestLayout(root.transform, "playerDiscard:bottom", new Vector3(2f, 0f, 0f));
+            var layouts = new Dictionary<string, BattlefieldZoneLayout>
+            {
+                ["playerField:bottom"] = sourceLayout,
+                ["playerDiscard:bottom"] = targetLayout,
+            };
+            var registry = new BattlefieldCardRegistry();
+            var model = new WorldCardViewModel
+            {
+                cardInstanceNumericId = 91001,
+                definitionId = "T001",
+                zoneKey = "field",
+                isFaceUp = true,
+                isReadOnly = true,
+            };
+
+            sourceLayout.Reconcile(new[] { model }, registry, "table", layouts);
+            var sourceView = sourceLayout.OrderedViews[0];
+            targetLayout.Reconcile(new[] { model }, registry, "table", layouts);
+            sourceLayout.Reconcile(System.Array.Empty<WorldCardViewModel>(), registry, "table", layouts);
+
+            Assert.That(targetLayout.OrderedViews, Has.Count.EqualTo(1));
+            Assert.That(targetLayout.OrderedViews[0], Is.SameAs(sourceView));
+            Assert.That(sourceLayout.OrderedViews, Is.Empty);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void ZoneMotionAnchorMap_PlayerFieldStartsFromSeatHandEdge()
+    {
+        var root = new GameObject("ZoneMotionHandSourceRoot");
+        try
+        {
+            var layout = createTestLayout(root.transform, "playerField:bottom", Vector3.zero);
+            var targetPose = new CardPose(new Vector3(1.2f, 0f, 0f), Quaternion.identity, Vector3.one);
+
+            var sourcePose = BattlefieldZoneMotionAnchorMap.CreateSourcePose(
+                "playerField:bottom",
+                layout,
+                targetPose,
+                new Dictionary<string, BattlefieldZoneLayout>());
+
+            Assert.That(sourcePose.Position.z, Is.LessThan(-1f));
+            Assert.That(sourcePose.Position.x, Is.EqualTo(targetPose.Position.x * 0.55f).Within(0.001f));
         }
         finally
         {
@@ -303,44 +401,6 @@ public sealed class WorldCardViewEditModeTests
     }
 
     [Test]
-    public void CardDetailPanel_ShowsProjectionCardFields()
-    {
-        var root = new GameObject("CardDetailPanelTestRoot");
-        try
-        {
-            var labelObject = new GameObject("Label");
-            labelObject.transform.SetParent(root.transform, false);
-            var label = labelObject.AddComponent<TextMeshProUGUI>();
-            var panel = root.AddComponent<CardDetailPanel>();
-            panel.Configure(label);
-
-            panel.Show(new WorldCardViewModel
-            {
-                cardInstanceNumericId = 7,
-                definitionId = "T002",
-                ownerPlayerNumericId = 1,
-                zoneKey = "hand",
-                isFaceUp = true,
-                isDefensePlacedOnField = true,
-                baseSummonSigilCost = 2,
-                effectiveSummonSigilCost = 1,
-                isSummonableByViewer = false,
-                summonUnavailableReasonKey = "wrongPhase",
-            });
-
-            Assert.That(label.text, Does.Contain("T002"));
-            Assert.That(label.text, Does.Contain("owner=1"));
-            Assert.That(label.text, Does.Contain("zone=hand"));
-            Assert.That(label.text, Does.Contain("summonCost=2 -> 1"));
-            Assert.That(label.text, Does.Contain("wrongPhase"));
-        }
-        finally
-        {
-            Object.DestroyImmediate(root);
-        }
-    }
-
-    [Test]
     public void RuntimeWorldCardScripts_DoNotReferenceAssetDatabase()
     {
         var uiScriptFolder = Path.Combine(Application.dataPath, "Scripts/UI");
@@ -354,6 +414,47 @@ public sealed class WorldCardViewEditModeTests
         }
     }
 
+    [Test]
+    public void EffectPresentationClassifier_ClassifiesDamageText()
+    {
+        var category = EffectPresentationClassifier.Classify(
+            string.Empty,
+            "蕾米莉亚对莲造成3点体术伤害。");
+
+        Assert.That(category, Is.EqualTo(EffectCategoryKeys.Damage));
+    }
+
+    [Test]
+    public void EffectSfxCatalog_FallsBackToGenericEffect()
+    {
+        var catalog = ScriptableObject.CreateInstance<EffectSfxCatalog>();
+        var clip = AudioClip.Create("GenericEffectTestClip", 1, 1, 44100, false);
+
+        try
+        {
+            catalog.ReplaceEntriesForEditor(new[]
+            {
+                new EffectSfxCatalog.Entry
+                {
+                    effectCategoryKey = EffectCategoryKeys.GenericEffect,
+                    clips = new List<AudioClip> { clip },
+                    volume = 0.5f,
+                },
+            });
+
+            var hasEntry = catalog.TryGetEntry("missingCategory", out var entry);
+
+            Assert.That(hasEntry, Is.True);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.clips, Does.Contain(clip));
+        }
+        finally
+        {
+            Object.DestroyImmediate(clip);
+            Object.DestroyImmediate(catalog);
+        }
+    }
+
     private static CardArtCatalog loadCatalog()
     {
         var catalog = AssetDatabase.LoadAssetAtPath<CardArtCatalog>(
@@ -361,6 +462,25 @@ public sealed class WorldCardViewEditModeTests
         Assert.That(catalog, Is.Not.Null);
         Assert.That(catalog!.CardBack, Is.Not.Null);
         return catalog;
+    }
+
+    private static BattlefieldZoneLayout createTestLayout(Transform parent, string zoneViewKey, Vector3 position)
+    {
+        var anchorObject = new GameObject(zoneViewKey);
+        anchorObject.transform.SetParent(parent, false);
+        anchorObject.transform.localPosition = position;
+        var anchor = anchorObject.AddComponent<BattlefieldZoneAnchor>();
+        anchor.Configure(
+            zoneViewKey,
+            BattlefieldZoneLayoutType.horizontalRow,
+            4,
+            new Vector2(1.08f, 1.2f),
+            WorldCardView.DefaultCardSize,
+            Vector3.zero,
+            true);
+        var layout = anchorObject.AddComponent<BattlefieldZoneLayout>();
+        layout.Configure(anchor);
+        return layout;
     }
 
 }

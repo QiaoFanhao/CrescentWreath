@@ -1,4 +1,6 @@
 using System;
+using CrescentWreath.Client.Net;
+using CrescentWreath.Client.Presentation;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -15,17 +17,48 @@ public sealed class BattlefieldLocalHandCardButton :
     private Image? image;
 
     private long cardInstanceNumericId;
+    private ProjectionCardViewModel? cardModel;
     private Action<long>? clicked;
     private Vector3 restScale = Vector3.one;
 
-    public void Configure(long newCardInstanceNumericId, Action<long> newClicked)
+    public void Configure(ProjectionCardViewModel newCardModel, Action<long> newClicked)
     {
-        cardInstanceNumericId = newCardInstanceNumericId;
+        cardModel = newCardModel;
+        cardInstanceNumericId = newCardModel.cardInstanceNumericId;
         clicked = newClicked;
         image ??= GetComponent<Image>();
         restScale = Vector3.one;
         transform.localScale = restScale;
         setHighlighted(false);
+    }
+
+    public bool TryBuildInspectViewModel(out CardInspectViewModel inspectModel)
+    {
+        if (cardModel is null)
+        {
+            inspectModel = new CardInspectViewModel();
+            return false;
+        }
+
+        var displayEntry = CardDisplayCatalogService.TryGetEntry(cardModel.definitionId);
+        inspectModel = new CardInspectViewModel
+        {
+            cardInstanceNumericId = cardModel.cardInstanceNumericId,
+            definitionId = cardModel.definitionId,
+            displayName = displayEntry?.name ?? CardNameLocalizer.Localize(cardModel.definitionId),
+            attributeText = CardDisplayCatalogService.BuildAttributeText(cardModel.definitionId),
+            rulesText = CardDisplayCatalogService.BuildRulesText(cardModel.definitionId),
+            ownerPlayerNumericId = cardModel.ownerPlayerNumericId,
+            zoneKey = cardModel.zoneKey,
+            isFaceUp = true,
+            isDefensePlacedOnField = cardModel.isDefensePlacedOnField,
+            baseSummonSigilCost = cardModel.baseSummonSigilCost,
+            effectiveSummonSigilCost = cardModel.effectiveSummonSigilCost,
+            isSummonableByViewer = cardModel.isSummonableByViewer,
+            summonUnavailableReasonKey = cardModel.summonUnavailableReasonKey,
+            artworkSprite = CardArtService.GetSpriteForDefinition(cardModel.definitionId),
+        };
+        return true;
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -42,6 +75,11 @@ public sealed class BattlefieldLocalHandCardButton :
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
         clicked?.Invoke(cardInstanceNumericId);
     }
 

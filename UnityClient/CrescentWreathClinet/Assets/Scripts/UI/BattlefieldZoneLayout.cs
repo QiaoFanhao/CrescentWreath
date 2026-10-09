@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,7 +10,12 @@ public sealed class BattlefieldZoneLayout : MonoBehaviour
     [SerializeField]
     private BattlefieldZoneAnchor? anchor;
 
-    private readonly Dictionary<long, WorldCardView> viewByCardInstanceId = new();
+    [SerializeField]
+    private CardAnimationSettings animationSettings = new();
+
+    private readonly BattlefieldCardRegistry localRegistry = new();
+    private readonly Dictionary<string, WorldCardView> viewByVisualKey = new();
+    private readonly Dictionary<string, WorldCardView> exitingViewByVisualKey = new();
     private readonly List<WorldCardView> orderedViews = new();
 
     public BattlefieldZoneAnchor? Anchor => anchor;
@@ -22,49 +28,234 @@ public sealed class BattlefieldZoneLayout : MonoBehaviour
 
     public void Reconcile(IReadOnlyList<WorldCardViewModel> models)
     {
+        var localContextKey = string.IsNullOrWhiteSpace(anchor?.ZoneViewKey)
+            ? gameObject.name
+            : anchor!.ZoneViewKey;
+        Reconcile(models, localRegistry, localContextKey, null);
+    }
+
+    public void Reconcile(
+        IReadOnlyList<WorldCardViewModel> models,
+        BattlefieldCardRegistry registry,
+        string visualContextKey,
+        IReadOnlyDictionary<string, BattlefieldZoneLayout>? layoutByZoneKey)
+    {
+        var activeAnchor = anchor;
+        if (activeAnchor is null)
+        {
+            return;
+        }
+
+        var settings = activeAnimationSettings();
         removeDestroyedViewReferences();
         removeUntrackedChildViews();
 
-        var incomingIds = new HashSet<long>(models.Select(model => model.cardInstanceNumericId));
-        foreach (var existing in viewByCardInstanceId.Keys.ToArray())
+        var zoneViewKey = activeAnchor.ZoneViewKey;
+        var incomingKeys = new HashSet<string>(models.Select(model => buildVisualKey(visualContextKey, model)));
+        foreach (var existingKey in viewByVisualKey.Keys.ToArray())
         {
-            if (incomingIds.Contains(existing))
+            if (incomingKeys.Contains(existingKey))
             {
                 continue;
             }
 
-            destroy(viewByCardInstanceId[existing].gameObject);
-            viewByCardInstanceId.Remove(existing);
+            var exitingView = viewByVisualKey[existingKey];
+            viewByVisualKey.Remove(existingKey);
+            if (registry.TryGet(existingKey, out var currentEntry) &&
+                currentEntry.View == exitingView &&
+                string.Equals(currentEntry.ZoneViewKey, zoneViewKey, StringComparison.Ordinal))
+            {
+                exitingViewByVisualKey[existingKey] = exitingView;
+                registry.MarkExiting(existingKey, exitingView, zoneViewKey);
+                var exitingPose = BattlefieldZoneMotionAnchorMap.CreateSinkPose(
+                    zoneViewKey,
+                    this,
+                    new CardPose(exitingView.transform.localPosition, exitingView.transform.localRotation, exitingView.transform.localScale),
+                    layoutByZoneKey);
+                var retainedKey = existingKey;
+                exitingView.PlayExitTo(
+                    exitingPose,
+                    () =>
+                    {
+                        if (!exitingViewByVisualKey.TryGetValue(retainedKey, out var retainedView) ||
+                            retainedView != exitingView ||
+                            !registry.IsExitingSameView(retainedKey, exitingView))
+                        {
+                            return;
+                        }
+
+                        exitingViewByVisualKey.Remove(retainedKey);
+                        registry.Forget(retainedKey, exitingView);
+                        if (exitingView != null)
+                        {
+                            destroy(exitingView.gameObject);
+                        }
+                    },
+                    settings);
+            }
         }
 
         orderedViews.Clear();
         for (var index = 0; index < models.Count; index += 1)
         {
             var model = models[index];
-            if (!viewByCardInstanceId.TryGetValue(model.cardInstanceNumericId, out var view))
-            {
-                view = WorldCardViewFactory.Create($"WorldCardView_{model.cardInstanceNumericId}", transform);
-                viewByCardInstanceId[model.cardInstanceNumericId] = view;
-            }
+            var visualKey = buildVisualKey(visualContextKey, model);
+            var targetPose = createTargetPose(activeAnchor, index, models.Count);
+            var zoneMotion = resolveViewForModel(
+                visualKey,
+                model,
+                targetPose,
+                zoneViewKey,
+                registry,
+                layoutByZoneKey,
+                out var view);
 
             view.Bind(model);
+            view.SetVisualContext(visualKey, zoneViewKey);
             orderedViews.Add(view);
+            viewByVisualKey[visualKey] = view;
+            animateOrSnapView(
+                visualKey,
+                view,
+                model,
+                targetPose,
+                zoneViewKey,
+                zoneMotion,
+                registry,
+                settings,
+                index);
+        }
+    }
+
+    private ZoneMotionKind resolveViewForModel(
+        string visualKey,
+        WorldCardViewModel model,
+        CardPose targetPose,
+        string zoneViewKey,
+        BattlefieldCardRegistry registry,
+        IReadOnlyDictionary<string, BattlefieldZoneLayout>? layoutByZoneKey,
+        out WorldCardView view)
+    {
+        if (viewByVisualKey.TryGetValue(visualKey, out view))
+        {
+            view.transform.SetParent(transform, true);
+            return ZoneMotionKind.sameZone;
         }
 
-        ApplyLayout();
+        if (exitingViewByVisualKey.TryGetValue(visualKey, out var exitingView))
+        {
+            exitingViewByVisualKey.Remove(visualKey);
+            view = exitingView;
+            view.transform.SetParent(transform, true);
+            return ZoneMotionKind.sameZone;
+        }
+
+        if (registry.TryGet(visualKey, out var registryEntry) && registryEntry.View != null)
+        {
+            view = registryEntry.View;
+            view.transform.SetParent(transform, true);
+            return string.Equals(registryEntry.ZoneViewKey, zoneViewKey, StringComparison.Ordinal)
+                ? ZoneMotionKind.sameZone
+                : ZoneMotionKind.crossZone;
+        }
+
+        view = WorldCardViewFactory.Create($"WorldCardView_{model.cardInstanceNumericId}", transform);
+        var sourcePose = BattlefieldZoneMotionAnchorMap.CreateSourcePose(zoneViewKey, this, targetPose, layoutByZoneKey);
+        view.SnapTo(sourcePose);
+        return ZoneMotionKind.enterFromSource;
+    }
+
+    private void animateOrSnapView(
+        string visualKey,
+        WorldCardView view,
+        WorldCardViewModel model,
+        CardPose targetPose,
+        string zoneViewKey,
+        ZoneMotionKind zoneMotion,
+        BattlefieldCardRegistry registry,
+        CardAnimationSettings settings,
+        int index)
+    {
+        if (!Application.isPlaying)
+        {
+            view.SnapTo(targetPose);
+            registry.Track(visualKey, view, zoneViewKey, targetPose, model);
+            return;
+        }
+
+        var delay = index * settings.staggerInterval;
+        if (registry.TryGet(visualKey, out var previousEntry) &&
+            previousEntry.View == view &&
+            !previousEntry.IsExiting &&
+            poseAlmostEqual(previousEntry.LastTargetPose, targetPose, settings))
+        {
+            registry.Track(visualKey, view, zoneViewKey, targetPose, model);
+            return;
+        }
+
+        var currentLocalPosition = view.transform.localPosition;
+        var distance = Vector3.Distance(currentLocalPosition, targetPose.Position);
+        if (distance <= settings.snapDistanceEpsilon)
+        {
+            view.SnapTo(targetPose);
+            registry.Track(visualKey, view, zoneViewKey, targetPose, model);
+            return;
+        }
+
+        switch (zoneMotion)
+        {
+            case ZoneMotionKind.crossZone:
+                view.AnimateTo(
+                    targetPose,
+                    settings.crossZoneFlightDuration,
+                    settings,
+                    delay,
+                    settings.arcHeightLarge,
+                    settings.flightScalePeak);
+                break;
+            case ZoneMotionKind.enterFromSource:
+                view.PlayEnterFromSource(
+                    targetPose,
+                    new CardPose(view.transform.localPosition, view.transform.localRotation, view.transform.localScale),
+                    settings,
+                    delay,
+                    settings.enterFromSourceDuration);
+                break;
+            default:
+                view.AnimateTo(
+                    targetPose,
+                    settings.sameZoneMoveDuration,
+                    settings,
+                    delay,
+                    settings.arcHeightSmall,
+                    1f);
+                break;
+        }
+
+        registry.Track(visualKey, view, zoneViewKey, targetPose, model);
     }
 
     private void removeDestroyedViewReferences()
     {
-        foreach (var entry in viewByCardInstanceId.Where(entry => entry.Value == null).ToArray())
+        foreach (var entry in viewByVisualKey.Where(entry => entry.Value == null).ToArray())
         {
-            viewByCardInstanceId.Remove(entry.Key);
+            viewByVisualKey.Remove(entry.Key);
+        }
+
+        foreach (var entry in exitingViewByVisualKey.Where(entry => entry.Value == null).ToArray())
+        {
+            exitingViewByVisualKey.Remove(entry.Key);
         }
     }
 
     private void removeUntrackedChildViews()
     {
-        var trackedViews = new HashSet<WorldCardView>(viewByCardInstanceId.Values);
+        var trackedViews = new HashSet<WorldCardView>(viewByVisualKey.Values);
+        foreach (var exitingView in exitingViewByVisualKey.Values)
+        {
+            trackedViews.Add(exitingView);
+        }
+
         foreach (var childView in GetComponentsInChildren<WorldCardView>(true)
             .Where(view => view.transform.parent == transform)
             .ToArray())
@@ -86,16 +277,50 @@ public sealed class BattlefieldZoneLayout : MonoBehaviour
             return;
         }
 
+        var settings = activeAnimationSettings();
         for (var index = 0; index < orderedViews.Count; index += 1)
         {
             var view = orderedViews[index];
-            view.transform.SetParent(transform, false);
-            view.transform.localScale = activeAnchor.CardScale;
-            view.transform.localEulerAngles = activeAnchor.LocalRotation;
-            var localPosition = getLocalPosition(activeAnchor, index, orderedViews.Count);
-            view.transform.localPosition = localPosition;
-            view.SetRestLocalPosition(localPosition);
+            var pose = createTargetPose(activeAnchor, index, orderedViews.Count);
+            if (!Application.isPlaying)
+            {
+                view.SnapTo(pose);
+                continue;
+            }
+
+            view.AnimateTo(pose, settings.sameZoneMoveDuration, settings, 0f, settings.arcHeightSmall, 1f);
         }
+    }
+
+    private CardAnimationSettings activeAnimationSettings()
+    {
+        if (animationSettings is null)
+        {
+            animationSettings = new CardAnimationSettings();
+        }
+
+        return animationSettings;
+    }
+
+    private static string buildVisualKey(string visualContextKey, WorldCardViewModel model)
+    {
+        return BattlefieldCardRegistry.BuildVisualKey(visualContextKey, model.cardInstanceNumericId);
+    }
+
+    private static CardPose createTargetPose(BattlefieldZoneAnchor activeAnchor, int index, int count)
+    {
+        return new CardPose(
+            getLocalPosition(activeAnchor, index, count),
+            Quaternion.Euler(activeAnchor.LocalRotation),
+            activeAnchor.CardScale);
+    }
+
+    private static bool poseAlmostEqual(CardPose left, CardPose right, CardAnimationSettings settings)
+    {
+        var maxDistance = settings.snapDistanceEpsilon;
+        return Vector3.SqrMagnitude(left.Position - right.Position) <= maxDistance * maxDistance &&
+            Quaternion.Angle(left.Rotation, right.Rotation) <= settings.rotationEpsilonDegrees &&
+            Vector3.SqrMagnitude(left.Scale - right.Scale) <= maxDistance * maxDistance;
     }
 
     private static Vector3 getLocalPosition(
@@ -137,17 +362,23 @@ public sealed class BattlefieldZoneLayout : MonoBehaviour
             (row - (rows - 1) * 0.5f) * activeAnchor.CardSpacing.y);
     }
 
-    private static void destroy(Object target)
+    private static void destroy(UnityEngine.Object target)
     {
         if (Application.isPlaying)
         {
-            Object.Destroy(target);
+            UnityEngine.Object.Destroy(target);
         }
         else
         {
-            Object.DestroyImmediate(target);
+            UnityEngine.Object.DestroyImmediate(target);
         }
     }
 
+    private enum ZoneMotionKind
+    {
+        sameZone,
+        crossZone,
+        enterFromSource,
+    }
 }
 }

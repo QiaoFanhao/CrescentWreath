@@ -11,7 +11,12 @@ try
 {
     await using var hostRuntime = new ServerPrototypeWebSocketHostRuntime();
     var wsUri = await hostRuntime.startAsync(configuredPort);
+    var lobbyUriBuilder = new UriBuilder(wsUri)
+    {
+        Query = "mode=lobby",
+    };
     Console.WriteLine($"CrescentWreath.ServerPrototype.Host started. WebSocket endpoint: {wsUri}");
+    Console.WriteLine($"CrescentWreath.ServerPrototype.Host lobby endpoint: {lobbyUriBuilder.Uri}");
     Console.WriteLine("Press Ctrl+C to stop.");
 
     var shutdownSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

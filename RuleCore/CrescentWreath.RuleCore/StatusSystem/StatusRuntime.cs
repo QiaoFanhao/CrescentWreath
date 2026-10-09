@@ -14,6 +14,8 @@ public static class StatusRuntime
     public const string StatusKeyPhysicalOrSpellDamageBoostNext = "PhysicalOrSpellDamageBoostNext";
     public const string StatusKeyC011AllDamageBoostThisTurn = "C011AllDamageBoostThisTurn";
     public const string StatusKeyC011EndTurnSelfShackle = "C011EndTurnSelfShackle";
+    public const string StatusKeyC021BlackKeyProjectionFreeMana = "C021BlackKeyProjectionFreeMana";
+    public const string StatusKeyC014SkipSummonPhase = "C014SkipSummonPhase";
     private static readonly HashSet<string> ShortStatusKeysClearedAtTurnEnd = new(StringComparer.Ordinal)
     {
         "Silence",
@@ -24,6 +26,8 @@ public static class StatusRuntime
         StatusKeyPhysicalOrSpellDamageBoostNext,
         StatusKeyC011AllDamageBoostThisTurn,
         StatusKeyC011EndTurnSelfShackle,
+        StatusKeyC021BlackKeyProjectionFreeMana,
+        StatusKeyC014SkipSummonPhase,
     };
 
     public static StatusInstance applyStatus(
@@ -180,6 +184,40 @@ public static class StatusRuntime
         }
 
         return false;
+    }
+
+    public static List<StatusInstance> removeStatusesOnPlayer(
+        GameState.GameState gameState,
+        PlayerId targetPlayerId,
+        string statusKey)
+    {
+        if (string.IsNullOrWhiteSpace(statusKey))
+        {
+            throw new InvalidOperationException("StatusRuntime.removeStatusesOnPlayer requires statusKey.");
+        }
+
+        var normalizedStatusKey = StatusPolicyTable.normalizeStatusKey(statusKey);
+        var removedStatuses = new List<StatusInstance>();
+        for (var index = gameState.statusInstances.Count - 1; index >= 0; index--)
+        {
+            var statusInstance = gameState.statusInstances[index];
+            statusInstance.statusKey = StatusPolicyTable.normalizeStatusKey(statusInstance.statusKey);
+            if (statusInstance.targetPlayerId != targetPlayerId)
+            {
+                continue;
+            }
+
+            if (!string.Equals(statusInstance.statusKey, normalizedStatusKey, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            removedStatuses.Add(cloneStatusInstance(statusInstance));
+            gameState.statusInstances.RemoveAt(index);
+        }
+
+        removedStatuses.Reverse();
+        return removedStatuses;
     }
 
     public static List<string> consumeNextDamageEffectsOnAttempt(

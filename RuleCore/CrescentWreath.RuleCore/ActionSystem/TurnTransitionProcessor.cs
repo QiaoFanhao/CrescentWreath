@@ -152,6 +152,35 @@ public sealed class TurnTransitionProcessor
             enterSummonPhaseActionRequest.actorPlayerId,
             "phaseTransition:summon");
 
+        var removedSkipSummonStatuses = StatusRuntime.removeStatusesOnPlayer(
+            gameState,
+            enterSummonPhaseActionRequest.actorPlayerId,
+            StatusRuntime.StatusKeyC014SkipSummonPhase);
+        if (removedSkipSummonStatuses.Count > 0)
+        {
+            appendStatusRemovedEvents(actionChainState, removedSkipSummonStatuses, enterSummonPhaseActionRequest.requestId);
+            actorPlayerState.lockedSigil = 0;
+            actorPlayerState.isSigilLocked = false;
+            actorPlayerState.sigilPreview = 0;
+            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+            actionChainState.isCompleted = true;
+
+            // C014 skips the summon opportunity, but the turn must still resolve the normal end phase.
+            gameState.turnState.currentPhase = TurnPhase.summon;
+            gameState.turnState.phaseStepIndex = 0;
+            var endPhaseEvents = endPhaseProcessor.processEnterEndPhaseActionRequest(
+                gameState,
+                new EnterEndPhaseActionRequest
+                {
+                    requestId = enterSummonPhaseActionRequest.requestId,
+                    actorPlayerId = enterSummonPhaseActionRequest.actorPlayerId,
+                    sourceKey = "server:c014-skip-summon",
+                });
+            var producedEvents = new List<GameEvent>(actionChainState.producedEvents);
+            producedEvents.AddRange(endPhaseEvents);
+            return producedEvents;
+        }
+
         var recomputedSigil = SigilSnapshotCalculator.recomputeSigilPreviewFromCurrentFieldState(gameState, actorPlayerState);
         actorPlayerState.lockedSigil = recomputedSigil;
         actorPlayerState.isSigilLocked = true;
@@ -1085,7 +1114,7 @@ public sealed class TurnTransitionProcessor
                 TurnStartShackleDeclineChoiceKey,
                 StringComparison.Ordinal))
         {
-            endPhaseProcessor.forceCompleteEndSettlementWithoutHandCapInput(
+            var openedHandCapInput = endPhaseProcessor.forceCompleteEndSettlementWithoutHandCapInput(
                 gameState,
                 actionChainState,
                 actorPlayerState,
@@ -1098,6 +1127,11 @@ public sealed class TurnTransitionProcessor
                 actionChainState,
                 removedShackleStatusesOnDecline,
                 submitInputChoiceActionRequest.requestId);
+
+            if (openedHandCapInput)
+            {
+                return;
+            }
 
             actionChainState.pendingContinuationKey = null;
             if (tryStartTurnStartResponseQueue(
@@ -1223,7 +1257,7 @@ public sealed class TurnTransitionProcessor
         var handZoneState = gameState.zones[nextPlayerState.handZoneId];
         if (handZoneState.cardInstanceIds.Count < ShackleDiscardRequiredCount)
         {
-            endPhaseProcessor.forceCompleteEndSettlementWithoutHandCapInput(
+            var openedHandCapInput = endPhaseProcessor.forceCompleteEndSettlementWithoutHandCapInput(
                 gameState,
                 actionChainState,
                 nextPlayerState,
@@ -1233,6 +1267,11 @@ public sealed class TurnTransitionProcessor
                 activeCharacterInstanceId,
                 StatusKeyShackle);
             appendStatusRemovedEvents(actionChainState, removedShackleStatuses, eventId);
+            if (openedHandCapInput)
+            {
+                return true;
+            }
+
             actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
             actionChainState.isCompleted = true;
             return true;

@@ -2184,6 +2184,81 @@ public class ActionRequestProcessorResponseWindowDamageTests
     }
 
     [Fact]
+    public void SubmitDefense_WhenC005FullyDefends_ShouldAskBeforeUsingSixRealmsSlash()
+    {
+        var sourcePlayerId = new PlayerId(1);
+        var targetPlayerId = new PlayerId(2);
+        var sourcePlayerState = createPlayerState(sourcePlayerId, new TeamId(1), 72521);
+        var targetPlayerState = createPlayerState(targetPlayerId, new TeamId(2), 73521);
+        var sourceCharacterInstanceId = new CharacterInstanceId(72522);
+        var targetCharacterInstanceId = new CharacterInstanceId(72523);
+        var defenseCardInstanceId = new CardInstanceId(72524);
+        var deckCardInstanceId = new CardInstanceId(72525);
+
+        var gameState = new RuleCore.GameState.GameState();
+        gameState.players.Add(sourcePlayerId, sourcePlayerState);
+        gameState.players.Add(targetPlayerId, targetPlayerState);
+        addStandardPlayerZones(gameState, sourcePlayerState);
+        addStandardPlayerZones(gameState, targetPlayerState);
+        setRunningTurnForActor(gameState, sourcePlayerId, sourcePlayerState.teamId);
+
+        createTargetCharacter(gameState, sourceCharacterInstanceId, sourcePlayerId, 10);
+        var targetCharacter = createTargetCharacter(gameState, targetCharacterInstanceId, targetPlayerId, 10);
+        sourcePlayerState.activeCharacterInstanceId = sourceCharacterInstanceId;
+        targetPlayerState.activeCharacterInstanceId = targetCharacterInstanceId;
+        targetCharacter.definitionId = "C005";
+        MarkerRuntime.addMarker(targetCharacter, "swordAura", 1, new ActionChainId(72526), eventId: 72526);
+        createCardInPlayerHand(gameState, targetPlayerState, defenseCardInstanceId, "test:defensePhysical2");
+        var deckCard = new CardInstance
+        {
+            cardInstanceId = deckCardInstanceId,
+            definitionId = "T001",
+            ownerPlayerId = targetPlayerId,
+            zoneId = targetPlayerState.deckZoneId,
+            zoneKey = ZoneKey.deck,
+        };
+        gameState.cardInstances.Add(deckCardInstanceId, deckCard);
+        gameState.zones[targetPlayerState.deckZoneId].cardInstanceIds.Add(deckCardInstanceId);
+
+        var processor = new ActionRequestProcessor();
+        processor.processActionRequest(gameState, new OpenDamageResponseWindowActionRequest
+        {
+            requestId = 72527,
+            actorPlayerId = sourcePlayerId,
+            sourceCharacterInstanceId = sourceCharacterInstanceId,
+            targetCharacterInstanceId = targetCharacterInstanceId,
+            baseDamageValue = 2,
+            damageTypeKey = "physical",
+        });
+
+        processor.processActionRequest(gameState, new SubmitDefenseActionRequest
+        {
+            requestId = 72528,
+            actorPlayerId = targetPlayerId,
+            defenseCardInstanceId = defenseCardInstanceId,
+            defenseTypeKey = "physical",
+        });
+
+        Assert.Null(gameState.currentResponseWindow);
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal("character:C005:2:sixRealmsChoice", gameState.currentInputContext!.contextKey);
+        Assert.Contains("decline", gameState.currentInputContext.choiceKeys);
+        Assert.Contains("c005SixRealms:use", gameState.currentInputContext.choiceKeys);
+        Assert.Equal(1, MarkerRuntime.getMarkerCount(targetCharacter, "swordAura"));
+
+        processor.processActionRequest(gameState, new SubmitInputChoiceActionRequest
+        {
+            requestId = 72529,
+            actorPlayerId = targetPlayerId,
+            inputContextId = gameState.currentInputContext.inputContextId,
+            choiceKey = "decline",
+        });
+
+        Assert.Null(gameState.currentInputContext);
+        Assert.Equal(1, MarkerRuntime.getMarkerCount(targetCharacter, "swordAura"));
+    }
+
+    [Fact]
     public void SubmitDefense_WhenPenetrateConsumedByBarrier_ShouldNotApplyOnNextFullyDefendedDamage()
     {
         var sourcePlayerId = new PlayerId(1);

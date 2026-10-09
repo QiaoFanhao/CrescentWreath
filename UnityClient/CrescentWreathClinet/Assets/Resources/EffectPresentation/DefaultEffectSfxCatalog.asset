@@ -1,0 +1,239 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0754dd4af3fb4d4a964a418d7352484e, type: 3}
+  m_Name: DefaultEffectSfxCatalog
+  m_EditorClassIdentifier: CrescentWreath.Client.UI::CrescentWreath.Client.UI.EffectSfxCatalog
+  entries:
+  - effectCategoryKey: cardActivate
+    clips:
+    - {fileID: 8300000, guid: 8c5046bf705de11488cd285ca736834c, type: 3}
+    - {fileID: 8300000, guid: 6153830852503ba4d9f8fb4c9b2b5245, type: 3}
+    - {fileID: 8300000, guid: 25c9f715c8b251543b7076d62351b00a, type: 3}
+    - {fileID: 8300000, guid: 1df6237db8a5d504d99d3d22bbdacf92, type: 3}
+    - {fileID: 8300000, guid: 205433007c67b7648af9276b4f87479c, type: 3}
+    - {fileID: 8300000, guid: 30c8ae6923e26eb41b12fbf3da5dd206, type: 3}
+    - {fileID: 8300000, guid: a53d37d30cc37564a93ebd04763f6799, type: 3}
+    - {fileID: 8300000, guid: 5709e6a4cb852f34faefbba9da5fd249, type: 3}
+    - {fileID: 8300000, guid: 70843f6f2b3a5a1419ce4e9dae247e9c, type: 3}
+    - {fileID: 8300000, guid: a211a77e8c0d0a24a9fa7ef8029ebca7, type: 3}
+    - {fileID: 8300000, guid: f129e36281e373b43a04c040d1c557fd, type: 3}
+    - {fileID: 8300000, guid: f30da850c6684bb4da059e40b2ce2caa, type: 3}
+    - {fileID: 8300000, guid: a85e9941d0d3da44ba5093825af870b9, type: 3}
+    - {fileID: 8300000, guid: d0e78e3fc97aa0c408c5db17cd9b8a24, type: 3}
+    - {fileID: 8300000, guid: 052cae142a2943747a2cad817da9d878, type: 3}
+    - {fileID: 8300000, guid: 4b070bb1c8fc55b4c9ce3c627bdf5d13, type: 3}
+    - {fileID: 8300000, guid: c85936e79e3438442b214b6af9e25ba4, type: 3}
+    - {fileID: 8300000, guid: 50475441dafca494586f632805c29e09, type: 3}
+    - {fileID: 8300000, guid: 3e3fee8d8692aec4780ab80cf6a5f2c6, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: damage
+    clips:
+    - {fileID: 8300000, guid: 8c5046bf705de11488cd285ca736834c, type: 3}
+    - {fileID: 8300000, guid: 6153830852503ba4d9f8fb4c9b2b5245, type: 3}
+    - {fileID: 8300000, guid: 25c9f715c8b251543b7076d62351b00a, type: 3}
+    - {fileID: 8300000, guid: 1df6237db8a5d504d99d3d22bbdacf92, type: 3}
+    - {fileID: 8300000, guid: 205433007c67b7648af9276b4f87479c, type: 3}
+    - {fileID: 8300000, guid: 30c8ae6923e26eb41b12fbf3da5dd206, type: 3}
+    - {fileID: 8300000, guid: a53d37d30cc37564a93ebd04763f6799, type: 3}
+    - {fileID: 8300000, guid: 5709e6a4cb852f34faefbba9da5fd249, type: 3}
+    - {fileID: 8300000, guid: 70843f6f2b3a5a1419ce4e9dae247e9c, type: 3}
+    - {fileID: 8300000, guid: a211a77e8c0d0a24a9fa7ef8029ebca7, type: 3}
+    - {fileID: 8300000, guid: f129e36281e373b43a04c040d1c557fd, type: 3}
+    - {fileID: 8300000, guid: f30da850c6684bb4da059e40b2ce2caa, type: 3}
+    - {fileID: 8300000, guid: a85e9941d0d3da44ba5093825af870b9, type: 3}
+    - {fileID: 8300000, guid: d0e78e3fc97aa0c408c5db17cd9b8a24, type: 3}
+    - {fileID: 8300000, guid: 052cae142a2943747a2cad817da9d878, type: 3}
+    - {fileID: 8300000, guid: 4b070bb1c8fc55b4c9ce3c627bdf5d13, type: 3}
+    - {fileID: 8300000, guid: c85936e79e3438442b214b6af9e25ba4, type: 3}
+    - {fileID: 8300000, guid: 50475441dafca494586f632805c29e09, type: 3}
+    - {fileID: 8300000, guid: 3e3fee8d8692aec4780ab80cf6a5f2c6, type: 3}
+    volume: 0.8
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: directDamage
+    clips:
+    - {fileID: 8300000, guid: 8c5046bf705de11488cd285ca736834c, type: 3}
+    - {fileID: 8300000, guid: 6153830852503ba4d9f8fb4c9b2b5245, type: 3}
+    - {fileID: 8300000, guid: 25c9f715c8b251543b7076d62351b00a, type: 3}
+    - {fileID: 8300000, guid: 1df6237db8a5d504d99d3d22bbdacf92, type: 3}
+    - {fileID: 8300000, guid: 205433007c67b7648af9276b4f87479c, type: 3}
+    - {fileID: 8300000, guid: 30c8ae6923e26eb41b12fbf3da5dd206, type: 3}
+    - {fileID: 8300000, guid: a53d37d30cc37564a93ebd04763f6799, type: 3}
+    - {fileID: 8300000, guid: 5709e6a4cb852f34faefbba9da5fd249, type: 3}
+    - {fileID: 8300000, guid: 70843f6f2b3a5a1419ce4e9dae247e9c, type: 3}
+    - {fileID: 8300000, guid: a211a77e8c0d0a24a9fa7ef8029ebca7, type: 3}
+    - {fileID: 8300000, guid: f129e36281e373b43a04c040d1c557fd, type: 3}
+    - {fileID: 8300000, guid: f30da850c6684bb4da059e40b2ce2caa, type: 3}
+    - {fileID: 8300000, guid: a85e9941d0d3da44ba5093825af870b9, type: 3}
+    - {fileID: 8300000, guid: d0e78e3fc97aa0c408c5db17cd9b8a24, type: 3}
+    - {fileID: 8300000, guid: 052cae142a2943747a2cad817da9d878, type: 3}
+    - {fileID: 8300000, guid: 4b070bb1c8fc55b4c9ce3c627bdf5d13, type: 3}
+    - {fileID: 8300000, guid: c85936e79e3438442b214b6af9e25ba4, type: 3}
+    - {fileID: 8300000, guid: 50475441dafca494586f632805c29e09, type: 3}
+    - {fileID: 8300000, guid: 3e3fee8d8692aec4780ab80cf6a5f2c6, type: 3}
+    volume: 0.85
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: heal
+    clips:
+    - {fileID: 8300000, guid: d846f57819299f043adf85c53b10b7f2, type: 3}
+    - {fileID: 8300000, guid: 357fcbe2809a2534f8a94cf7c96aa63e, type: 3}
+    - {fileID: 8300000, guid: 2fa80805723ec9b46aed0977886de9c5, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: defense
+    clips:
+    - {fileID: 8300000, guid: 92845d46f13d97a4aa00282fa692313a, type: 3}
+    - {fileID: 8300000, guid: 4c8b930d9a4e93c4b895afe544a71415, type: 3}
+    - {fileID: 8300000, guid: 2a706c2ece9fe324fa08cefbf51c32d0, type: 3}
+    - {fileID: 8300000, guid: 2effac8d97aabbb44aac69ad46990dfb, type: 3}
+    - {fileID: 8300000, guid: 5d8dc42cc920aab41b4a42d99d664ff9, type: 3}
+    - {fileID: 8300000, guid: 594f68fe0ecd95b4e8faa487ccf0a6f9, type: 3}
+    - {fileID: 8300000, guid: ffcad13983e2a4144b3fd80568b93d5d, type: 3}
+    - {fileID: 8300000, guid: 8c5046bf705de11488cd285ca736834c, type: 3}
+    - {fileID: 8300000, guid: 6153830852503ba4d9f8fb4c9b2b5245, type: 3}
+    - {fileID: 8300000, guid: 25c9f715c8b251543b7076d62351b00a, type: 3}
+    - {fileID: 8300000, guid: 1df6237db8a5d504d99d3d22bbdacf92, type: 3}
+    - {fileID: 8300000, guid: 205433007c67b7648af9276b4f87479c, type: 3}
+    - {fileID: 8300000, guid: 30c8ae6923e26eb41b12fbf3da5dd206, type: 3}
+    - {fileID: 8300000, guid: a53d37d30cc37564a93ebd04763f6799, type: 3}
+    - {fileID: 8300000, guid: 5709e6a4cb852f34faefbba9da5fd249, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: draw
+    clips:
+    - {fileID: 8300000, guid: 7f225bb3fcc7a004dbd649ee2fb57adb, type: 3}
+    - {fileID: 8300000, guid: 02dbbcd149893a546ac5791d0537fe72, type: 3}
+    - {fileID: 8300000, guid: ba50e6da72f3b6443823ab734a1e5cf0, type: 3}
+    - {fileID: 8300000, guid: b34055ad4bd2a6a49919eff2426f3283, type: 3}
+    - {fileID: 8300000, guid: 717133615483d7b498ad3c943db93ec6, type: 3}
+    - {fileID: 8300000, guid: 75ac710d8cfa68a489c47586a0b150e7, type: 3}
+    - {fileID: 8300000, guid: 7146a4776c304274c9a48d88f983bdd4, type: 3}
+    - {fileID: 8300000, guid: 22396413ffc1a17488e63e333dd62ed7, type: 3}
+    - {fileID: 8300000, guid: 01a407baadbc113418ec882e44eb5271, type: 3}
+    - {fileID: 8300000, guid: c99461b103268634997948b5c3fe3542, type: 3}
+    volume: 0.7
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: gainResource
+    clips:
+    - {fileID: 8300000, guid: d846f57819299f043adf85c53b10b7f2, type: 3}
+    - {fileID: 8300000, guid: 357fcbe2809a2534f8a94cf7c96aa63e, type: 3}
+    - {fileID: 8300000, guid: 2fa80805723ec9b46aed0977886de9c5, type: 3}
+    - {fileID: 8300000, guid: 06d0531e1db9afd469da698c59c417be, type: 3}
+    - {fileID: 8300000, guid: c17009aa1909c8b4190f1551dc3ee2d8, type: 3}
+    - {fileID: 8300000, guid: 9d598ed8bd609644084c32921644673e, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: seal
+    clips:
+    - {fileID: 8300000, guid: 70843f6f2b3a5a1419ce4e9dae247e9c, type: 3}
+    - {fileID: 8300000, guid: a211a77e8c0d0a24a9fa7ef8029ebca7, type: 3}
+    - {fileID: 8300000, guid: f129e36281e373b43a04c040d1c557fd, type: 3}
+    - {fileID: 8300000, guid: f30da850c6684bb4da059e40b2ce2caa, type: 3}
+    - {fileID: 8300000, guid: a85e9941d0d3da44ba5093825af870b9, type: 3}
+    - {fileID: 8300000, guid: d0e78e3fc97aa0c408c5db17cd9b8a24, type: 3}
+    - {fileID: 8300000, guid: 052cae142a2943747a2cad817da9d878, type: 3}
+    - {fileID: 8300000, guid: 4b070bb1c8fc55b4c9ce3c627bdf5d13, type: 3}
+    - {fileID: 8300000, guid: c85936e79e3438442b214b6af9e25ba4, type: 3}
+    - {fileID: 8300000, guid: 50475441dafca494586f632805c29e09, type: 3}
+    - {fileID: 8300000, guid: 3e3fee8d8692aec4780ab80cf6a5f2c6, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: banish
+    clips:
+    - {fileID: 8300000, guid: 283be2b806bc4f14db76d427dcee62a0, type: 3}
+    - {fileID: 8300000, guid: bf5b7476f73af0f47b0bcd9dc048be01, type: 3}
+    - {fileID: 8300000, guid: c7b4c9dce03936849a6caf39e89a6930, type: 3}
+    - {fileID: 8300000, guid: 4823ca62bc374ce4d9f90ed809a4d409, type: 3}
+    - {fileID: 8300000, guid: 465de524889b96b40a47f9c548faffe5, type: 3}
+    - {fileID: 8300000, guid: 1e7a0f483cf004d4399c82949e866522, type: 3}
+    volume: 0.75
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: anomaly
+    clips:
+    - {fileID: 8300000, guid: 70843f6f2b3a5a1419ce4e9dae247e9c, type: 3}
+    - {fileID: 8300000, guid: a211a77e8c0d0a24a9fa7ef8029ebca7, type: 3}
+    - {fileID: 8300000, guid: f129e36281e373b43a04c040d1c557fd, type: 3}
+    - {fileID: 8300000, guid: f30da850c6684bb4da059e40b2ce2caa, type: 3}
+    - {fileID: 8300000, guid: a85e9941d0d3da44ba5093825af870b9, type: 3}
+    - {fileID: 8300000, guid: d0e78e3fc97aa0c408c5db17cd9b8a24, type: 3}
+    - {fileID: 8300000, guid: 052cae142a2943747a2cad817da9d878, type: 3}
+    - {fileID: 8300000, guid: 4b070bb1c8fc55b4c9ce3c627bdf5d13, type: 3}
+    - {fileID: 8300000, guid: c85936e79e3438442b214b6af9e25ba4, type: 3}
+    - {fileID: 8300000, guid: 50475441dafca494586f632805c29e09, type: 3}
+    - {fileID: 8300000, guid: 3e3fee8d8692aec4780ab80cf6a5f2c6, type: 3}
+    volume: 0.8
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: turnChange
+    clips:
+    - {fileID: 8300000, guid: 4da67e5143e75654fb8d23681ca1408b, type: 3}
+    - {fileID: 8300000, guid: 2b2fbf9748c89974eb859c0885a3b3af, type: 3}
+    - {fileID: 8300000, guid: 1441f2896625f954cba29285a9a5afdb, type: 3}
+    - {fileID: 8300000, guid: 09906184c6766c646bb3573abadb5795, type: 3}
+    - {fileID: 8300000, guid: 3aedc8d29524e874f81a6663502e8efa, type: 3}
+    - {fileID: 8300000, guid: 9054690eed2c5a44d862677b786ef2d3, type: 3}
+    - {fileID: 8300000, guid: e1b4206ecfdc0c043aab80bd8e273163, type: 3}
+    - {fileID: 8300000, guid: 9ac7dc4aab98e0449a0282048dc1b0a6, type: 3}
+    - {fileID: 8300000, guid: ea87f61dcc597184fbe34ab801f5f313, type: 3}
+    - {fileID: 8300000, guid: 114cf04b6c599404e9906c78085a6b56, type: 3}
+    - {fileID: 8300000, guid: 3e2bb141d0703da42be7eaadb2427159, type: 3}
+    - {fileID: 8300000, guid: ec05039fe7426b24890ab1a641149d2c, type: 3}
+    - {fileID: 8300000, guid: 363ec5c5ca44e19429f87283133431d3, type: 3}
+    - {fileID: 8300000, guid: 57bdcbbfe79db5d4daf0acfa170ddf2d, type: 3}
+    - {fileID: 8300000, guid: 848b87f71dfb2364885081afae23e5b6, type: 3}
+    volume: 0.7
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1
+  - effectCategoryKey: genericEffect
+    clips:
+    - {fileID: 8300000, guid: 1e04cc20dd5a9774b9fb7bf1baabb2d7, type: 3}
+    - {fileID: 8300000, guid: 29538adde762b3044959dbd15d8a9022, type: 3}
+    - {fileID: 8300000, guid: f3350ffaac3025c41a6fde953f5fce27, type: 3}
+    - {fileID: 8300000, guid: 632a3561a89297a46bc82415ce8a895a, type: 3}
+    - {fileID: 8300000, guid: 88c92f30a61d1594fb6bade9319a520b, type: 3}
+    - {fileID: 8300000, guid: 8c5046bf705de11488cd285ca736834c, type: 3}
+    - {fileID: 8300000, guid: 6153830852503ba4d9f8fb4c9b2b5245, type: 3}
+    - {fileID: 8300000, guid: 25c9f715c8b251543b7076d62351b00a, type: 3}
+    - {fileID: 8300000, guid: 1df6237db8a5d504d99d3d22bbdacf92, type: 3}
+    - {fileID: 8300000, guid: 205433007c67b7648af9276b4f87479c, type: 3}
+    - {fileID: 8300000, guid: 30c8ae6923e26eb41b12fbf3da5dd206, type: 3}
+    - {fileID: 8300000, guid: a53d37d30cc37564a93ebd04763f6799, type: 3}
+    - {fileID: 8300000, guid: 5709e6a4cb852f34faefbba9da5fd249, type: 3}
+    - {fileID: 8300000, guid: 5bbaa33f4054e3a4b8199bba0081bf23, type: 3}
+    - {fileID: 8300000, guid: 366cbee9d8850504481bd70c09e767bf, type: 3}
+    - {fileID: 8300000, guid: 1314cc2a3d3af8f4d800adefd34085e8, type: 3}
+    - {fileID: 8300000, guid: 965f439767e31e144856fd9ac49a977c, type: 3}
+    - {fileID: 8300000, guid: 63e8c377080c0a346af3a3b7ee792cb4, type: 3}
+    volume: 0.65
+    pitchMin: 0.96
+    pitchMax: 1.04
+    randomizeClip: 1

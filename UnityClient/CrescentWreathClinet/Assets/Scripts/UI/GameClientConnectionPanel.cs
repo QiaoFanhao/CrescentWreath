@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -165,16 +165,16 @@ public sealed class GameClientConnectionPanel : MonoBehaviour
 
         if (statusText is not null)
         {
-            var pendingText = networkController.IsRequestInFlight ? " / 请求中" : string.Empty;
+            var pendingText = networkController.IsRequestInFlight ? " / requesting" : string.Empty;
             statusText.text =
-                $"连接状态：{localizeConnectionState(networkController.ConnectionState)} / 玩家ID={networkController.ViewerPlayerNumericId}{pendingText}";
+                $"Connection: {localizeConnectionState(networkController.ConnectionState)} / PlayerID={networkController.ViewerPlayerNumericId}{pendingText}\n{networkController.LastNetworkDiagnostics}";
         }
 
         if (errorText is not null)
         {
             errorText.text = string.IsNullOrWhiteSpace(networkController.LastError)
                 ? string.Empty
-                : $"错误：{networkController.LastError}";
+                : $"Error: {networkController.LastError}";
         }
 
         if (connectButton is not null)
@@ -221,20 +221,21 @@ public sealed class GameClientConnectionPanel : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(state))
         {
-            return "未连接";
+            return "disconnected";
         }
 
         if (state.StartsWith("disconnected", System.StringComparison.Ordinal))
         {
-            return "已断开";
+            return "disconnected";
         }
 
         return state switch
         {
-            "connected" => "已连接",
-            "connecting" => "连接中",
+            "connected" => "connected",
+            "connecting" => "connecting",
             _ => state,
         };
     }
 }
 }
+

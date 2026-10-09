@@ -1,6 +1,8 @@
 ﻿using TMPro;
 using CrescentWreath.Client.Net;
+using CrescentWreath.Client.Presentation;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace CrescentWreath.Client.UI
 {
@@ -54,6 +56,10 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
 
     private TMP_Text? resourceText;
     private TMP_Text? statusText;
+    private Image? hpCardImage;
+    private Image? characterCardImage;
+    private Image? teamIconImage;
+
     public void Configure(
         BattlefieldSeatDirection newDirection,
         RectTransform portrait,
@@ -88,33 +94,27 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
     {
         if (player is null)
         {
-            setText(playerNameText, $"{direction}: (empty)");
-            setText(hpText, "HP -");
-            removeSeatHpCardVisual();
-            setText(handCountText, "Hand -");
-            setText(deckCountText, "Deck -");
-            setText(discardCountText, "Discard -");
-            setText(ensureResourceText(), "队伍 - / 魔力 - / 技能 - / 灵符 -");
-            setText(ensureStatusText(), "状态：无");
+            bindSeatVisuals(null);
+            setText(playerNameText, string.Empty);
+            setText(hpText, string.Empty);
+            setText(handCountText, "手牌 -");
+            setText(deckCountText, "牌库 -");
+            setText(discardCountText, "弃牌 -");
+            setText(ensureResourceText(), string.Empty);
+            setText(ensureStatusText(), string.Empty);
             return;
         }
 
-        var currentMarker = isCurrentPlayer ? "Current " : string.Empty;
-        var viewerMarker = isViewerPlayer ? "You" : "P" + player.playerNumericId.ToString();
-        setText(playerNameText, $"{currentMarker}{viewerMarker} / 队伍{player.teamNumericId}");
-        setText(hpText, $"HP {formatNullableInt(player.activeCharacterCurrentHp)}/{formatNullableInt(player.activeCharacterMaxHp)}");
-        removeSeatHpCardVisual();
-        setText(handCountText, $"Hand {player.handCount}");
-        setText(deckCountText, $"Deck {player.deckCount}");
-        setText(discardCountText, $"Discard {player.discardCount}");
-        var sigilValue = player.lockedSigil ?? player.sigilPreview;
-        var teamText = team is null
-            ? $"队伍{player.teamNumericId} 灵脉?"
-            : $"队伍{team.teamNumericId} 灵脉{team.leyline} 击坠{team.killScore}";
-        setText(
-            ensureResourceText(),
-            $"{teamText}\n魔力{player.mana} 技能{player.skillPoint} 灵符{sigilValue}");
-        setText(ensureStatusText(), buildStatusText(player));
+        bindSeatVisuals(player);
+
+        setText(playerNameText, string.Empty);
+        setText(hpText, string.Empty);
+        setText(handCountText, $"手牌 {player.handCount}");
+        setText(deckCountText, $"牌库 {player.deckCount}");
+        setText(discardCountText, $"弃牌 {player.discardCount}");
+
+        setText(ensureResourceText(), string.Empty);
+        setText(ensureStatusText(), string.Empty);
     }
 
 #if UNITY_EDITOR
@@ -159,33 +159,72 @@ public sealed class BattlefieldPlayerSeatView : MonoBehaviour
         return value.HasValue ? value.Value.ToString() : "-";
     }
 
-    private void removeSeatHpCardVisual()
+    private void bindSeatVisuals(ProjectionPlayerSummaryViewModel? player)
     {
         if (characterPortraitPlaceholder is null)
         {
             return;
         }
 
-        removeChild(characterPortraitPlaceholder, "HpCardImage");
-        removeChild(characterPortraitPlaceholder, "HpCardFallbackText");
+        hpCardImage = ensureSeatImage(hpCardImage, characterPortraitPlaceholder, "SeatHpCardImage",
+            new Vector2(0.00f, 0.04f), new Vector2(0.42f, 0.96f));
+        characterCardImage = ensureSeatImage(characterCardImage, characterPortraitPlaceholder, "SeatCharacterCardImage",
+            new Vector2(0.46f, 0.04f), new Vector2(1.00f, 0.96f));
+        teamIconImage = ensureSeatImage(teamIconImage, characterPortraitPlaceholder, "SeatTeamIconImage",
+            new Vector2(0.34f, 0.02f), new Vector2(0.52f, 0.24f));
+
+        var hpSprite = HpCardSpriteService.GetSpriteForHp(player?.activeCharacterCurrentHp);
+        hpCardImage.sprite = hpSprite;
+        hpCardImage.enabled = hpSprite is not null;
+
+        var characterDefinitionId = player?.activeCharacterDefinitionId;
+        var characterSprite = string.IsNullOrWhiteSpace(characterDefinitionId)
+            ? null
+            : CardArtService.GetSpriteForDefinition(characterDefinitionId);
+        characterCardImage.sprite = characterSprite;
+        characterCardImage.enabled = characterSprite is not null;
+
+        var teamIconSprite = TeamResourceSpriteService.GetTeamIconSprite(player?.teamNumericId);
+        teamIconImage.sprite = teamIconSprite;
+        teamIconImage.enabled = teamIconSprite is not null;
+
+        hpCardImage.transform.SetAsFirstSibling();
+        characterCardImage.transform.SetSiblingIndex(Mathf.Min(1, characterCardImage.transform.parent.childCount - 1));
+        teamIconImage.transform.SetAsLastSibling();
     }
 
-    private static void removeChild(Transform parent, string childName)
+    private static Image ensureSeatImage(
+        Image? cached,
+        RectTransform parent,
+        string name,
+        Vector2 anchorMin,
+        Vector2 anchorMax)
     {
-        var child = parent.Find(childName);
-        if (child is null)
+        var image = cached;
+        if (image is null)
         {
-            return;
+            var existing = parent.Find(name);
+            if (existing is not null)
+            {
+                image = existing.GetComponent<Image>() ?? existing.gameObject.AddComponent<Image>();
+            }
+            else
+            {
+                var imageObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                imageObject.transform.SetParent(parent, false);
+                image = imageObject.GetComponent<Image>();
+            }
         }
 
-        if (Application.isPlaying)
-        {
-            Destroy(child.gameObject);
-        }
-        else
-        {
-            DestroyImmediate(child.gameObject);
-        }
+        var rect = image.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.color = Color.white;
+        return image;
     }
 
     private TMP_Text? ensureResourceText()

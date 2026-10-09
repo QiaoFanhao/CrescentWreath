@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
+using CrescentWreath.Client.Presentation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,10 +22,14 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
 
     private readonly Dictionary<string, Button> buttonByDefinitionId = new(StringComparer.Ordinal);
     private CanvasGroup? canvasGroup;
+    private RectTransform? characterViewport;
     private RectTransform? listContent;
     private TMP_Text? titleText;
     private TMP_Text? detailText;
     private TMP_Text? selectedText;
+    private OverlayCollapseToggle? collapseToggle;
+    private long? renderedSelectingPlayerNumericId;
+    private ProjectionViewModel? currentProjection;
 
     private void Awake()
     {
@@ -80,11 +85,16 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             projection.characterSelection.isCompleted)
         {
             setVisible(false);
+            renderedSelectingPlayerNumericId = null;
+            currentProjection = null;
             return;
         }
 
-        setVisible(true);
+        currentProjection = projection;
         var currentSelectingPlayerId = projection.characterSelection.currentSelectingPlayerNumericId;
+        var isNewSelectingPlayer = renderedSelectingPlayerNumericId != currentSelectingPlayerId;
+        setVisible(true, isNewSelectingPlayer);
+        renderedSelectingPlayerNumericId = currentSelectingPlayerId;
         var isViewerSelecting = currentSelectingPlayerId.HasValue &&
                                 currentSelectingPlayerId.Value == projection.viewerPlayerNumericId;
         setText(titleText, "开局角色选择");
@@ -95,6 +105,7 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
                 : $"等待 Player {currentSelectingPlayerId?.ToString() ?? "?"} 选择角色。");
         setText(selectedText, buildSelectedText(projection));
         renderCharacterButtons(projection, isViewerSelecting);
+        refreshCollapsedState();
     }
 
     private void renderCharacterButtons(ProjectionViewModel projection, bool isViewerSelecting)
@@ -105,8 +116,7 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             projection.characterSelection.selections.Select(selection => selection.characterDefinitionId),
             StringComparer.Ordinal);
         var definitions = projection.characterDefinitions
-            .OrderByDescending(definition => definition.isImplemented)
-            .ThenBy(definition => definition.definitionId, StringComparer.Ordinal)
+            .OrderBy(definition => definition.definitionId, StringComparer.Ordinal)
             .ToList();
 
         for (var index = 0; index < definitions.Count; index += 1)
@@ -130,6 +140,22 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         bool interactable,
         int index)
     {
+        const float cardWidth = 90f;
+        const float cardHeight = 126f;
+        const float cellWidth = 106f;
+        const float cellHeight = 146f;
+        const float startX = 10f;
+        const float startY = 8f;
+
+        Canvas.ForceUpdateCanvases();
+        var viewportWidth = characterViewport?.rect.width ?? parent.rect.width;
+        if (viewportWidth < cellWidth * 2f)
+        {
+            viewportWidth = 1480f;
+        }
+        var columns = Mathf.Max(1, Mathf.FloorToInt((viewportWidth - startX * 2f) / cellWidth));
+        var column = index % columns;
+        var row = index / columns;
         var buttonObject = new GameObject(
             $"Character_{definition.definitionId}",
             typeof(RectTransform),
@@ -139,49 +165,114 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         buttonObject.transform.SetParent(parent, false);
         var rect = buttonObject.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(1f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(0f, 62f);
-        rect.anchoredPosition = new Vector2(0f, -index * 68f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.sizeDelta = new Vector2(cardWidth, cardHeight);
+        rect.anchoredPosition = new Vector2(startX + column * cellWidth, -startY - row * cellHeight);
 
         var image = buttonObject.GetComponent<Image>();
-        image.color = interactable
-            ? new Color(0.13f, 0.34f, 0.42f, 0.96f)
-            : new Color(0.12f, 0.12f, 0.14f, 0.74f);
+        image.sprite = CardArtService.GetSpriteForDefinition(definition.definitionId);
+        image.preserveAspect = true;
+        image.color = interactable || alreadySelected || definition.isImplemented
+            ? Color.white
+            : new Color(0.42f, 0.42f, 0.42f, 0.86f);
         var button = buttonObject.GetComponent<Button>();
         button.interactable = interactable;
         button.onClick.AddListener(() => submitCharacter(definition.definitionId));
 
-        var stateText = alreadySelected
-            ? "（已选择）"
-            : definition.isImplemented ? string.Empty : "（占位）";
-        var title = createText(
-            "Title",
-            buttonObject.transform,
-            $"{definition.definitionId} {definition.characterName} {stateText}",
-            15f,
-            TextAlignmentOptions.Left);
-        setAnchors(title.rectTransform, new Vector2(0f, 0.52f), Vector2.one, new Vector2(10f, 0f), new Vector2(-10f, -2f));
+        var inspectable = buttonObject.AddComponent<BattlefieldInspectableUiCard>();
+        inspectable.Configure(buildCharacterInspectModel(definition), null);
 
-        var detail = createText(
-            "Detail",
-            buttonObject.transform,
-            $"HP {definition.baseMaxHp} / {localizeFaction(definition.factionKey)} / {buildRaceText(definition.raceTags)} / 技能 {definition.skills.Count}",
-            11.5f,
-            TextAlignmentOptions.Left);
-        detail.color = interactable ? Color.white : new Color(0.62f, 0.66f, 0.7f, 1f);
-        setAnchors(detail.rectTransform, Vector2.zero, new Vector2(1f, 0.5f), new Vector2(10f, 3f), new Vector2(-10f, 0f));
+        if (alreadySelected || !definition.isImplemented)
+        {
+            var overlayObject = new GameObject("UnavailableOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            overlayObject.transform.SetParent(buttonObject.transform, false);
+            var overlay = overlayObject.GetComponent<Image>();
+            overlay.color = alreadySelected
+                ? new Color(0f, 0f, 0f, 0.42f)
+                : new Color(0f, 0f, 0f, 0.58f);
+            overlay.raycastTarget = false;
+            setAnchors(overlay.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-        parent.sizeDelta = new Vector2(parent.sizeDelta.x, Mathf.Max(parent.sizeDelta.y, (index + 1) * 68f));
+            var badge = createText(
+                "StateBadge",
+                buttonObject.transform,
+                alreadySelected ? "已选" : "未开放",
+                13f,
+                TextAlignmentOptions.Center);
+            badge.color = alreadySelected
+                ? new Color(1f, 0.86f, 0.26f, 1f)
+                : new Color(0.82f, 0.84f, 0.88f, 1f);
+            setAnchors(badge.rectTransform, new Vector2(0f, 0.42f), Vector2.one, Vector2.zero, Vector2.zero);
+        }
+
+        var rows = row + 1;
+        parent.sizeDelta = new Vector2(
+            Mathf.Max(parent.sizeDelta.x, startX * 2f + columns * cellWidth),
+            Mathf.Max(parent.sizeDelta.y, startY * 2f + rows * cellHeight));
         return button;
+    }
+
+    private static CardInspectViewModel buildCharacterInspectModel(ProjectionCharacterDefinitionViewModel definition)
+    {
+        var displayEntry = CardDisplayCatalogService.TryGetEntry(definition.definitionId);
+        return new CardInspectViewModel
+        {
+            cardInstanceNumericId = 0,
+            definitionId = definition.definitionId,
+            displayName = displayEntry?.name ?? CardNameLocalizer.Localize(definition.definitionId),
+            attributeText = CardDisplayCatalogService.BuildAttributeText(definition.definitionId),
+            rulesText = CardDisplayCatalogService.BuildRulesText(definition.definitionId),
+            ownerPlayerNumericId = 0,
+            zoneKey = "characterSelection",
+            isFaceUp = true,
+            artworkSprite = CardArtService.GetSpriteForDefinition(definition.definitionId),
+        };
     }
 
     private void submitCharacter(string definitionId)
     {
+        if (!canSubmitCharacterSelectionNow())
+        {
+            setText(detailText, "当前还没有轮到你选择角色。");
+            return;
+        }
+
+        setAllCharacterButtonsInteractable(false);
         if (networkController == null ||
             !networkController.TrySubmitCharacterSelection(definitionId))
         {
             setText(detailText, networkController == null ? "角色选择请求未发送。" : networkController.LastError);
+            render(currentProjection);
+        }
+    }
+
+    private bool canSubmitCharacterSelectionNow()
+    {
+        if (networkController == null ||
+            networkController.IsRequestInFlight ||
+            currentProjection is null ||
+            !currentProjection.characterSelection.isActive ||
+            currentProjection.characterSelection.isCompleted)
+        {
+            return false;
+        }
+
+        var currentSelectingPlayerId = currentProjection.characterSelection.currentSelectingPlayerNumericId;
+        return currentSelectingPlayerId.HasValue &&
+               currentSelectingPlayerId.Value == currentProjection.viewerPlayerNumericId &&
+               !currentProjection.characterSelection.selections.Any(selection =>
+                   selection.playerNumericId == currentProjection.viewerPlayerNumericId);
+    }
+
+    private void setAllCharacterButtonsInteractable(bool interactable)
+    {
+        foreach (var button in buttonByDefinitionId.Values)
+        {
+            if (button != null)
+            {
+                button.interactable = interactable;
+            }
         }
     }
 
@@ -211,9 +302,15 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         {
             rect = gameObject.AddComponent<RectTransform>();
         }
+        rect.anchorMin = new Vector2(0.06f, 0.08f);
+        rect.anchorMax = new Vector2(0.94f, 0.92f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
 
         if (titleText != null)
         {
+            collapseToggle = gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+            collapseToggle.Configure(theme);
             return;
         }
 
@@ -222,7 +319,7 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             destroy(transform.GetChild(index).gameObject);
         }
 
-        titleText = createText("Title", transform, "寮€灞€瑙掕壊閫夋嫨", 20f, TextAlignmentOptions.Center);
+        titleText = createText("Title", transform, "开局角色选择", 20f, TextAlignmentOptions.Center);
         setAnchors(titleText.rectTransform, new Vector2(0.04f, 0.89f), new Vector2(0.96f, 0.98f), Vector2.zero, Vector2.zero);
         detailText = createText("Detail", transform, string.Empty, 13f, TextAlignmentOptions.Center);
         setAnchors(detailText.rectTransform, new Vector2(0.04f, 0.81f), new Vector2(0.96f, 0.89f), Vector2.zero, Vector2.zero);
@@ -232,14 +329,15 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         var viewportObject = new GameObject("CharacterViewport", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
         viewportObject.transform.SetParent(transform, false);
         var viewport = viewportObject.GetComponent<RectTransform>();
-        setAnchors(viewport, new Vector2(0.05f, 0.20f), new Vector2(0.95f, 0.80f), Vector2.zero, Vector2.zero);
+        characterViewport = viewport;
+        setAnchors(viewport, new Vector2(0.03f, 0.20f), new Vector2(0.97f, 0.80f), Vector2.zero, Vector2.zero);
         viewportObject.GetComponent<Image>().color = new Color(0.01f, 0.015f, 0.02f, 0.76f);
 
         listContent = new GameObject("CharacterListContent", typeof(RectTransform)).GetComponent<RectTransform>();
         listContent.transform.SetParent(viewportObject.transform, false);
         listContent.anchorMin = new Vector2(0f, 1f);
-        listContent.anchorMax = new Vector2(1f, 1f);
-        listContent.pivot = new Vector2(0.5f, 1f);
+        listContent.anchorMax = new Vector2(0f, 1f);
+        listContent.pivot = new Vector2(0f, 1f);
         listContent.offsetMin = Vector2.zero;
         listContent.offsetMax = Vector2.zero;
         listContent.sizeDelta = Vector2.zero;
@@ -248,6 +346,9 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         scrollRect.viewport = viewport;
         scrollRect.content = listContent;
         scrollRect.horizontal = false;
+
+        collapseToggle = gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
     }
 
     private TMP_Text createText(string name, Transform parent, string value, float fontSize, TextAlignmentOptions alignment)
@@ -270,7 +371,7 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
         return text;
     }
 
-    private void setVisible(bool visible)
+    private void setVisible(bool visible, bool resetCollapsed = false)
     {
         if (canvasGroup == null)
         {
@@ -282,14 +383,16 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
 
-        foreach (Transform child in transform)
-        {
-            child.gameObject.SetActive(visible);
-        }
+        collapseToggle = collapseToggle != null
+            ? collapseToggle
+            : gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
+        collapseToggle.SetVisible(visible, resetCollapsed);
+    }
 
-        canvasGroup.alpha = visible ? 1f : 0f;
-        canvasGroup.interactable = visible;
-        canvasGroup.blocksRaycasts = visible;
+    private void refreshCollapsedState()
+    {
+        collapseToggle?.RefreshIfCollapsed();
     }
 
     private void clearList()
@@ -314,11 +417,23 @@ public sealed class CharacterSelectionOverlayView : MonoBehaviour
             return "已选择：无";
         }
 
+        var definitionNames = projection.characterDefinitions.ToDictionary(
+            definition => definition.definitionId,
+            definition => string.IsNullOrWhiteSpace(definition.characterName)
+                ? CardNameLocalizer.Localize(definition.definitionId)
+                : definition.characterName,
+            StringComparer.Ordinal);
         return "已选择：" + string.Join(
             "  /  ",
             projection.characterSelection.selections
                 .OrderBy(selection => selection.playerNumericId)
-                .Select(selection => $"P{selection.playerNumericId}={selection.characterDefinitionId}"));
+                .Select(selection =>
+                {
+                    var name = definitionNames.TryGetValue(selection.characterDefinitionId, out var resolvedName)
+                        ? resolvedName
+                        : CardNameLocalizer.Localize(selection.characterDefinitionId);
+                    return $"P{selection.playerNumericId}={name}";
+                }));
     }
 
     private static string buildRaceText(IReadOnlyList<string> raceTags)

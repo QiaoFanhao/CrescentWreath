@@ -68,6 +68,17 @@ public sealed class SocketClient : ITextSocketClient
 
             var bestPackageFound = false;
             var fallbackReason = string.Empty;
+#if UNITY_EDITOR
+            backend = new NativeClientWebSocketBackend(
+                url,
+                handleConnected,
+                handleDisconnected,
+                handleTextMessage,
+                handleError);
+            backend.Connect();
+            Debug.Log("[SocketClient] Unity Editor uses ClientWebSocket backend.");
+            return;
+#else
             if (BestHttpWebSocketBackend.TryCreate(
                     url,
                     handleConnected,
@@ -106,6 +117,7 @@ public sealed class SocketClient : ITextSocketClient
             {
                 handleError(fallbackReason);
             }
+#endif
         }
     }
 
@@ -313,18 +325,36 @@ internal sealed class NativeClientWebSocketBackend : ITextSocketBackend
             await socket.ConnectAsync(serverUri, cancellationTokenSource?.Token ?? CancellationToken.None);
             onConnected();
 
-            var buffer = new byte[4096];
+            var buffer = new byte[8192];
             while (socket.State == WebSocketState.Open)
             {
-                var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationTokenSource?.Token ?? CancellationToken.None);
+                var messageBuilder = new StringBuilder();
+                WebSocketReceiveResult receiveResult;
+                do
+                {
+                    receiveResult = await socket.ReceiveAsync(
+                        new ArraySegment<byte>(buffer),
+                        cancellationTokenSource?.Token ?? CancellationToken.None);
+                    if (receiveResult.MessageType == WebSocketMessageType.Close)
+                    {
+                        onDisconnected("server_closed");
+                        return;
+                    }
+
+                    if (receiveResult.MessageType == WebSocketMessageType.Text && receiveResult.Count > 0)
+                    {
+                        messageBuilder.Append(Encoding.UTF8.GetString(buffer, 0, receiveResult.Count));
+                    }
+                }
+                while (!receiveResult.EndOfMessage);
+
                 if (receiveResult.MessageType == WebSocketMessageType.Close)
                 {
                     onDisconnected("server_closed");
                     return;
                 }
 
-                var message = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
-                onTextMessage(message);
+                onTextMessage(messageBuilder.ToString());
             }
         }
         catch (OperationCanceledException)

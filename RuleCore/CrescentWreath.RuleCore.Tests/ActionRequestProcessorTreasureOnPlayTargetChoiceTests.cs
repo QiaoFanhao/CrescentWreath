@@ -1303,6 +1303,8 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         var gameState = createRunningActionPhaseState(actorPlayerId, actorPlayerState.teamId);
         addPlayer(gameState, actorPlayerState, activeCharacterNumericId: 6101, currentHp: 4, maxHp: 4);
         addPlayer(gameState, enemyPlayerState, activeCharacterNumericId: 6102, currentHp: 4, maxHp: 4);
+        var actorCharacter = gameState.characterInstances[actorPlayerState.activeCharacterInstanceId!.Value];
+        actorCharacter.definitionId = "C005";
         ensurePublicZones(gameState, gapZoneNumericId: 9915);
         createCardInPlayerHand(gameState, actorPlayerState, new CardInstanceId(9017), "T003");
         createCardInPlayerDiscard(gameState, actorPlayerState, new CardInstanceId(9018), "T001");
@@ -1354,6 +1356,7 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         Assert.Equal(
             "continuation:stagedResponseDamage",
             gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Equal(1, MarkerRuntime.getMarkerCount(actorCharacter, "swordAura"));
         Assert.Contains(
             submitEvents,
             gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&
@@ -1371,6 +1374,8 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         var gameState = createRunningActionPhaseState(actorPlayerId, actorPlayerState.teamId);
         addPlayer(gameState, actorPlayerState, activeCharacterNumericId: 6201, currentHp: 4, maxHp: 4);
         addPlayer(gameState, enemyPlayerState, activeCharacterNumericId: 6202, currentHp: 4, maxHp: 4);
+        var actorCharacter = gameState.characterInstances[actorPlayerState.activeCharacterInstanceId!.Value];
+        actorCharacter.definitionId = "C005";
         createCardInPlayerHand(gameState, actorPlayerState, new CardInstanceId(9019), "T004");
         var defenseCardInstanceId = new CardInstanceId(9029);
         createCardInPlayerHand(gameState, enemyPlayerState, defenseCardInstanceId, "test:defensePhysical2");
@@ -1433,6 +1438,7 @@ public class ActionRequestProcessorTreasureOnPlayTargetChoiceTests
         Assert.Equal(
             "continuation:stagedResponseDamage",
             gameState.currentActionChain!.pendingContinuationKey);
+        Assert.Equal(1, MarkerRuntime.getMarkerCount(actorCharacter, "swordAura"));
         Assert.Contains(
             secondSubmitEvents,
             gameEvent => gameEvent is InteractionWindowEvent interactionWindowEvent &&

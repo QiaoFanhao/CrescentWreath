@@ -19,6 +19,9 @@ public sealed class LocalPlayerHudView : MonoBehaviour
     [SerializeField]
     private TMP_Text? labelText;
 
+    [SerializeField]
+    private Image? teamIconImage;
+
     public void Bind(ProjectionPlayerSummaryViewModel? player)
     {
         ensureVisuals();
@@ -42,6 +45,15 @@ public sealed class LocalPlayerHudView : MonoBehaviour
             hpFallbackText.text = currentHp.HasValue
                 ? $"HP\n{currentHp.Value}/{(maxHp.HasValue ? maxHp.Value.ToString() : "?")}"
                 : "HP\n-";
+        }
+
+        var teamIconSprite = TeamResourceSpriteService.GetTeamIconSprite(player?.teamNumericId);
+        if (teamIconImage is not null)
+        {
+            teamIconImage.sprite = teamIconSprite;
+            teamIconImage.enabled = teamIconSprite is not null;
+            teamIconImage.preserveAspect = true;
+            teamIconImage.color = Color.white;
         }
 
         if (labelText is not null)
@@ -70,6 +82,21 @@ public sealed class LocalPlayerHudView : MonoBehaviour
             imageRect.offsetMax = Vector2.zero;
             hpImage.raycastTarget = false;
             hpImage.preserveAspect = true;
+        }
+
+        if (teamIconImage is null)
+        {
+            var iconObject = new GameObject("LocalTeamIconImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            iconObject.transform.SetParent(transform, false);
+            teamIconImage = iconObject.GetComponent<Image>();
+            var iconRect = teamIconImage.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.30f, 0.06f);
+            iconRect.anchorMax = new Vector2(0.46f, 0.28f);
+            iconRect.offsetMin = Vector2.zero;
+            iconRect.offsetMax = Vector2.zero;
+            teamIconImage.raycastTarget = false;
+            teamIconImage.preserveAspect = true;
+            teamIconImage.enabled = false;
         }
 
         if (hpFallbackText is null)

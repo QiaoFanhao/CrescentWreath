@@ -244,6 +244,7 @@ public sealed class ServerEventLogEntry
     public long? ownerPlayerNumericId { get; set; }
     public string? definitionId { get; set; }
     public string? revealReasonKey { get; set; }
+    public string? declaredDefinitionId { get; set; }
     public string? fromZoneKey { get; set; }
     public string? toZoneKey { get; set; }
     public string? moveReason { get; set; }
@@ -268,6 +269,11 @@ public sealed class ServerEventLogEntry
     public bool? wasActivated { get; set; }
     public bool? isActivated { get; set; }
     public string? message { get; set; }
+    public long? actorPlayerNumericId { get; set; }
+    public long? characterInstanceNumericId { get; set; }
+    public string? characterDefinitionId { get; set; }
+    public string? skillKey { get; set; }
+    public string? triggerTypeKey { get; set; }
 }
 
 internal static class ServerProjectionBuilder
@@ -703,6 +709,22 @@ internal static class ServerProjectionBuilder
         var projectedEvents = new List<ServerEventLogEntry>();
         foreach (var producedEvent in producedEvents)
         {
+            if (producedEvent is SkillTriggeredEvent skillTriggeredEvent)
+            {
+                projectedEvents.Add(new ServerEventLogEntry
+                {
+                    eventId = skillTriggeredEvent.eventId,
+                    eventTypeKey = skillTriggeredEvent.eventTypeKey,
+                    sourceActionChainNumericId = skillTriggeredEvent.sourceActionChainId?.Value,
+                    actorPlayerNumericId = skillTriggeredEvent.actorPlayerId.Value,
+                    characterInstanceNumericId = skillTriggeredEvent.characterInstanceId.Value,
+                    characterDefinitionId = skillTriggeredEvent.characterDefinitionId,
+                    skillKey = skillTriggeredEvent.skillKey,
+                    triggerTypeKey = skillTriggeredEvent.triggerTypeKey,
+                });
+                continue;
+            }
+
             if (producedEvent is CharacterSelectedEvent characterSelectedEvent)
             {
                 projectedEvents.Add(new ServerEventLogEntry
@@ -759,6 +781,7 @@ internal static class ServerProjectionBuilder
                     ownerPlayerNumericId = cardRevealedEvent.ownerPlayerId.Value,
                     definitionId = cardRevealedEvent.definitionId,
                     revealReasonKey = cardRevealedEvent.revealReasonKey,
+                    declaredDefinitionId = cardRevealedEvent.declaredDefinitionId,
                 });
                 continue;
             }

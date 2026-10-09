@@ -5,6 +5,7 @@ using CrescentWreath.Client.Net;
 using CrescentWreath.Client.Presentation;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace CrescentWreath.Client.UI
@@ -19,9 +20,6 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     [SerializeField]
     private BattlefieldView? battlefieldView;
-
-    [SerializeField]
-    private CardDetailPanel? cardDetailPanel;
 
     [SerializeField]
     private ZoneCardListOverlayView? zoneCardListOverlayView;
@@ -41,9 +39,19 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
     private TMP_Text? currentSkillText;
     private TMP_Text? currentSigilText;
     private LocalPlayerHudView? localPlayerHudView;
+    private TeamResourcePanelView? teamResourcePanelView;
+    private BattlefieldEffectPresentationTimeline? effectPresentationTimeline;
+    private SkillPresentationTimeline? skillPresentationTimeline;
+    private RectTransform? characterSkillMenuOverlay;
+    private RectTransform? anomalyResolveMenuOverlay;
+    private RectTransform? messageOverlay;
     private bool isAnomalyResolveConfirmOpen;
     private ProjectionViewModel? latestProjection;
     private readonly HashSet<string> shownRevealEventKeys = new();
+    private readonly Dictionary<string, CurrentPlayerMarkerView> currentPlayerMarkerByZoneKey = new();
+    private readonly long?[] previousSummonZoneSlotCardInstanceIds = new long?[6];
+    private WorldCardView? lastClickedWorldCardView;
+    private bool wasPresentationBusy;
 
     public BattlefieldView? View => battlefieldView;
 
@@ -51,13 +59,11 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         ProjectionViewState newProjectionViewState,
         BattlefieldLayoutRoot newLayoutRoot,
         BattlefieldView newBattlefieldView,
-        CardDetailPanel newCardDetailPanel,
         TMP_Text? newStatusText)
     {
         projectionViewState = newProjectionViewState;
         layoutRoot = newLayoutRoot;
         battlefieldView = newBattlefieldView;
-        cardDetailPanel = newCardDetailPanel;
         statusText = newStatusText;
         rebuildSeatViews();
     }
@@ -87,6 +93,30 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             battlefieldView.CardClicked -= handleCardClicked;
             battlefieldView.CardDoubleClicked -= handleCardDoubleClicked;
         }
+    }
+
+    private void Update()
+    {
+        var isPresentationBusy = BattlefieldInteractionPresentationGate.IsPresentationBusy;
+        if (wasPresentationBusy && !isPresentationBusy && latestProjection is not null)
+        {
+            renderActionPanel(latestProjection);
+        }
+
+        wasPresentationBusy = isPresentationBusy;
+
+        if (Keyboard.current?.f9Key.wasPressedThisFrame != true)
+        {
+            return;
+        }
+
+        if (lastClickedWorldCardView is null)
+        {
+            Debug.LogWarning("[BattlefieldProjectionPresenter] VFX calibration skipped: click a battlefield card first, then press F9.");
+            return;
+        }
+
+        effectPresentationTimeline?.TestVfxOnCard(lastClickedWorldCardView, EffectCategoryKeys.CardActivate);
     }
 
     private void ensureReferences()
@@ -125,27 +155,38 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             battlefieldView.CardClicked += handleCardClicked;
             battlefieldView.CardDoubleClicked -= handleCardDoubleClicked;
             battlefieldView.CardDoubleClicked += handleCardDoubleClicked;
+
+            effectPresentationTimeline ??= layoutRoot.TableWorld.GetComponent<BattlefieldEffectPresentationTimeline>();
+            if (effectPresentationTimeline is null)
+            {
+                effectPresentationTimeline = layoutRoot.TableWorld.gameObject.AddComponent<BattlefieldEffectPresentationTimeline>();
+            }
+
+            skillPresentationTimeline ??= layoutRoot.TableWorld.GetComponent<SkillPresentationTimeline>();
+            if (skillPresentationTimeline is null)
+            {
+                skillPresentationTimeline = layoutRoot.TableWorld.gameObject.AddComponent<SkillPresentationTimeline>();
+            }
         }
 
         if (layoutRoot?.ScreenHudCanvas is not null)
         {
-            var detailText = layoutRoot.ScreenHudCanvas.transform
-                .Find("CardDetailPanel/Label")
-                ?.GetComponent<TMP_Text>();
-            if (detailText is not null)
-            {
-                cardDetailPanel ??= detailText.GetComponentInParent<CardDetailPanel>();
-                if (cardDetailPanel is null)
-                {
-                    cardDetailPanel = detailText.transform.parent.gameObject.AddComponent<CardDetailPanel>();
-                }
-
-                cardDetailPanel.Configure(detailText);
-            }
-
             statusText ??= layoutRoot.ScreenHudCanvas.transform
                 .Find("TurnInfoPanel/Label")
                 ?.GetComponent<TMP_Text>();
+            teamResourcePanelView ??= layoutRoot.ScreenHudCanvas.transform
+                .Find("TurnInfoPanel")
+                ?.GetComponent<TeamResourcePanelView>();
+            if (teamResourcePanelView is null)
+            {
+                var turnInfoPanel = layoutRoot.ScreenHudCanvas.transform.Find("TurnInfoPanel");
+                if (turnInfoPanel is not null)
+                {
+                    teamResourcePanelView = turnInfoPanel.gameObject.AddComponent<TeamResourcePanelView>();
+                }
+            }
+
+            teamResourcePanelView?.Configure(primaryFont);
             localPlayerHudView ??= layoutRoot.ScreenHudCanvas.transform
                 .Find("PlayerHud")
                 ?.GetComponent<LocalPlayerHudView>();
@@ -186,9 +227,15 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         if (!projection.hasStateProjection)
         {
             battlefieldView.ClearAll();
-            cardDetailPanel?.ShowMessage("Waiting for projection.");
+            teamResourcePanelView?.ShowWaiting();
             setStatus("Waiting for projection.");
             return;
+        }
+
+        if (layoutRoot?.OverlayCanvas is not null)
+        {
+            skillPresentationTimeline?.Configure(layoutRoot.OverlayCanvas, primaryFont);
+            skillPresentationTimeline?.PresentProjection(projection);
         }
 
         showNewRevealEvents(projection);
@@ -212,11 +259,12 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             bindSeat(BattlefieldSeatDirection.top, seatResult.topPlayerNumericId, projection, playerById);
             bindSeat(BattlefieldSeatDirection.left, seatResult.leftPlayerNumericId, projection, playerById);
             bindSeat(BattlefieldSeatDirection.right, seatResult.rightPlayerNumericId, projection, playerById);
-            setStatus($"Turn {projection.turnNumber} / {projection.currentPhase} / P{projection.currentPlayerNumericId?.ToString() ?? "-"}\n{buildTeamSummaryText(projection)}");
+            teamResourcePanelView?.Bind(projection);
+            setStatus(string.Empty);
         }
 
         renderPublicZones(projection);
-        renderPlayerCharacters(seatResult, playerById);
+        renderPlayerCharacters(seatResult, playerById, projection.currentPlayerNumericId);
         renderPlayerFields(seatResult, playerById);
         renderPlayerStatuses(seatResult, playerById);
         renderCurrentPlayerMirror(projection, playerById);
@@ -224,6 +272,12 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         renderLocalPlayerHud(projection, playerById);
         renderLocalHand(projection);
         renderActionPanel(projection);
+        effectPresentationTimeline?.Configure(
+            battlefieldView,
+            layoutRoot?.TableWorld?.transform,
+            layoutRoot?.OverlayCanvas,
+            primaryFont);
+        effectPresentationTimeline?.PresentProjection(projection);
     }
 
     private void showNewRevealEvents(ProjectionViewModel projection)
@@ -234,13 +288,19 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         }
 
         var newRevealedCards = new List<ProjectionCardViewModel>();
+        var firstNewRevealReason = string.Empty;
         foreach (var revealedCardEvent in projection.revealedCardEvents)
         {
             var revealIdentity =
-                $"{revealedCardEvent.eventId}:{revealedCardEvent.cardInstanceNumericId}:{revealedCardEvent.revealReasonKey}";
+                $"{revealedCardEvent.eventId}:{revealedCardEvent.cardInstanceNumericId}:{revealedCardEvent.revealReasonKey}:{revealedCardEvent.declaredDefinitionId}";
             if (!shownRevealEventKeys.Add(revealIdentity))
             {
                 continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(firstNewRevealReason))
+            {
+                firstNewRevealReason = revealedCardEvent.revealReasonKey ?? string.Empty;
             }
 
             newRevealedCards.Add(new ProjectionCardViewModel
@@ -258,19 +318,49 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             return;
         }
 
-        var title = newRevealedCards.Count == 1
-            ? $"公开展示：{CardNameLocalizer.Localize(newRevealedCards[0].definitionId)}"
-            : $"公开展示：{newRevealedCards.Count} 张牌";
+        var firstNewRevealEvent = projection.revealedCardEvents.FirstOrDefault(revealedCardEvent =>
+            revealedCardEvent.revealReasonKey == firstNewRevealReason &&
+            newRevealedCards.Any(card => card.cardInstanceNumericId == revealedCardEvent.cardInstanceNumericId));
+        var title = createRevealTitle(firstNewRevealReason, newRevealedCards, firstNewRevealEvent?.declaredDefinitionId);
         zoneCardListOverlayView.Show(title, newRevealedCards);
+    }
+
+    private static string createRevealTitle(
+        string revealReasonKey,
+        IReadOnlyList<ProjectionCardViewModel> revealedCards,
+        string? declaredDefinitionId)
+    {
+        var reason = localizeRevealReason(revealReasonKey);
+        if (revealedCards.Count == 1)
+        {
+            if (string.Equals(revealReasonKey, "treasureOnPlay:T013:declareCardName", StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(declaredDefinitionId))
+            {
+                return $"【圣骸布】宣言【{CardNameLocalizer.Localize(declaredDefinitionId)}】，展示【{CardNameLocalizer.Localize(revealedCards[0].definitionId)}】";
+            }
+
+            if (string.Equals(revealReasonKey, "character:C031:3:alleyAlliance", StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(declaredDefinitionId))
+            {
+                return $"弓冢五月发动技能【小巷子同盟】（③）：说一个牌名，翻开目标对手牌库顶1张牌，若翻开的牌是你所说的同名牌，你获得1灵脉；否则他和你各抓1张牌。宣言的是：【{CardNameLocalizer.Localize(declaredDefinitionId)}】，翻开的是：【{CardNameLocalizer.Localize(revealedCards[0].definitionId)}】";
+            }
+
+            return $"{reason}：{CardNameLocalizer.Localize(revealedCards[0].definitionId)}";
+        }
+
+        return $"{reason}：{revealedCards.Count} 张牌";
     }
 
     private static string localizeRevealReason(string revealReasonKey)
     {
         return revealReasonKey switch
         {
-            "treasureOnPlay:T013:declareCardName" => "T013 宣言卡名展示",
-            "character:C013:3:darkJadeFist" => "C013 暗黑翡翠拳展示",
-            "character:C013:4:criminal" => "C013 你被犯人了展示",
+            "treasureOnPlay:T013:declareCardName" => "【圣骸布】宣言后公开展示牌库顶牌",
+            "character:C013:3:darkJadeFist" => "【巫净翡翠】技能【暗黑翡翠拳】公开展示目标牌库顶牌",
+            "character:C013:4:criminal" => "【巫净翡翠】终结技【“你被犯人了”】公开展示目标牌库顶牌",
+            "character:C005:2:sixRealms" => "【魂魄妖梦】响应技【六根清净斩】公开展示牌库顶牌",
+            "character:C031:3:alleyAlliance" => "【弓冢五月】技能【小巷子同盟】公开展示目标牌库顶牌",
+            "character:C022:3:grandGuignol" => "【爱丽丝】技能【大千枪】公开展示抓到的牌",
             _ when string.IsNullOrWhiteSpace(revealReasonKey) => "公开展示",
             _ => revealReasonKey,
         };
@@ -323,7 +413,29 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 "T001",
                 projection.publicTreasureDeckCount));
 
-        for (var index = 0; index < 6; index += 1)
+        var nextSummonZoneSlotCardInstanceIds = new long?[6];
+        for (var index = 0; index < nextSummonZoneSlotCardInstanceIds.Length; index += 1)
+        {
+            nextSummonZoneSlotCardInstanceIds[index] = index < projection.summonZoneCards.Count
+                ? projection.summonZoneCards[index].cardInstanceNumericId
+                : null;
+        }
+
+        // SummonZone is displayed as six physical slots, but the server sends it as
+        // one ordered zone. Clear changed slots from right to left first so cards
+        // that shift left after a refill can be reused by the global visual registry
+        // before the new public-deck card enters the last slot.
+        for (var index = previousSummonZoneSlotCardInstanceIds.Length - 1; index >= 0; index -= 1)
+        {
+            if (previousSummonZoneSlotCardInstanceIds[index] == nextSummonZoneSlotCardInstanceIds[index])
+            {
+                continue;
+            }
+
+            battlefieldView.ClearZone($"summonZone:{index + 1}");
+        }
+
+        for (var index = 0; index < nextSummonZoneSlotCardInstanceIds.Length; index += 1)
         {
             var zoneKey = $"summonZone:{index + 1}";
             if (index < projection.summonZoneCards.Count)
@@ -340,6 +452,8 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             {
                 battlefieldView.ClearZone(zoneKey);
             }
+
+            previousSummonZoneSlotCardInstanceIds[index] = nextSummonZoneSlotCardInstanceIds[index];
         }
 
         var sakuraModels = BattlefieldCardViewModelMapper.CreatePublicPilePreview(
@@ -421,25 +535,28 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private void renderPlayerCharacters(
         SeatLayoutResult seatResult,
-        IReadOnlyDictionary<long, ProjectionPlayerSummaryViewModel> playerById)
+        IReadOnlyDictionary<long, ProjectionPlayerSummaryViewModel> playerById,
+        long? currentPlayerNumericId)
     {
-        renderSeatCharacter("playerCharacter:bottom", seatResult.bottomPlayerNumericId, playerById, -400000);
-        renderSeatCharacter("playerCharacter:top", seatResult.topPlayerNumericId, playerById, -410000);
-        renderSeatCharacter("playerCharacter:left", seatResult.leftPlayerNumericId, playerById, -420000);
-        renderSeatCharacter("playerCharacter:right", seatResult.rightPlayerNumericId, playerById, -430000);
+        renderSeatCharacter("playerCharacter:bottom", seatResult.bottomPlayerNumericId, playerById, -400000, currentPlayerNumericId);
+        renderSeatCharacter("playerCharacter:top", seatResult.topPlayerNumericId, playerById, -410000, currentPlayerNumericId);
+        renderSeatCharacter("playerCharacter:left", seatResult.leftPlayerNumericId, playerById, -420000, currentPlayerNumericId);
+        renderSeatCharacter("playerCharacter:right", seatResult.rightPlayerNumericId, playerById, -430000, currentPlayerNumericId);
     }
 
     private void renderSeatCharacter(
         string zoneViewKey,
         long? playerNumericId,
         IReadOnlyDictionary<long, ProjectionPlayerSummaryViewModel> playerById,
-        long syntheticBase)
+        long syntheticBase,
+        long? currentPlayerNumericId)
     {
         if (!playerNumericId.HasValue || !playerById.TryGetValue(playerNumericId.Value, out var player) ||
             string.IsNullOrWhiteSpace(player.activeCharacterDefinitionId))
         {
             battlefieldView!.ClearZone(zoneViewKey);
             clearCharacterMarkers(zoneViewKey);
+            clearCurrentPlayerMarker(zoneViewKey);
             return;
         }
 
@@ -448,6 +565,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         {
             battlefieldView!.ClearZone(zoneViewKey);
             clearCharacterMarkers(zoneViewKey);
+            clearCurrentPlayerMarker(zoneViewKey);
             return;
         }
 
@@ -477,6 +595,94 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
         battlefieldView!.ReconcileZone(zoneViewKey, models);
         reconcileCharacterMarkers(zoneViewKey, player.activeCharacterMarkers);
+        reconcileCurrentPlayerMarker(zoneViewKey, currentPlayerNumericId.HasValue && currentPlayerNumericId.Value == player.playerNumericId);
+    }
+
+    private void reconcileCurrentPlayerMarker(string characterZoneViewKey, bool isCurrentPlayer)
+    {
+        if (!isCurrentPlayer)
+        {
+            clearCurrentPlayerMarker(characterZoneViewKey);
+            return;
+        }
+
+        if (battlefieldView is null ||
+            !battlefieldView.LayoutByZoneKey.TryGetValue(characterZoneViewKey, out var layout) ||
+            layout.Anchor is null)
+        {
+            return;
+        }
+
+        var marker = getOrCreateCurrentPlayerMarkerView(layout.Anchor.transform, characterZoneViewKey);
+        marker.Configure(
+            getCurrentPlayerMarkerLocalPosition(characterZoneViewKey),
+            getCurrentPlayerMarkerLocalRotation(characterZoneViewKey),
+            new Vector3(0.085f, 0.085f, 0.085f));
+    }
+
+    private void clearCurrentPlayerMarker(string characterZoneViewKey)
+    {
+        if (currentPlayerMarkerByZoneKey.TryGetValue(characterZoneViewKey, out var marker))
+        {
+            marker.Hide();
+            return;
+        }
+
+        if (battlefieldView is null ||
+            !battlefieldView.LayoutByZoneKey.TryGetValue(characterZoneViewKey, out var layout) ||
+            layout.Anchor is null)
+        {
+            return;
+        }
+
+        layout.Anchor.transform.Find("CurrentPlayerMarkerView")?.GetComponent<CurrentPlayerMarkerView>()?.Hide();
+    }
+
+    private CurrentPlayerMarkerView getOrCreateCurrentPlayerMarkerView(Transform anchorTransform, string characterZoneViewKey)
+    {
+        if (currentPlayerMarkerByZoneKey.TryGetValue(characterZoneViewKey, out var cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var markerTransform = anchorTransform.Find("CurrentPlayerMarkerView");
+        CurrentPlayerMarkerView marker;
+        if (markerTransform is not null)
+        {
+            marker = markerTransform.GetComponent<CurrentPlayerMarkerView>() ??
+                     markerTransform.gameObject.AddComponent<CurrentPlayerMarkerView>();
+        }
+        else
+        {
+            var markerObject = new GameObject("CurrentPlayerMarkerView");
+            markerObject.transform.SetParent(anchorTransform, false);
+            marker = markerObject.AddComponent<CurrentPlayerMarkerView>();
+        }
+
+        currentPlayerMarkerByZoneKey[characterZoneViewKey] = marker;
+        return marker;
+    }
+
+    private static Vector3 getCurrentPlayerMarkerLocalPosition(string characterZoneViewKey)
+    {
+        return characterZoneViewKey switch
+        {
+            "playerCharacter:top" => new Vector3(0f, 0.055f, 0.86f),
+            "playerCharacter:left" => new Vector3(-0.86f, 0.055f, 0f),
+            "playerCharacter:right" => new Vector3(0.86f, 0.055f, 0f),
+            _ => new Vector3(0f, 0.055f, -0.86f),
+        };
+    }
+
+    private static Vector3 getCurrentPlayerMarkerLocalRotation(string characterZoneViewKey)
+    {
+        return characterZoneViewKey switch
+        {
+            "playerCharacter:top" => new Vector3(90f, 180f, 0f),
+            "playerCharacter:left" => new Vector3(90f, 90f, 0f),
+            "playerCharacter:right" => new Vector3(90f, -90f, 0f),
+            _ => new Vector3(90f, 0f, 0f),
+        };
     }
 
     private void reconcileCharacterMarkers(
@@ -873,7 +1079,7 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             cardButton = cardObject.AddComponent<BattlefieldLocalHandCardButton>();
         }
 
-        cardButton.Configure(card.cardInstanceNumericId, handleLocalHandCardClicked);
+        cardButton.Configure(card, handleLocalHandCardClicked);
 
         var label = cardObject.transform.Find("Label")?.GetComponent<TMP_Text>();
         if (label is null)
@@ -899,6 +1105,11 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private void handleLocalHandCardClicked(long cardInstanceNumericId)
     {
+        if (tryBlockPresentationBusyAction())
+        {
+            return;
+        }
+
         ensureReferences();
         if (networkController is null || !networkController.TryPlayTreasureCard(cardInstanceNumericId))
         {
@@ -935,26 +1146,56 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         var phaseContainer = getOrCreateChildRect(
             content,
             "PhaseActionContainer",
-            new Vector2(0f, 0.78f),
+            new Vector2(0f, 0.77f),
             Vector2.one,
             new Vector2(0f, 0f),
             new Vector2(0f, 0f));
-        var skillContainer = getOrCreateChildRect(
+        var characterContainer = getOrCreateChildRect(
             content,
-            "SkillListContainer",
+            "CharacterActionCardContainer",
             Vector2.zero,
-            new Vector2(1f, 0.74f),
+            new Vector2(1f, 0.72f),
             new Vector2(0f, 0f),
             new Vector2(0f, 0f));
         clearChildren(phaseContainer);
-        clearChildren(skillContainer);
+        clearChildren(characterContainer);
 
         var localPlayer = projection.playerSummaries.FirstOrDefault(player => player.isViewerPlayer) ??
                           projection.playerSummaries.FirstOrDefault(player => player.playerNumericId == projection.viewerPlayerNumericId);
 
+        if (BattlefieldInteractionPresentationGate.IsPresentationBusy)
+        {
+            wasPresentationBusy = true;
+            renderPresentationBusyPanel(phaseContainer, characterContainer);
+            return;
+        }
+
         renderPhaseActionButton(phaseContainer, projection);
-        var skillStartIndex = renderAnomalyResolveButtons(skillContainer, projection, localPlayer, 0);
-        renderSkillButtons(skillContainer, projection, localPlayer, skillStartIndex);
+        renderCharacterActionCard(characterContainer, projection, localPlayer);
+    }
+
+    private void renderPresentationBusyPanel(RectTransform phaseContainer, RectTransform characterContainer)
+    {
+        createPhaseButton(
+            phaseContainer,
+            $"效果处理中... {BattlefieldInteractionPresentationGate.RemainingDelaySeconds:0.0}s",
+            false,
+            () => { });
+
+        var debugText = createButtonText(
+            characterContainer,
+            "PresentationBusyDebug",
+            BattlefieldInteractionPresentationGate.DebugSummary,
+            13f,
+            TextAlignmentOptions.TopLeft);
+        debugText.enableWordWrapping = true;
+        debugText.overflowMode = TextOverflowModes.Overflow;
+        debugText.color = new Color(0.82f, 0.93f, 0.96f, 1f);
+        var rect = debugText.rectTransform;
+        rect.anchorMin = new Vector2(0.04f, 0.08f);
+        rect.anchorMax = new Vector2(0.96f, 0.92f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
     }
 
     private void renderPhaseActionButton(RectTransform parent, ProjectionViewModel projection)
@@ -968,6 +1209,11 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 isLocalTurn,
                 () =>
                 {
+                    if (tryBlockPresentationBusyAction())
+                    {
+                        return;
+                    }
+
                     ensureReferences();
                     if (networkController is null || !networkController.TryEnterSummonPhase())
                     {
@@ -983,6 +1229,11 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 isLocalTurn,
                 () =>
                 {
+                    if (tryBlockPresentationBusyAction())
+                    {
+                        return;
+                    }
+
                     ensureReferences();
                     if (networkController is null || !networkController.TryEnterEndPhase())
                     {
@@ -994,6 +1245,100 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         {
             createPhaseButton(parent, $"当前阶段：{localizePhase(projection.currentPhase)}", false, () => { });
         }
+    }
+
+    private void renderCharacterActionCard(
+        RectTransform parent,
+        ProjectionViewModel projection,
+        ProjectionPlayerSummaryViewModel? localPlayer)
+    {
+        var background = parent.GetComponent<Image>();
+        if (background is null)
+        {
+            background = parent.gameObject.AddComponent<Image>();
+        }
+
+        background.color = new Color(0.015f, 0.055f, 0.075f, 0.82f);
+        background.raycastTarget = false;
+
+        if (localPlayer is null ||
+            string.IsNullOrWhiteSpace(localPlayer.activeCharacterDefinitionId))
+        {
+            var text = createButtonText(parent, "NoCharacterLabel", "未选择角色", 18f, TextAlignmentOptions.Center);
+            text.rectTransform.anchorMin = Vector2.zero;
+            text.rectTransform.anchorMax = Vector2.one;
+            text.rectTransform.offsetMin = Vector2.zero;
+            text.rectTransform.offsetMax = Vector2.zero;
+            return;
+        }
+
+        var inspectModel = buildInspectModelForDefinition(
+            localPlayer.activeCharacterDefinitionId,
+            0,
+            localPlayer.playerNumericId,
+            "playerCharacter:bottom",
+            true);
+
+        var cardObject = new GameObject(
+            "LocalCharacterActionCard",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image));
+        cardObject.transform.SetParent(parent, false);
+        var cardRect = cardObject.GetComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.06f, 0.08f);
+        cardRect.anchorMax = new Vector2(0.42f, 0.94f);
+        cardRect.offsetMin = Vector2.zero;
+        cardRect.offsetMax = Vector2.zero;
+
+        var image = cardObject.GetComponent<Image>();
+        image.sprite = inspectModel.artworkSprite ?? CardArtService.GetCardBackSprite();
+        image.preserveAspect = true;
+        image.raycastTarget = true;
+
+        var inspectable = cardObject.AddComponent<BattlefieldInspectableUiCard>();
+        inspectable.Configure(inspectModel, () => showCharacterSkillMenu(projection, localPlayer));
+
+        var hintObject = new GameObject("Hint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        hintObject.transform.SetParent(parent, false);
+        var hint = hintObject.GetComponent<TMP_Text>();
+        hint.text = $"{inspectModel.displayName}\n左键：技能菜单\n右键按住：查看详情";
+        hint.fontSize = 15f;
+        hint.alignment = TextAlignmentOptions.MidlineLeft;
+        hint.color = Color.white;
+        hint.enableWordWrapping = true;
+        if (primaryFont is not null)
+        {
+            hint.font = primaryFont;
+        }
+
+        var hintRect = hint.GetComponent<RectTransform>();
+        hintRect.anchorMin = new Vector2(0.47f, 0.08f);
+        hintRect.anchorMax = new Vector2(0.96f, 0.94f);
+        hintRect.offsetMin = Vector2.zero;
+        hintRect.offsetMax = Vector2.zero;
+    }
+
+    private CardInspectViewModel buildInspectModelForDefinition(
+        string definitionId,
+        long cardInstanceNumericId,
+        long ownerPlayerNumericId,
+        string zoneKey,
+        bool isFaceUp)
+    {
+        var displayEntry = CardDisplayCatalogService.TryGetEntry(definitionId);
+        return new CardInspectViewModel
+        {
+            cardInstanceNumericId = cardInstanceNumericId,
+            definitionId = definitionId,
+            displayName = displayEntry?.name ?? CardNameLocalizer.Localize(definitionId),
+            attributeText = CardDisplayCatalogService.BuildAttributeText(definitionId),
+            rulesText = CardDisplayCatalogService.BuildRulesText(definitionId),
+            ownerPlayerNumericId = ownerPlayerNumericId,
+            zoneKey = zoneKey,
+            isFaceUp = isFaceUp,
+            artworkSprite = isFaceUp ? CardArtService.GetSpriteForDefinition(definitionId) : CardArtService.GetCardBackSprite(),
+        };
     }
 
     private void renderSkillButtons(
@@ -1032,6 +1377,11 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 index,
                 () =>
                 {
+                    if (tryBlockPresentationBusyAction())
+                    {
+                        return;
+                    }
+
                     ensureReferences();
                     if (networkController is null ||
                         !networkController.TryUseSkill(localCharacterInstanceNumericId, capturedSkill.skillKey))
@@ -1041,6 +1391,236 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                 });
             index += 1;
         }
+    }
+
+    private void showCharacterSkillMenu(
+        ProjectionViewModel projection,
+        ProjectionPlayerSummaryViewModel localPlayer)
+    {
+        ensureReferences();
+        if (layoutRoot?.OverlayCanvas is null)
+        {
+            setStatus("OverlayCanvas 未初始化，无法打开技能菜单。");
+            return;
+        }
+
+        hideOverlay(characterSkillMenuOverlay);
+        characterSkillMenuOverlay = createCenteredOverlay("CharacterSkillMenuOverlay", new Vector2(980f, 720f));
+        if (characterSkillMenuOverlay is null)
+        {
+            return;
+        }
+
+        var window = characterSkillMenuOverlay.Find("Window") as RectTransform;
+        if (window is null)
+        {
+            return;
+        }
+
+        var characterDefinition = projection.characterDefinitions.FirstOrDefault(definition =>
+            string.Equals(definition.definitionId, localPlayer.activeCharacterDefinitionId, StringComparison.Ordinal));
+        var inspectModel = buildInspectModelForDefinition(
+            localPlayer.activeCharacterDefinitionId,
+            0,
+            localPlayer.playerNumericId,
+            "playerCharacter:bottom",
+            true);
+
+        var art = createImage(window, "CharacterArt", inspectModel.artworkSprite, new Vector2(0.035f, 0.17f), new Vector2(0.36f, 0.9f));
+        art.preserveAspect = true;
+
+        var title = createOverlayText(window, "Title", inspectModel.displayName, 28f, TextAlignmentOptions.Center, FontStyles.Bold);
+        setAnchors(title.rectTransform, new Vector2(0.38f, 0.83f), new Vector2(0.95f, 0.93f));
+
+        var resourceLine = createOverlayText(
+            window,
+            "ResourceLine",
+            $"当前资源：魔力 {projection.mana} / 技能点 {projection.skillPoint} / 灵脉 {getTeamLeyline(projection, localPlayer.teamNumericId)} / 手牌 {localPlayer.handCount}",
+            16f,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal);
+        resourceLine.color = new Color(0.82f, 0.92f, 1f, 1f);
+        setAnchors(resourceLine.rectTransform, new Vector2(0.38f, 0.76f), new Vector2(0.95f, 0.82f));
+
+        if (characterDefinition is null || characterDefinition.skills.Count == 0)
+        {
+            var empty = createOverlayText(window, "NoSkills", "当前角色没有可显示的技能定义。", 20f, TextAlignmentOptions.Center, FontStyles.Normal);
+            setAnchors(empty.rectTransform, new Vector2(0.4f, 0.42f), new Vector2(0.94f, 0.58f));
+        }
+        else
+        {
+            var orderedSkills = characterDefinition.skills.OrderBy(skill => skill.skillOrder).Take(4).ToList();
+            for (var index = 0; index < orderedSkills.Count; index += 1)
+            {
+                createSkillMenuButton(window, projection, localPlayer, orderedSkills[index], index);
+            }
+        }
+
+        createCloseButton(window, "关闭", new Vector2(0.76f, 0.04f), new Vector2(0.95f, 0.12f), () => hideOverlay(characterSkillMenuOverlay));
+        setOverlayVisible(characterSkillMenuOverlay, true);
+    }
+
+    private void createSkillMenuButton(
+        RectTransform window,
+        ProjectionViewModel projection,
+        ProjectionPlayerSummaryViewModel localPlayer,
+        ProjectionCharacterSkillDefinitionViewModel skill,
+        int index)
+    {
+        var isResponseSkill = string.Equals(skill.skillTypeRaw, "响应", StringComparison.Ordinal);
+        var canUse = canLikelyUseSkill(projection, localPlayer, skill);
+        var yMax = 0.72f - index * 0.155f;
+        var yMin = yMax - 0.13f;
+        var buttonObject = new GameObject($"SkillOption_{skill.skillKey}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(window, false);
+        var rect = buttonObject.GetComponent<RectTransform>();
+        setAnchors(rect, new Vector2(0.39f, yMin), new Vector2(0.95f, yMax));
+
+        var image = buttonObject.GetComponent<Image>();
+        image.color = canUse
+            ? new Color(0.72f, 0.52f, 0.13f, 0.94f)
+            : isResponseSkill
+                ? new Color(0.36f, 0.18f, 0.48f, 0.82f)
+                : new Color(0.12f, 0.28f, 0.34f, 0.82f);
+
+        var button = buttonObject.GetComponent<Button>();
+        button.interactable = !isResponseSkill && localPlayer.activeCharacterInstanceNumericId.HasValue;
+        button.onClick.AddListener(() =>
+        {
+            if (tryBlockPresentationBusyAction())
+            {
+                return;
+            }
+
+            if (!localPlayer.activeCharacterInstanceNumericId.HasValue)
+            {
+                showMessagePopup("尚未选择角色。");
+                return;
+            }
+
+            ensureReferences();
+            if (networkController is null ||
+                !networkController.TryUseSkill(localPlayer.activeCharacterInstanceNumericId.Value, skill.skillKey))
+            {
+                showMessagePopup(networkController?.LastError ?? $"技能请求未发送：{skill.skillName}");
+                return;
+            }
+
+            hideOverlay(characterSkillMenuOverlay);
+        });
+
+        var title = createOverlayText(
+            rect,
+            "Title",
+            $"{skill.skillName}（{emptyToDash(skill.skillCostRaw)}）",
+            17f,
+            TextAlignmentOptions.Left,
+            FontStyles.Bold);
+        setAnchors(title.rectTransform, new Vector2(0.03f, 0.58f), new Vector2(0.97f, 0.95f));
+
+        var subtitle = createOverlayText(
+            rect,
+            "Subtitle",
+            $"{(isResponseSkill ? "响应技" : emptyToDash(skill.skillTypeRaw))} / {emptyToDash(skill.effectText)}",
+            12.5f,
+            TextAlignmentOptions.TopLeft,
+            FontStyles.Normal);
+        subtitle.enableWordWrapping = true;
+        subtitle.overflowMode = TextOverflowModes.Ellipsis;
+        subtitle.color = canUse ? Color.white : new Color(0.74f, 0.78f, 0.82f, 1f);
+        setAnchors(subtitle.rectTransform, new Vector2(0.03f, 0.08f), new Vector2(0.97f, 0.56f));
+    }
+
+    private bool canLikelyUseSkill(
+        ProjectionViewModel projection,
+        ProjectionPlayerSummaryViewModel localPlayer,
+        ProjectionCharacterSkillDefinitionViewModel skill)
+    {
+        if (localPlayer.activeCharacterInstanceNumericId is null ||
+            projection.currentPlayerNumericId != projection.viewerPlayerNumericId ||
+            !string.Equals(projection.currentPhase, "action", StringComparison.Ordinal) ||
+            string.Equals(skill.skillTypeRaw, "响应", StringComparison.Ordinal) ||
+            projection.skillPoint <= 0)
+        {
+            return false;
+        }
+
+        var requiredMana = parseCircledNumber(skill.skillCostRaw);
+        var requiredLeyline = parseRomanLeyline(skill.skillCostRaw);
+        if (requiredMana > projection.mana ||
+            requiredLeyline > getTeamLeyline(projection, localPlayer.teamNumericId))
+        {
+            return false;
+        }
+
+        if ((skill.skillCostRaw.Contains("弃", StringComparison.Ordinal) ||
+             skill.effectText.Contains("弃", StringComparison.Ordinal)) &&
+            localPlayer.handCount <= 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private int getTeamLeyline(ProjectionViewModel projection, long teamNumericId)
+    {
+        return projection.teamSummaries.FirstOrDefault(team => team.teamNumericId == teamNumericId)?.leyline ?? 0;
+    }
+
+    private static int parseCircledNumber(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        var max = 0;
+        foreach (var character in value)
+        {
+            max = Math.Max(max, character switch
+            {
+                '①' => 1,
+                '②' => 2,
+                '③' => 3,
+                '④' => 4,
+                '⑤' => 5,
+                '⑥' => 6,
+                '⑦' => 7,
+                '⑧' => 8,
+                '⑨' => 9,
+                '⑩' => 10,
+                >= '0' and <= '9' => character - '0',
+                _ => 0,
+            });
+        }
+
+        return max;
+    }
+
+    private static int parseRomanLeyline(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        if (value.Contains("V", StringComparison.Ordinal))
+        {
+            return 5;
+        }
+
+        if (value.Contains("III", StringComparison.Ordinal))
+        {
+            return 3;
+        }
+
+        if (value.Contains("II", StringComparison.Ordinal))
+        {
+            return 2;
+        }
+
+        return value.Contains("I", StringComparison.Ordinal) ? 1 : 0;
     }
 
     private int renderAnomalyResolveButtons(
@@ -1224,6 +1804,172 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         return text;
     }
 
+    private RectTransform? createCenteredOverlay(string name, Vector2 size)
+    {
+        if (layoutRoot?.OverlayCanvas is null)
+        {
+            return null;
+        }
+
+        var existing = layoutRoot.OverlayCanvas.transform.Find(name);
+        if (existing is not null)
+        {
+            destroy(existing.gameObject);
+        }
+
+        var rootObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+        rootObject.transform.SetParent(layoutRoot.OverlayCanvas.transform, false);
+        var rootRect = rootObject.GetComponent<RectTransform>();
+        rootRect.anchorMin = Vector2.zero;
+        rootRect.anchorMax = Vector2.one;
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+
+        var dimmer = rootObject.GetComponent<Image>();
+        dimmer.color = new Color(0f, 0f, 0f, 0.58f);
+        dimmer.raycastTarget = true;
+
+        var group = rootObject.GetComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.interactable = true;
+        group.blocksRaycasts = true;
+
+        var windowObject = new GameObject("Window", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        windowObject.transform.SetParent(rootRect, false);
+        var window = windowObject.GetComponent<RectTransform>();
+        window.anchorMin = new Vector2(0.5f, 0.5f);
+        window.anchorMax = new Vector2(0.5f, 0.5f);
+        window.pivot = new Vector2(0.5f, 0.5f);
+        window.sizeDelta = size;
+        window.anchoredPosition = Vector2.zero;
+        var image = windowObject.GetComponent<Image>();
+        image.color = new Color(0.015f, 0.05f, 0.07f, 0.97f);
+        image.raycastTarget = true;
+        rootRect.SetAsLastSibling();
+        return rootRect;
+    }
+
+    private static void setOverlayVisible(RectTransform? overlay, bool visible)
+    {
+        if (overlay is null)
+        {
+            return;
+        }
+
+        var group = overlay.GetComponent<CanvasGroup>();
+        if (group is null)
+        {
+            group = overlay.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        group.alpha = visible ? 1f : 0f;
+        group.interactable = visible;
+        group.blocksRaycasts = visible;
+        overlay.gameObject.SetActive(visible);
+    }
+
+    private static void hideOverlay(RectTransform? overlay)
+    {
+        if (overlay is null)
+        {
+            return;
+        }
+
+        setOverlayVisible(overlay, false);
+    }
+
+    private Image createImage(Transform parent, string name, Sprite? sprite, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        var imageObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        imageObject.transform.SetParent(parent, false);
+        var image = imageObject.GetComponent<Image>();
+        image.sprite = sprite ?? CardArtService.GetCardBackSprite();
+        image.raycastTarget = false;
+        setAnchors(image.rectTransform, anchorMin, anchorMax);
+        return image;
+    }
+
+    private TMP_Text createOverlayText(
+        Transform parent,
+        string name,
+        string value,
+        float fontSize,
+        TextAlignmentOptions alignment,
+        FontStyles fontStyle)
+    {
+        var textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(parent, false);
+        var text = textObject.GetComponent<TMP_Text>();
+        text.text = value;
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.fontStyle = fontStyle;
+        text.color = Color.white;
+        text.enableWordWrapping = true;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.raycastTarget = false;
+        if (primaryFont is not null)
+        {
+            text.font = primaryFont;
+        }
+
+        return text;
+    }
+
+    private Button createCloseButton(
+        RectTransform parent,
+        string label,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        UnityEngine.Events.UnityAction clicked)
+    {
+        var buttonObject = new GameObject("CloseButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        var rect = buttonObject.GetComponent<RectTransform>();
+        setAnchors(rect, anchorMin, anchorMax);
+        var image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.18f, 0.48f, 0.56f, 0.94f);
+        var button = buttonObject.GetComponent<Button>();
+        button.onClick.AddListener(clicked);
+
+        var text = createOverlayText(buttonObject.transform, "Label", label, 16f, TextAlignmentOptions.Center, FontStyles.Bold);
+        setAnchors(text.rectTransform, Vector2.zero, Vector2.one);
+        return button;
+    }
+
+    private void showMessagePopup(string message)
+    {
+        ensureReferences();
+        if (layoutRoot?.OverlayCanvas is null)
+        {
+            setStatus(message);
+            return;
+        }
+
+        hideOverlay(messageOverlay);
+        messageOverlay = createCenteredOverlay("BattlefieldMessagePopup", new Vector2(520f, 220f));
+        var window = messageOverlay?.Find("Window") as RectTransform;
+        if (window is null)
+        {
+            setStatus(message);
+            return;
+        }
+
+        var text = createOverlayText(window, "Message", message, 20f, TextAlignmentOptions.Center, FontStyles.Bold);
+        setAnchors(text.rectTransform, new Vector2(0.08f, 0.34f), new Vector2(0.92f, 0.82f));
+        createCloseButton(window, "知道了", new Vector2(0.34f, 0.08f), new Vector2(0.66f, 0.26f), () => hideOverlay(messageOverlay));
+        setStatus(message);
+        setOverlayVisible(messageOverlay, true);
+    }
+
+    private static void setAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
     private static RectTransform getOrCreateChildRect(
         RectTransform parent,
         string name,
@@ -1306,14 +2052,117 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private void tryResolveAnomalyAndClose(long? targetPlayerNumericId)
     {
+        if (tryBlockPresentationBusyAction())
+        {
+            return;
+        }
+
         ensureReferences();
         if (networkController is null || !networkController.TryResolveAnomaly(targetPlayerNumericId))
         {
-            setStatus(networkController?.LastError ?? "异变解决请求未发送。");
+            showMessagePopup(networkController?.LastError ?? "异变解决请求未发送。");
             return;
         }
 
         isAnomalyResolveConfirmOpen = false;
+    }
+
+    private void showAnomalyResolveMenu(ProjectionViewModel projection)
+    {
+        ensureReferences();
+        if (layoutRoot?.OverlayCanvas is null)
+        {
+            setStatus("OverlayCanvas 未初始化，无法打开异变菜单。");
+            return;
+        }
+
+        if (!projection.currentAnomaly.hasCurrentAnomaly ||
+            string.IsNullOrWhiteSpace(projection.currentAnomaly.definitionId))
+        {
+            showMessagePopup("当前没有可尝试解决的异变。");
+            return;
+        }
+
+        hideOverlay(anomalyResolveMenuOverlay);
+        anomalyResolveMenuOverlay = createCenteredOverlay("AnomalyResolveMenuOverlay", new Vector2(920f, 680f));
+        var window = anomalyResolveMenuOverlay?.Find("Window") as RectTransform;
+        if (window is null)
+        {
+            return;
+        }
+
+        var inspectModel = buildInspectModelForDefinition(
+            projection.currentAnomaly.definitionId,
+            0,
+            0,
+            "currentAnomaly",
+            true);
+        var art = createImage(window, "AnomalyArt", inspectModel.artworkSprite, new Vector2(0.04f, 0.17f), new Vector2(0.36f, 0.9f));
+        art.preserveAspect = true;
+
+        var title = createOverlayText(window, "Title", inspectModel.displayName, 28f, TextAlignmentOptions.Center, FontStyles.Bold);
+        setAnchors(title.rectTransform, new Vector2(0.38f, 0.84f), new Vector2(0.95f, 0.94f));
+
+        var detail = createOverlayText(
+            window,
+            "Detail",
+            buildAnomalyMenuText(projection, inspectModel),
+            17f,
+            TextAlignmentOptions.TopLeft,
+            FontStyles.Normal);
+        detail.overflowMode = TextOverflowModes.Overflow;
+        setAnchors(detail.rectTransform, new Vector2(0.4f, 0.24f), new Vector2(0.94f, 0.82f));
+
+        var isLocalTurn = projection.currentPlayerNumericId == projection.viewerPlayerNumericId;
+        var resolveButton = createCloseButton(
+            window,
+            "尝试解决该异变",
+            new Vector2(0.42f, 0.08f),
+            new Vector2(0.72f, 0.17f),
+            () =>
+            {
+                if (tryBlockPresentationBusyAction())
+                {
+                    return;
+                }
+
+                ensureReferences();
+                if (networkController is null || !networkController.TryResolveAnomaly())
+                {
+                    showMessagePopup(networkController?.LastError ?? "异变解决请求未发送。");
+                    return;
+                }
+
+                hideOverlay(anomalyResolveMenuOverlay);
+            });
+        resolveButton.interactable = isLocalTurn;
+        resolveButton.GetComponent<Image>().color = isLocalTurn
+            ? new Color(0.72f, 0.52f, 0.13f, 0.96f)
+            : new Color(0.16f, 0.16f, 0.16f, 0.72f);
+
+        createCloseButton(window, "关闭", new Vector2(0.76f, 0.08f), new Vector2(0.94f, 0.17f), () => hideOverlay(anomalyResolveMenuOverlay));
+        setOverlayVisible(anomalyResolveMenuOverlay, true);
+    }
+
+    private static string buildAnomalyMenuText(ProjectionViewModel projection, CardInspectViewModel inspectModel)
+    {
+        var builder = new System.Text.StringBuilder();
+        if (!string.IsNullOrWhiteSpace(inspectModel.rulesText))
+        {
+            builder.AppendLine(inspectModel.rulesText);
+            builder.AppendLine();
+        }
+
+        builder.AppendLine($"当前阶段：{localizePhase(projection.currentPhase)}");
+        builder.AppendLine(projection.currentAnomaly.hasResolvedThisTurn
+            ? "本回合已解决过异变。"
+            : "本回合尚未解决该异变。");
+        if (!string.IsNullOrWhiteSpace(projection.currentAnomaly.oncePerTurnHint))
+        {
+            builder.AppendLine(projection.currentAnomaly.oncePerTurnHint);
+        }
+
+        return builder.ToString().Trim();
     }
 
     private static string localizePhase(string phase)
@@ -1342,7 +2191,17 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
 
     private void handleCardClicked(WorldCardView view)
     {
+        lastClickedWorldCardView = view;
         var model = view.CurrentModel;
+        if (string.Equals(model.zoneKey, "currentAnomaly", StringComparison.Ordinal))
+        {
+            if (latestProjection is not null)
+            {
+                showAnomalyResolveMenu(latestProjection);
+            }
+            return;
+        }
+
         if (tryOpenOverlayCards(model))
         {
             return;
@@ -1353,7 +2212,6 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
             return;
         }
 
-        cardDetailPanel?.Show(model);
     }
 
     private bool tryOpenOverlayCards(WorldCardViewModel model)
@@ -1614,7 +2472,6 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
     private void handleCardDoubleClicked(WorldCardView view)
     {
         var model = view.CurrentModel;
-        cardDetailPanel?.Show(model);
         if (!isPublicSummonCardZone(model.zoneKey))
         {
             return;
@@ -1623,6 +2480,17 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         if (model.cardInstanceNumericId <= 0)
         {
             setStatus("该区域当前只有牌堆摘要，不能直接召唤。");
+            return;
+        }
+
+        if (!model.isSummonableByViewer)
+        {
+            setStatus(localizeSummonUnavailableReason(model.summonUnavailableReasonKey, model.effectiveSummonSigilCost));
+            return;
+        }
+
+        if (tryBlockPresentationBusyAction())
+        {
             return;
         }
 
@@ -1639,6 +2507,35 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
                string.Equals(zoneKey, "sakuraCakeZone", System.StringComparison.Ordinal);
     }
 
+    private static string localizeSummonUnavailableReason(string reasonKey, int? effectiveCost)
+    {
+        var costText = effectiveCost.HasValue ? $"需要 {effectiveCost.Value} 灵符。" : string.Empty;
+        return reasonKey switch
+        {
+            "interactionPending" => "当前有待处理的选择或响应，暂时不能召唤宝具。",
+            "notViewerTurn" => "现在不是你的回合，不能召唤宝具。",
+            "wrongPhase" => "当前不是召唤阶段，不能召唤宝具。",
+            "cardNotInSummonableZone" => "这张牌不在可召唤区域。",
+            "insufficientLockedSigil" => string.IsNullOrEmpty(costText)
+                ? "当前锁定灵符不足，不能召唤这张宝具。"
+                : $"当前锁定灵符不足，不能召唤这张宝具。{costText}",
+            _ => string.IsNullOrWhiteSpace(reasonKey)
+                ? "当前不能召唤这张宝具。"
+                : $"当前不能召唤这张宝具。原因：{reasonKey}",
+        };
+    }
+
+    private bool tryBlockPresentationBusyAction()
+    {
+        if (!BattlefieldInteractionPresentationGate.IsPresentationBusy)
+        {
+            return false;
+        }
+
+        setStatus($"效果演出处理中，请稍候 {BattlefieldInteractionPresentationGate.RemainingDelaySeconds:0.0}s。");
+        return true;
+    }
+
     private void setStatus(string value)
     {
         if (statusText is not null)
@@ -1647,19 +2544,6 @@ public sealed class BattlefieldProjectionPresenter : MonoBehaviour
         }
     }
 
-    private static string buildTeamSummaryText(ProjectionViewModel projection)
-    {
-        if (projection.teamSummaries.Count <= 0)
-        {
-            return "队伍资源：未提供";
-        }
-
-        return string.Join(
-            "  /  ",
-            projection.teamSummaries
-                .OrderBy(team => team.teamNumericId)
-                .Select(team => $"队伍{team.teamNumericId} 灵脉{team.leyline} 击坠{team.killScore}"));
-    }
 }
 }
 

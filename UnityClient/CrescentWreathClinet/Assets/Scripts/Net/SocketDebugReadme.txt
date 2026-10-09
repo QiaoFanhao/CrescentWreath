@@ -15,3 +15,4 @@
 4) Supported actionType in this panel
 - drawOneCard
 - playTreasureCard
+

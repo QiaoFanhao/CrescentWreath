@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
 using TMPro;
@@ -24,7 +25,10 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
     private TMP_Text? detailText;
     private CanvasGroup? canvasGroup;
     private Image? rootImage;
+    private OverlayCollapseToggle? collapseToggle;
     private long? renderedResponseWindowNumericId;
+    private Coroutine? delayedRenderCoroutine;
+    private int delayedRenderVersion;
 
     public void Configure(
         ProjectionViewState newProjectionViewState,
@@ -57,6 +61,12 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         {
             projectionViewState.ProjectionChanged -= render;
         }
+
+        if (delayedRenderCoroutine is not null)
+        {
+            StopCoroutine(delayedRenderCoroutine);
+            delayedRenderCoroutine = null;
+        }
     }
 
     private void subscribe()
@@ -83,7 +93,15 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
             return;
         }
 
-        setVisible(true);
+        var isNewResponseWindow = renderedResponseWindowNumericId != projection.interaction.responseWindowNumericId;
+        if (BattlefieldInteractionPresentationGate.ShouldDelayInteraction(projection, isNewResponseWindow, out var remainingSeconds))
+        {
+            setVisible(false);
+            scheduleDelayedRender(remainingSeconds);
+            return;
+        }
+
+        setVisible(true, isNewResponseWindow);
         renderedResponseWindowNumericId = projection.interaction.responseWindowNumericId;
         clearChoices();
 
@@ -104,17 +122,24 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         if (!isLocalResponder)
         {
             createInfoText($"等待 Player {responder?.ToString() ?? "?"} 响应。");
+            refreshCollapsedState();
             return;
         }
 
         if (!isAwaitDefense)
         {
             createInfoText("当前响应阶段不是 awaitDefense，正式 UI 暂不提供操作。");
+            refreshCollapsedState();
             return;
         }
 
         createActionButton("不防御，承受伤害", 0, () =>
         {
+            if (BattlefieldInteractionPresentationGate.IsPresentationBusy)
+            {
+                return;
+            }
+
             if (networkController is null || !networkController.TrySubmitResponseNo())
             {
                 setText(detailText, networkController?.LastError ?? "尚未初始化正式网络控制器。");
@@ -126,6 +151,7 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         if (localPlayer is not null && hasCharm(localPlayer))
         {
             createInfoText("当前角色处于【魅惑】：本次伤害不能防御。", offsetIndex: 1);
+            refreshCollapsedState();
             return;
         }
 
@@ -135,6 +161,7 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         if (handCards.Count == 0)
         {
             createInfoText("当前手牌为空，无法提交防御牌。", offsetIndex: 1);
+            refreshCollapsedState();
             return;
         }
 
@@ -147,6 +174,11 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
                 index + 1,
                 () =>
                 {
+                    if (BattlefieldInteractionPresentationGate.IsPresentationBusy)
+                    {
+                        return;
+                    }
+
                     var declaredType = string.IsNullOrWhiteSpace(projection.interaction.pendingDamageTypeKey)
                         ? "physical"
                         : projection.interaction.pendingDamageTypeKey;
@@ -157,6 +189,8 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
                     }
                 });
         }
+
+        refreshCollapsedState();
     }
 
     private static string buildDamageSentence(ProjectionViewModel projection)
@@ -321,6 +355,9 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         scrollRect.viewport = viewport;
         scrollRect.content = choiceContent;
         scrollRect.horizontal = false;
+
+        collapseToggle = gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
     }
 
     private void createActionButton(string label, int index, UnityEngine.Events.UnityAction clicked)
@@ -379,25 +416,50 @@ public sealed class ResponseWindowOverlayView : MonoBehaviour
         choiceContent.sizeDelta = Vector2.zero;
     }
 
-    private void setVisible(bool visible)
+    private void scheduleDelayedRender(float delaySeconds)
     {
-        foreach (Transform child in transform)
+        delayedRenderVersion += 1;
+        var version = delayedRenderVersion;
+        if (delayedRenderCoroutine is not null)
         {
-            child.gameObject.SetActive(visible);
+            StopCoroutine(delayedRenderCoroutine);
         }
 
-        var currentRootImage = rootImage == null ? GetComponent<Image>() : rootImage;
-        rootImage = currentRootImage;
-        if (currentRootImage != null)
+        delayedRenderCoroutine = StartCoroutine(delayedRender(version, delaySeconds));
+    }
+
+    private IEnumerator delayedRender(int version, float delaySeconds)
+    {
+        yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, delaySeconds));
+        delayedRenderCoroutine = null;
+        if (version != delayedRenderVersion)
         {
-            currentRootImage.enabled = visible;
-            currentRootImage.raycastTarget = visible;
+            yield break;
         }
 
-        var currentCanvasGroup = ensureCanvasGroup();
-        currentCanvasGroup.alpha = visible ? 1f : 0f;
-        currentCanvasGroup.interactable = visible;
-        currentCanvasGroup.blocksRaycasts = visible;
+        render(projectionViewState?.Current);
+    }
+
+    private void setVisible(bool visible, bool resetCollapsed = false)
+    {
+        collapseToggle = collapseToggle != null
+            ? collapseToggle
+            : gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
+        collapseToggle.SetVisible(visible, resetCollapsed);
+
+        if (!visible)
+        {
+            return;
+        }
+
+        rootImage = rootImage == null ? GetComponent<Image>() : rootImage;
+        ensureCanvasGroup();
+    }
+
+    private void refreshCollapsedState()
+    {
+        collapseToggle?.RefreshIfCollapsed();
     }
 
     private CanvasGroup ensureCanvasGroup()

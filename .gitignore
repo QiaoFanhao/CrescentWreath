@@ -85,6 +85,14 @@ Assets/_Recovery/
 UnityClient/Pac/
 build_tests_diag.txt
 build_tests_msbuild_diag.txt
+
+# ---------- Licensed local-only assets ----------
+# Commercial source assets are intentionally kept out of the public repository.
+UnityClient/CrescentWreathClinet/Assets/Art/Eric VFX Studio/
+UnityClient/CrescentWreathClinet/Assets/Art/Eric VFX Studio.meta
+UnityClient/CrescentWreathClinet/Assets/Art/SE/
+UnityClient/CrescentWreathClinet/Assets/Art/SE.meta
+
 # ---------- Local environment / tooling caches ----------
 bin/
 obj/

@@ -20,9 +20,12 @@ public static class WorldCardViewFactory
         var cardObject = new GameObject(name);
         cardObject.transform.SetParent(parent, false);
 
+        var visualRoot = new GameObject("VisualRoot").transform;
+        visualRoot.SetParent(cardObject.transform, false);
+
         var body = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
         body.name = "CardBody";
-        body.SetParent(cardObject.transform, false);
+        body.SetParent(visualRoot, false);
         body.localPosition = Vector3.zero;
         body.localScale = WorldCardView.CardBodyLocalScale;
         var bodyRenderer = body.GetComponent<MeshRenderer>();
@@ -30,12 +33,18 @@ public static class WorldCardViewFactory
         bodyRenderer.enabled = false;
         destroy(body.GetComponent<Collider>());
 
-        var front = createSpriteSurface("FrontSurface", cardObject.transform, 0.018f, false);
-        var back = createSpriteSurface("BackSurface", cardObject.transform, 0.019f, true);
+        var front = createSpriteSurface("FrontSurface", visualRoot, 0.018f, false);
+        var back = createSpriteSurface("BackSurface", visualRoot, 0.019f, true);
+
+        var effectAnchor = new GameObject("EffectAnchor").transform;
+        effectAnchor.SetParent(visualRoot, false);
+        effectAnchor.localPosition = new Vector3(0f, 0.065f, 0f);
+        effectAnchor.localEulerAngles = Vector3.zero;
+        effectAnchor.localScale = new Vector3(WorldCardView.StandardCardWidth, 1f, WorldCardView.CardFaceHeight);
 
         var selection = createFrame(
             "SelectionOutline",
-            cardObject.transform,
+            visualRoot,
             1.08f,
             1.48f,
             0.035f,
@@ -45,7 +54,7 @@ public static class WorldCardViewFactory
 
         var hover = createFrame(
             "HoverHighlight",
-            cardObject.transform,
+            visualRoot,
             1.14f,
             1.54f,
             0.025f,
@@ -58,7 +67,7 @@ public static class WorldCardViewFactory
         collider.center = Vector3.up * 0.02f;
 
         var countTextObject = new GameObject("PileCountText");
-        countTextObject.transform.SetParent(cardObject.transform, false);
+        countTextObject.transform.SetParent(visualRoot, false);
         countTextObject.transform.localPosition = new Vector3(0f, 0.08f, -0.88f);
         countTextObject.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
         var countText = countTextObject.AddComponent<TMPro.TextMeshPro>();
@@ -71,7 +80,7 @@ public static class WorldCardViewFactory
         countTextObject.SetActive(false);
 
         var activatedTextObject = new GameObject("ActivatedText");
-        activatedTextObject.transform.SetParent(cardObject.transform, false);
+        activatedTextObject.transform.SetParent(visualRoot, false);
         activatedTextObject.transform.localPosition = new Vector3(0f, 0.095f, 0.86f);
         activatedTextObject.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
         var activatedText = activatedTextObject.AddComponent<TMPro.TextMeshPro>();
@@ -85,7 +94,7 @@ public static class WorldCardViewFactory
         activatedTextObject.SetActive(false);
 
         var view = cardObject.AddComponent<WorldCardView>();
-        view.ConfigureForFactory(body, front, back, selection, hover, collider, countText, activatedText);
+        view.ConfigureForFactory(visualRoot, body, front, back, effectAnchor, selection, hover, collider, countText, activatedText);
         cardObject.AddComponent<WorldCardPointerController>();
         return view;
     }

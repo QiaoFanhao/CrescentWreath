@@ -73,11 +73,13 @@ public static class BattlefieldSceneSkeletonFactory
             ensurePlayerHud(existing!);
             var existingNetworkController = ensureNetworkController(gameClientRoot);
             ensureConnectionPanel(existing!, theme, existingNetworkController);
+            ensureLobbyRootView(existing!, theme, existingNetworkController);
             ensureCharacterSelectionOverlay(existing!, theme, existingNetworkController);
             ensureResponseWindowOverlay(existing!, theme, existingNetworkController);
             ensureInputContextOverlay(existing!, theme, existingNetworkController);
             ensureZoneCardListOverlay(existing!, theme);
             ensureMatchEndOverlay(existing!, theme);
+            ensureCardInspectPreview(existing!, theme);
             ensureOverlayDefaultHidden(existing!);
             ensureCharacterZoneAnchorLayout(existing!, theme);
             ensureWorldCardDemo(existing!);
@@ -96,8 +98,10 @@ public static class BattlefieldSceneSkeletonFactory
         var overlayCanvas = createCanvas("OverlayCanvas", gameClientRoot.transform, 200);
         var debugCanvas = createCanvas("DebugCanvas", gameClientRoot.transform, 300);
 
-        createHudPlaceholder("TurnInfoPanel", screenHudCanvas.transform,
-            new Vector2(0.02f, 0.89f), new Vector2(0.22f, 0.98f), "Turn / Phase", theme);
+        var turnInfoPanel = createHudPlaceholder("TurnInfoPanel", screenHudCanvas.transform,
+            new Vector2(0.01f, 0.70f), new Vector2(0.34f, 0.985f), "Turn / Phase", theme);
+        configureTurnInfoPanelRect(turnInfoPanel);
+        ensureTeamResourcePanel(turnInfoPanel, theme);
         var networkController = ensureNetworkController(gameClientRoot);
         ensureConnectionPanel(screenHudCanvas.transform, theme, networkController);
         var playerHud = createHudPlaceholder("PlayerHud", screenHudCanvas.transform,
@@ -107,8 +111,6 @@ public static class BattlefieldSceneSkeletonFactory
             new Vector2(0.22f, 0.01f), new Vector2(0.77f, 0.19f), "Local Hand Area", theme);
         createHudPlaceholder("ActionPanel", screenHudCanvas.transform,
             new Vector2(0.78f, 0.02f), new Vector2(0.985f, 0.36f), "Action Panel", theme);
-        createHudPlaceholder("CardDetailPanel", screenHudCanvas.transform,
-            new Vector2(0.82f, 0.69f), new Vector2(0.985f, 0.87f), "Card Detail", theme);
         ensureSeatHudViews(screenHudCanvas.transform, theme);
 
         var interactionDimmer = createOverlay(overlayCanvas.transform, theme);
@@ -130,11 +132,13 @@ public static class BattlefieldSceneSkeletonFactory
         gameClientRoot.ConfigureBattlefieldLayout(layout);
         ensureDebugToggle(layout);
         ensureConnectionPanel(layout, theme, networkController);
+        ensureLobbyRootView(layout, theme, networkController);
         ensureCharacterSelectionOverlay(layout, theme, networkController);
         ensureResponseWindowOverlay(layout, theme, networkController);
         ensureInputContextOverlay(layout, theme, networkController);
         ensureZoneCardListOverlay(layout, theme);
         ensureMatchEndOverlay(layout, theme);
+        ensureCardInspectPreview(layout, theme);
         ensureOverlayDefaultHidden(layout);
         ensureWorldCardDemo(layout);
         ensureProjectionPresenter(layout);
@@ -845,16 +849,16 @@ public static class BattlefieldSceneSkeletonFactory
         panel.offsetMin = Vector2.zero;
         panel.offsetMax = Vector2.zero;
 
-        var portrait = ensureSeatRect(panel, "CharacterPortraitPlaceholder", new Vector2(0.02f, 0.08f), new Vector2(0.29f, 0.94f));
-        var resource = ensureSeatRect(panel, "ResourceBarPlaceholder", new Vector2(0.30f, 0.54f), new Vector2(0.97f, 0.72f));
-        var statuses = ensureSeatRect(panel, "StatusContainer", new Vector2(0.30f, 0.74f), new Vector2(0.97f, 0.95f));
-        var counters = ensureSeatRect(panel, "CounterContainer", new Vector2(0.03f, 0.06f), new Vector2(0.27f, 0.48f));
-        var publicField = ensureSeatRect(panel, "PublicFieldContainer", new Vector2(0.30f, 0.06f), new Vector2(0.97f, 0.48f));
-        var playerName = ensureSeatText(panel, "PlayerNameText", "Seat", new Vector2(0.30f, 0.78f), new Vector2(0.97f, 0.96f), 16f, theme);
-        var hp = ensureSeatText(panel, "HpText", "HP -", new Vector2(0.30f, 0.60f), new Vector2(0.97f, 0.78f), 15f, theme);
-        var hand = ensureSeatText(panel, "HandCountText", "Hand -", new Vector2(0.30f, 0.36f), new Vector2(0.97f, 0.52f), 14f, theme);
-        var deck = ensureSeatText(panel, "DeckCountText", "Deck -", new Vector2(0.30f, 0.20f), new Vector2(0.97f, 0.36f), 14f, theme);
-        var discard = ensureSeatText(panel, "DiscardCountText", "Discard -", new Vector2(0.30f, 0.04f), new Vector2(0.97f, 0.20f), 14f, theme);
+        var portrait = ensureSeatRect(panel, "CharacterPortraitPlaceholder", new Vector2(0.02f, 0.08f), new Vector2(0.45f, 0.94f));
+        var resource = ensureSeatRect(panel, "ResourceBarPlaceholder", new Vector2(0.47f, 0.54f), new Vector2(0.97f, 0.72f));
+        var statuses = ensureSeatRect(panel, "StatusContainer", new Vector2(0.47f, 0.74f), new Vector2(0.97f, 0.95f));
+        var counters = ensureSeatRect(panel, "CounterContainer", new Vector2(0.02f, 0.02f), new Vector2(0.45f, 0.07f));
+        var publicField = ensureSeatRect(panel, "PublicFieldContainer", new Vector2(0.47f, 0.06f), new Vector2(0.97f, 0.48f));
+        var playerName = ensureSeatText(panel, "PlayerNameText", "座位", new Vector2(0.47f, 0.78f), new Vector2(0.97f, 0.96f), 16f, theme);
+        var hp = ensureSeatText(panel, "HpText", "HP -", new Vector2(0.47f, 0.60f), new Vector2(0.97f, 0.78f), 15f, theme);
+        var hand = ensureSeatText(panel, "HandCountText", "手牌 -", new Vector2(0.47f, 0.36f), new Vector2(0.97f, 0.52f), 14f, theme);
+        var deck = ensureSeatText(panel, "DeckCountText", "牌库 -", new Vector2(0.47f, 0.20f), new Vector2(0.97f, 0.36f), 14f, theme);
+        var discard = ensureSeatText(panel, "DiscardCountText", "弃牌 -", new Vector2(0.47f, 0.04f), new Vector2(0.97f, 0.20f), 14f, theme);
 
         var seatView = panel.GetComponent<BattlefieldPlayerSeatView>();
         if (seatView is null)
@@ -979,6 +983,53 @@ public static class BattlefieldSceneSkeletonFactory
         ensureConnectionPanel(layout.ScreenHudCanvas.transform, theme, networkController);
     }
 
+    private static void ensureLobbyRootView(
+        BattlefieldLayoutRoot layout,
+        BattlefieldUiTheme theme,
+        GameClientNetworkController networkController)
+    {
+        if (layout.OverlayCanvas is null)
+        {
+            return;
+        }
+
+        var panel = layout.OverlayCanvas.transform.Find("LobbyRoot") as RectTransform;
+        if (panel is null)
+        {
+            panel = createPanel(
+                "LobbyRoot",
+                layout.OverlayCanvas.transform,
+                Vector2.zero,
+                Vector2.one,
+                new Color(0.005f, 0.012f, 0.018f, 0.88f));
+        }
+
+        panel.anchorMin = Vector2.zero;
+        panel.anchorMax = Vector2.one;
+        panel.offsetMin = Vector2.zero;
+        panel.offsetMax = Vector2.zero;
+        panel.SetAsLastSibling();
+        if (panel.GetComponent<CanvasGroup>() is null)
+        {
+            panel.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        var image = panel.GetComponent<Image>();
+        if (image is not null)
+        {
+            image.color = new Color(0.005f, 0.012f, 0.018f, 0.88f);
+            image.raycastTarget = true;
+        }
+
+        var lobbyRootView = panel.GetComponent<LobbyRootView>();
+        if (lobbyRootView is null)
+        {
+            lobbyRootView = panel.gameObject.AddComponent<LobbyRootView>();
+        }
+
+        lobbyRootView.Configure(networkController, theme);
+    }
+
     private static void ensureInputContextOverlay(
         BattlefieldLayoutRoot layout,
         BattlefieldUiTheme theme,
@@ -1046,10 +1097,17 @@ public static class BattlefieldSceneSkeletonFactory
             placeholder = createHudPlaceholder(
                 "CharacterSelectionPlaceholder",
                 layout.OverlayCanvas.transform,
-                new Vector2(0.25f, 0.16f),
-                new Vector2(0.75f, 0.86f),
+                new Vector2(0.06f, 0.08f),
+                new Vector2(0.94f, 0.92f),
                 "开局角色选择",
                 theme);
+        }
+        else
+        {
+            placeholder.anchorMin = new Vector2(0.06f, 0.08f);
+            placeholder.anchorMax = new Vector2(0.94f, 0.92f);
+            placeholder.offsetMin = Vector2.zero;
+            placeholder.offsetMax = Vector2.zero;
         }
 
         placeholder.gameObject.SetActive(true);
@@ -1197,6 +1255,48 @@ public static class BattlefieldSceneSkeletonFactory
         }
 
         overlay.Configure(projectionViewState, theme);
+    }
+
+    private static void ensureCardInspectPreview(
+        BattlefieldLayoutRoot layout,
+        BattlefieldUiTheme theme)
+    {
+        if (layout.OverlayCanvas is null)
+        {
+            return;
+        }
+
+        var placeholder = layout.OverlayCanvas.transform.Find("CardInspectPreview") as RectTransform;
+        if (placeholder is null)
+        {
+            var placeholderObject = new GameObject(
+                "CardInspectPreview",
+                typeof(RectTransform),
+                typeof(CardInspectPreviewView));
+            placeholderObject.transform.SetParent(layout.OverlayCanvas.transform, false);
+            placeholder = placeholderObject.GetComponent<RectTransform>();
+        }
+
+        placeholder.anchorMin = Vector2.zero;
+        placeholder.anchorMax = Vector2.one;
+        placeholder.offsetMin = Vector2.zero;
+        placeholder.offsetMax = Vector2.zero;
+
+        var previewView = placeholder.GetComponent<CardInspectPreviewView>();
+        if (previewView is null)
+        {
+            previewView = placeholder.gameObject.AddComponent<CardInspectPreviewView>();
+        }
+
+        previewView.Configure(theme);
+
+        var controller = layout.GetComponent<CardInspectPreviewController>();
+        if (controller is null)
+        {
+            controller = layout.gameObject.AddComponent<CardInspectPreviewController>();
+        }
+
+        controller.Configure(layout.TableWorld?.MainCamera, previewView);
     }
 
     private static void ensureOverlayDefaultHidden(BattlefieldLayoutRoot layout)
@@ -1521,16 +1621,20 @@ public static class BattlefieldSceneSkeletonFactory
             return;
         }
 
+        var turnInfoPanel = layout.ScreenHudCanvas.transform.Find("TurnInfoPanel") as RectTransform;
+        if (turnInfoPanel is not null)
+        {
+            configureTurnInfoPanelRect(turnInfoPanel);
+            ensureTeamResourcePanel(turnInfoPanel, layout.Theme);
+        }
+
+        removeLegacyHudPanel(layout.ScreenHudCanvas.transform, "CardDetailPanel");
+
         setHudPanelAnchors(
             layout.ScreenHudCanvas.transform,
             "ActionPanel",
             new Vector2(0.78f, 0.02f),
             new Vector2(0.985f, 0.36f));
-        setHudPanelAnchors(
-            layout.ScreenHudCanvas.transform,
-            "CardDetailPanel",
-            new Vector2(0.82f, 0.69f),
-            new Vector2(0.985f, 0.87f));
     }
 
     private static void setHudPanelAnchors(
@@ -1551,6 +1655,33 @@ public static class BattlefieldSceneSkeletonFactory
         rect.offsetMax = Vector2.zero;
     }
 
+    private static void removeLegacyHudPanel(Transform canvasTransform, string panelName)
+    {
+        var target = canvasTransform.Find(panelName);
+        if (target is null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            UnityEngine.Object.Destroy(target.gameObject);
+        }
+        else
+        {
+            UnityEngine.Object.DestroyImmediate(target.gameObject);
+        }
+    }
+
+    private static void configureTurnInfoPanelRect(RectTransform rect)
+    {
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(12f, -8f);
+        rect.sizeDelta = new Vector2(720f, 340f);
+    }
+
     private static void ensureWorldCardDemo(BattlefieldLayoutRoot layout)
     {
         if (layout.TableWorld is null)
@@ -1564,19 +1695,47 @@ public static class BattlefieldSceneSkeletonFactory
             layout.TableWorld.MainCamera.gameObject.AddComponent<PhysicsRaycaster>();
         }
 
-        var detailText = layout.ScreenHudCanvas is null
-            ? null
-            : layout.ScreenHudCanvas.transform
-                .Find("CardDetailPanel/Label")
-                ?.GetComponent<TMP_Text>();
         var demo = layout.TableWorld.GetComponent<BattlefieldWorldCardDemoController>();
         if (demo is null)
         {
             demo = layout.TableWorld.gameObject.AddComponent<BattlefieldWorldCardDemoController>();
         }
 
-        demo.Configure(layout.TableWorld, detailText);
+        demo.Configure(layout.TableWorld, null);
         demo.EnsureDemo();
+    }
+
+    private static void ensureTeamResourcePanel(RectTransform panel, BattlefieldUiTheme theme)
+    {
+        var image = panel.GetComponent<Image>();
+        if (image is not null)
+        {
+            image.enabled = false;
+        }
+
+        var label = panel.Find("Label")?.GetComponent<TMP_Text>();
+        if (label is not null)
+        {
+            label.text = string.Empty;
+            label.gameObject.SetActive(false);
+        }
+
+        var canvasGroup = panel.GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+        {
+            canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
+
+        var view = panel.GetComponent<TeamResourcePanelView>();
+        if (view is null)
+        {
+            view = panel.gameObject.AddComponent<TeamResourcePanelView>();
+        }
+
+        view.Configure(theme.PrimaryFont);
     }
 
     private static void ensureProjectionPresenter(BattlefieldLayoutRoot layout)
@@ -1603,28 +1762,18 @@ public static class BattlefieldSceneSkeletonFactory
 
         battlefieldView.Configure(layout.TableWorld);
 
-        var detailText = layout.ScreenHudCanvas is null
-            ? null
-            : layout.ScreenHudCanvas.transform
-                .Find("CardDetailPanel/Label")
-                ?.GetComponent<TMP_Text>();
-        CardDetailPanel? cardDetailPanel = null;
-        if (detailText is not null)
-        {
-            cardDetailPanel = detailText.GetComponentInParent<CardDetailPanel>();
-            if (cardDetailPanel is null)
-            {
-                cardDetailPanel = detailText.transform.parent.gameObject.AddComponent<CardDetailPanel>();
-            }
-
-            cardDetailPanel.Configure(detailText);
-        }
-
         var statusText = layout.ScreenHudCanvas is null
             ? null
             : layout.ScreenHudCanvas.transform
                 .Find("TurnInfoPanel/Label")
                 ?.GetComponent<TMP_Text>();
+        var turnInfoPanel = layout.ScreenHudCanvas is null
+            ? null
+            : layout.ScreenHudCanvas.transform.Find("TurnInfoPanel") as RectTransform;
+        if (turnInfoPanel is not null)
+        {
+            ensureTeamResourcePanel(turnInfoPanel, layout.Theme);
+        }
         var presenter = layout.TableWorld.GetComponent<BattlefieldProjectionPresenter>();
         if (presenter is null)
         {
@@ -1635,7 +1784,6 @@ public static class BattlefieldSceneSkeletonFactory
             projectionViewState,
             layout,
             battlefieldView,
-            cardDetailPanel ?? layout.TableWorld.gameObject.AddComponent<CardDetailPanel>(),
             statusText);
 
         var demo = layout.TableWorld.GetComponent<BattlefieldWorldCardDemoController>();
@@ -1647,7 +1795,6 @@ public static class BattlefieldSceneSkeletonFactory
         if (projectionViewState.Current is null)
         {
             battlefieldView.ClearAll();
-            cardDetailPanel?.ShowMessage("Waiting for projection.");
         }
     }
 
@@ -1663,3 +1810,4 @@ public static class BattlefieldSceneSkeletonFactory
     }
 }
 }
+

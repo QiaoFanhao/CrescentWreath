@@ -1,0 +1,1936 @@
+﻿{
+    "cards":  [
+                  {
+                      "definitionId":  "starter:kourindouCoupon",
+                      "kind":  "treasure",
+                      "name":  "香霖堂购物券",
+                      "effectText":  "起始牌。打出后提供0魔力、1灵符。",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "0",
+                      "mana":  "0",
+                      "sigil":  "1",
+                      "defense":  "体咒2",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "starter:magicCircuit",
+                      "kind":  "treasure",
+                      "name":  "士郎的魔术回路",
+                      "effectText":  "起始牌。打出后提供1魔力、0灵符。",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "0",
+                      "mana":  "1",
+                      "sigil":  "0",
+                      "defense":  "体咒2",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T001",
+                      "kind":  "treasure",
+                      "name":  "月时计",
+                      "effectText":  "沉默目标对手；你抓1张牌",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "1",
+                      "sigil":  "1",
+                      "defense":  "体咒2",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T002",
+                      "kind":  "treasure",
+                      "name":  "七色魔法书",
+                      "effectText":  "回复目标玩家1生命",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "2",
+                      "mana":  "2",
+                      "sigil":  "1",
+                      "defense":  "咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T003",
+                      "kind":  "treasure",
+                      "name":  "绯想之剑",
+                      "effectText":  "可以从你的手牌或弃牌堆中放逐1张牌；给予目标对手2体术伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "2",
+                      "sigil":  "2",
+                      "defense":  "体4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T004",
+                      "kind":  "treasure",
+                      "name":  "楼观剑",
+                      "effectText":  "解除目标玩家【禁锢】或【封印】效果；给予目标对手3体术伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "1",
+                      "sigil":  "1",
+                      "defense":  "体4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T005",
+                      "kind":  "treasure",
+                      "name":  "魔眼封印眼镜",
+                      "effectText":  "目标对手弃1张牌；你的技能值+1",
+                      "arrivalText":  "【降临】进入召唤区时，所有玩家弃1张牌。",
+                      "resolveText":  "",
+                      "summonCost":  "5",
+                      "mana":  "0",
+                      "sigil":  "1",
+                      "defense":  "咒5",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T006",
+                      "kind":  "treasure",
+                      "name":  "水银剑Azoth",
+                      "effectText":  "给予自己1直接伤害；你可以从召唤区放逐1张牌",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "4",
+                      "sigil":  "1",
+                      "defense":  "体咒1",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T007",
+                      "kind":  "treasure",
+                      "name":  "梦魔的铃铛",
+                      "effectText":  "选择1项：将此牌给予目标队友手中；目标队友弃1张牌，你获得3魔力",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "0",
+                      "sigil":  "1",
+                      "defense":  "体咒2",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T008",
+                      "kind":  "treasure",
+                      "name":  "起源魔弹",
+                      "effectText":  "给予目标对手1直接伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "0",
+                      "sigil":  "0",
+                      "defense":  "体咒2",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T009",
+                      "kind":  "treasure",
+                      "name":  "模拟神经Etherite",
+                      "effectText":  "【封印】目标对手",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "0",
+                      "sigil":  "2",
+                      "defense":  "体4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T010",
+                      "kind":  "treasure",
+                      "name":  "伊吹瓢",
+                      "effectText":  "将你弃牌堆一张牌置于牌库顶，如果它的召唤费用小于5，则可以直接置入手中",
+                      "arrivalText":  "【降临】进入召唤区时，所有玩家抓1张牌",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "4",
+                      "sigil":  "1",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T011",
+                      "kind":  "treasure",
+                      "name":  "迷你八卦炉",
+                      "effectText":  "技能值+1；给予目标对手3咒术伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "7",
+                      "mana":  "4",
+                      "sigil":  "0",
+                      "defense":  "咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T012",
+                      "kind":  "treasure",
+                      "name":  "空空如也的赛钱箱",
+                      "effectText":  "你抓2张牌；可以从召唤区放逐1张牌",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "0",
+                      "sigil":  "0",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T013",
+                      "kind":  "treasure",
+                      "name":  "圣骸布",
+                      "effectText":  "宣告一张牌名，然后抓1张牌并展示，如果是你所宣告的牌，则你可以【魅惑】目标对手",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "5",
+                      "mana":  "1",
+                      "sigil":  "1",
+                      "defense":  "咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T014",
+                      "kind":  "treasure",
+                      "name":  "遥远的理想乡",
+                      "effectText":  "（打出的效果：）目标友方玩家获得【结界】；以此牌防御时，若你未被击杀，回复4生命【此牌防御时进入弃牌堆】",
+                      "arrivalText":  "【降临】进入召唤区时，所有人回复2",
+                      "resolveText":  "",
+                      "summonCost":  "7",
+                      "mana":  "3",
+                      "sigil":  "1",
+                      "defense":  "体咒7",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T015",
+                      "kind":  "treasure",
+                      "name":  "黑键",
+                      "effectText":  "沉默目标对手；用此牌防御后，如果你没有被击杀，则给予伤害来源玩家1点直接伤害；【此牌防御后进入弃牌堆】",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "2",
+                      "sigil":  "0",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T016",
+                      "kind":  "treasure",
+                      "name":  "机械翡翠",
+                      "effectText":  "此牌不会离开你的阵地区。你每次击杀对手时，可将间隙、手牌或弃牌堆中一张牌面朝下叠放在此牌下，最多累积2张。每有一张叠放的牌，机械翡翠获得属性魔力+2/灵符+2",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "0",
+                      "sigil":  "0",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T017",
+                      "kind":  "treasure",
+                      "name":  "天之杯的幻想",
+                      "effectText":  "无法从召唤区被放逐；直接将召唤区一张牌置于目标友方玩家的牌库顶",
+                      "arrivalText":  "【降临】此牌进入召唤区时，每个队伍获得1灵脉；强制将异变牌洗牌并将【命运长夜】翻开置于牌库顶",
+                      "resolveText":  "",
+                      "summonCost":  "9",
+                      "mana":  "0",
+                      "sigil":  "0",
+                      "defense":  "体咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T018",
+                      "kind":  "treasure",
+                      "name":  "九字兼定",
+                      "effectText":  "你的技能值+1；从手牌或弃牌堆中放逐1张牌",
+                      "arrivalText":  "【降临】每位玩家可以从手牌或弃牌堆中放逐1张牌",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "2",
+                      "sigil":  "1",
+                      "defense":  "体5",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T019",
+                      "kind":  "treasure",
+                      "name":  "空气魔法卷轴",
+                      "effectText":  "给予目标对手2咒术伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "4",
+                      "sigil":  "0",
+                      "defense":  "咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T020",
+                      "kind":  "treasure",
+                      "name":  "非想天则",
+                      "effectText":  "直接解决翻开的异变牌，并将此牌放逐【此牌用于防御时，将其置入弃牌堆】",
+                      "arrivalText":  "【降临】所有玩家当前生命值强行降为1",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "0",
+                      "sigil":  "0",
+                      "defense":  "体咒5",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T021",
+                      "kind":  "treasure",
+                      "name":  "制御棒",
+                      "effectText":  "将手牌中最多2张牌面朝下叠放在此牌下面，此牌获得叠放张数X2的魔力值",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "2",
+                      "sigil":  "2",
+                      "defense":  "体4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T022",
+                      "kind":  "treasure",
+                      "name":  "阿鲁猫型火箭",
+                      "effectText":  "你可以从手牌或弃牌堆中放逐1张牌；禁锢你自己",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "5",
+                      "sigil":  "2",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T023",
+                      "kind":  "treasure",
+                      "name":  "阴阳玉",
+                      "effectText":  "灵脉+1；回复目标人类角色2生命并给予目标人外对手1直接伤害",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "7",
+                      "mana":  "2",
+                      "sigil":  "2",
+                      "defense":  "体咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T024",
+                      "kind":  "treasure",
+                      "name":  "EX变身红丝带",
+                      "effectText":  "当此牌被放逐时，当前回合玩家回复3生命，抓1张牌",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "1",
+                      "mana":  "2",
+                      "sigil":  "0",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T025",
+                      "kind":  "treasure",
+                      "name":  "正式外典Gamaliel",
+                      "effectText":  "此牌防御时，你可以额外弃X张牌，增加X点防御值",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "5",
+                      "mana":  "2",
+                      "sigil":  "2",
+                      "defense":  "体咒4",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T026",
+                      "kind":  "treasure",
+                      "name":  "火焰的车轮",
+                      "effectText":  "目标玩家获得任意1个其角色可以拥有的技能指示物",
+                      "arrivalText":  "【降临】当前回合玩家可以从弃牌堆和召唤区各放逐1张牌",
+                      "resolveText":  "",
+                      "summonCost":  "5",
+                      "mana":  "3",
+                      "sigil":  "1",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T027",
+                      "kind":  "treasure",
+                      "name":  "蕾咪的威严",
+                      "effectText":  "抓2弃2",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "4",
+                      "mana":  "2",
+                      "sigil":  "0",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T028",
+                      "kind":  "treasure",
+                      "name":  "圣德道士之笏",
+                      "effectText":  "你下次给予的伤害带有【穿透】",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "6",
+                      "mana":  "3",
+                      "sigil":  "1",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "T029",
+                      "kind":  "treasure",
+                      "name":  "世纪末风神传说",
+                      "effectText":  "当对手给予你伤害时，你可以不防御并放逐此卡，然后完全免疫此次伤害。此卡无法离开间隙",
+                      "arrivalText":  "【降临】射命丸文获得结界，其他玩家各抓1张牌",
+                      "resolveText":  "",
+                      "summonCost":  "2",
+                      "mana":  "1",
+                      "sigil":  "1",
+                      "defense":  "体咒0",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "S001",
+                      "kind":  "sakura",
+                      "name":  "樱花饼",
+                      "effectText":  "技能值+1。被放逐时进入樱花饼区。",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "3",
+                      "mana":  "1",
+                      "sigil":  "2",
+                      "defense":  "体咒3",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A001",
+                      "kind":  "anomaly",
+                      "name":  "红雾异变",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】人外角色抓1张牌，人类角色弃1张牌，蕾米莉亚还可以回复所有生命",
+                      "resolveText":  "【8魔力，每个友方玩家生命减少1；对手队伍有蕾米莉雅时，需要额外支付②】扣除对手1点击杀分；你可以禁锢对手队伍中的蕾米莉亚和另一个人外角色。",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A002",
+                      "kind":  "anomaly",
+                      "name":  "春雪异变",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】每位玩家可以直接召唤一张樱花饼；幽幽子可以改为选择从召唤区直接召唤一张费用不高于5的宝具卡。",
+                      "resolveText":  "【8魔力，每个友方玩家弃1张牌；友方队伍中魂魄妖梦不需要因此弃牌】扣除对手1点击杀分；你可以将手牌或弃牌堆中最多2张任意卡放逐，并可以召唤等量樱花饼卡替代",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A003",
+                      "kind":  "anomaly",
+                      "name":  "花开异变",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】当前回合玩家选择一名对手【禁锢】；拥有风见幽香的队伍获得1灵脉",
+                      "resolveText":  "【8魔力，【禁锢】你自己；风见幽香不需要禁锢自己】扣除对手1点击杀分；获得2灵脉。",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A004",
+                      "kind":  "anomaly",
+                      "name":  "永夜异变",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】每位玩家将自己阵地区一张防御牌拿回手中。然后辉夜可以将自己的手牌抓满至6张。",
+                      "resolveText":  "【8魔力，每个友方玩家弃掉1张含技能值的手牌】扣除对手1点击杀分。本 回合结束后，你立刻开始一个额外的回合",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A005",
+                      "kind":  "anomaly",
+                      "name":  "温泉异变",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】当前玩家将召唤区一张卡直接无消耗召唤",
+                      "resolveText":  "【8魔力，每位友方玩家将2张手牌如防御牌般放在阵地区】对手击杀分-1。将召唤区任意召唤费用7以下的宝具牌置入手中。",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A006",
+                      "kind":  "anomaly",
+                      "name":  "瓦拉齐亚之夜",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】所有人类玩家将1张防御牌置入弃牌堆，人外玩家抓1张牌",
+                      "resolveText":  "【8魔力，对手的TM角色可以直接启动】对手击杀分-1。对手的人类玩家弃一张牌，你队伍中的人外玩家回复所有生命",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A007",
+                      "kind":  "anomaly",
+                      "name":  "噩梦倒影",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】所有玩家从手牌中放逐1张牌，莲可以从弃牌堆中再放逐1张",
+                      "resolveText":  "【8魔力，每位对手可以抓1张牌】扣除对手1点击杀分。魅惑目标对手。",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A008",
+                      "kind":  "anomaly",
+                      "name":  "矛盾螺旋",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】封印击杀分多的一方所有玩家，两仪式不会被封印",
+                      "resolveText":  "【8魔力，对手可以从其弃牌堆中将一张牌置入手牌】对手击杀分-1， 禁锢目标对手；你队伍中的两仪式可以抓1张牌",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A009",
+                      "kind":  "anomaly",
+                      "name":  "666",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】放逐当前召唤区所有宝具卡",
+                      "resolveText":  "【8魔力，每位对手可以获得【结界】并召唤1张樱花饼】扣除对手1点击杀分；从间隙中召唤一张牌到手中",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "A010",
+                      "kind":  "anomaly",
+                      "name":  "命运长夜",
+                      "effectText":  "",
+                      "arrivalText":  "【降临】命运长夜被解决前，异变卡组不会再因任何效果发生变动。每位玩家将手牌、弃牌堆、阵地区或间隙区的一张牌面朝下盖放在自己的角色卡下方；当任意玩家击杀对手时，该玩家队伍选择一名友方玩家将自己盖放的牌放逐；此异变被解决时，放逐所有以此法盖放的牌",
+                      "resolveText":  "【先将盖放在角色卡下的牌全部放逐的一方解决此异变】 选择2项：获得3灵脉；己方击杀分+1；将召唤区一张牌直接置于手中",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C001",
+                      "kind":  "character",
+                      "name":  "博丽灵梦",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C001:1",
+                                         "name":  "八方鬼缚阵",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  "封印目标玩家；启动状态下，再给予该玩家3点咒术伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C001:2",
+                                         "name":  "博丽大结界",
+                                         "type":  "响应",
+                                         "cost":  "任意玩家回合开始时，弃1张防御为3或更高牌",
+                                         "effectText":  "任意玩家回合开始时，你可以弃1张防御值3或更高的牌，令当前回合玩家获得【结界】。"
+                                     },
+                                     {
+                                         "skillKey":  "C001:3",
+                                         "name":  "梦想天生",
+                                         "type":  "启动",
+                                         "cost":  "⑥，II",
+                                         "effectText":  "进入启动状态并直接解决当前异变，仍受每回合只能解决一次异变的限制。"
+                                     },
+                                     {
+                                         "skillKey":  "C001:4",
+                                         "name":  "不可思议的空飞巫女",
+                                         "type":  "终结",
+                                         "cost":  "⑦，III，每回合一次",
+                                         "effectText":  "你获得【结界】，并将牌库顶至多3张牌如同防御牌般放在阵地区。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C002",
+                      "kind":  "character",
+                      "name":  "东风谷早苗",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C002:1",
+                                         "name":  "摩西的奇迹",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C002:2",
+                                         "name":  "新星辉煌之夜",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C002:3",
+                                         "name":  "九字刺",
+                                         "type":  "通常",
+                                         "cost":  "",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C002:4",
+                                         "name":  "五谷丰登之祝福",
+                                         "type":  "终结",
+                                         "cost":  "④，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C003",
+                      "kind":  "character",
+                      "name":  "蕾米莉亚",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C003:1",
+                                         "name":  "红色不夜城",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  "给予目标对手2点咒术伤害，然后你回复2生命；启动状态下伤害与回复各+2。"
+                                     },
+                                     {
+                                         "skillKey":  "C003:2",
+                                         "name":  "冈格尼尔",
+                                         "type":  "响应",
+                                         "cost":  "每回合1次，你或操控芙兰朵露的队友给予对手伤害时，你弃1张召唤费用为3或更高的牌",
+                                         "effectText":  "你或C014队友给予对手非直接伤害前，可弃1张召唤费用3或更高的手牌，使本次伤害获得【穿透】。"
+                                     },
+                                     {
+                                         "skillKey":  "C003:3",
+                                         "name":  "绯色宿命",
+                                         "type":  "启动",
+                                         "cost":  "⑥，III",
+                                         "effectText":  "进入启动状态，然后给予目标对手6点体术伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C003:4",
+                                         "name":  "红色幻想乡",
+                                         "type":  "终结",
+                                         "cost":  "⑥III",
+                                         "effectText":  "抓2张牌并扣除对手队伍1灵脉；启动状态下额外抓1张。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C004",
+                      "kind":  "character",
+                      "name":  "魔理沙",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C004:1",
+                                         "name":  "极限火花",
+                                         "type":  "通常",
+                                         "cost":  "⑤",
+                                         "effectText":  "给予目标对手4点咒术伤害；若目标为C022爱丽丝或C017帕秋莉，伤害-1。"
+                                     },
+                                     {
+                                         "skillKey":  "C004:2",
+                                         "name":  "星尘狂欢",
+                                         "type":  "响应",
+                                         "cost":  "每回合一次，若你在防御后未被击杀，弃1张手牌",
+                                         "effectText":  "每回合一次。你防御后未被击杀时，可以弃1张手牌，对伤害来源玩家造成1点直接伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C004:3",
+                                         "name":  "八卦炉充能",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  "本回合你下次给予的咒术或体术伤害+2。"
+                                     },
+                                     {
+                                         "skillKey":  "C004:4",
+                                         "name":  "炽烈彗星",
+                                         "type":  "终结",
+                                         "cost":  "⑦II",
+                                         "effectText":  "给予目标对手7点体术伤害；结算后从手牌或弃牌堆放逐1张牌。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C005",
+                      "kind":  "character",
+                      "name":  "魂魄妖梦",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C005:1",
+                                         "name":  "无为无策的冥罚",
+                                         "type":  "响应",
+                                         "cost":  "你给予对手体术伤害时",
+                                         "effectText":  "你给予对手体术伤害时，获得1个剑气指示物，最多3个。"
+                                     },
+                                     {
+                                         "skillKey":  "C005:2",
+                                         "name":  "六根清净斩",
+                                         "type":  "响应",
+                                         "cost":  "当你完全防御对手一次伤害后，移除1剑气指示物",
+                                         "effectText":  "完全防御对手一次伤害后，移除1剑气，展示牌库顶牌，对伤害来源角色造成其召唤费用-1的体术伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C005:3",
+                                         "name":  "樱花闪闪",
+                                         "type":  "通常",
+                                         "cost":  "④，X剑气",
+                                         "effectText":  "选择消耗X剑气，对最多2个目标对手各造成1+X点体术伤害；对C018幽幽子伤害-1。"
+                                     },
+                                     {
+                                         "skillKey":  "C005:4",
+                                         "name":  "西行寺春风斩",
+                                         "type":  "终结",
+                                         "cost":  "④II，移除X剑气指示物",
+                                         "effectText":  "选择消耗X剑气，获得【穿透】，对目标对手造成3+X点体术伤害。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C006",
+                      "kind":  "character",
+                      "name":  "十六夜咲夜",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C006:1",
+                                         "name":  "杀人玩偶",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C006:2",
+                                         "name":  "狂气杰克",
+                                         "type":  "响应",
+                                         "cost":  "启动状态下，每回合1次，任意玩家防御前，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C006:3",
+                                         "name":  "特制时停表",
+                                         "type":  "启动",
+                                         "cost":  "⑥，II",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C006:4",
+                                         "name":  "咲夜的世界",
+                                         "type":  "终结",
+                                         "cost":  "⑧，V",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C007",
+                      "kind":  "character",
+                      "name":  "莲",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C007:1",
+                                         "name":  "梦萝莉的魅影",
+                                         "type":  "通常",
+                                         "cost":  "②",
+                                         "effectText":  "获得1个梦境指示物，最多存在3个。"
+                                     },
+                                     {
+                                         "skillKey":  "C007:2",
+                                         "name":  "让人脸红心跳的美梦",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  "队友抓1张牌；若你的梦境指示物为3，你再抓1张牌。"
+                                     },
+                                     {
+                                         "skillKey":  "C007:3",
+                                         "name":  "让人胆战心惊的噩梦",
+                                         "type":  "通常",
+                                         "cost":  "④，移除3梦境指示物",
+                                         "effectText":  "移除3个梦境指示物，魅惑目标对手；对C011爱尔奎特无效。"
+                                     },
+                                     {
+                                         "skillKey":  "C007:4",
+                                         "name":  "冰淇淋甜点白日梦",
+                                         "type":  "终结",
+                                         "cost":  "⑤II",
+                                         "effectText":  "回复目标友方玩家4生命，然后给予目标对手4点咒术伤害。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C008",
+                      "kind":  "character",
+                      "name":  "阿尔托莉亚",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C008:1",
+                                         "name":  "风王结界",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  "给予目标对手3点伤害，并选择该伤害为体术或咒术。"
+                                     },
+                                     {
+                                         "skillKey":  "C008:2",
+                                         "name":  "魔力铠甲",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  "你获得【结界】；本回合你下次给予的体术伤害+1，可叠加。"
+                                     },
+                                     {
+                                         "skillKey":  "C008:3",
+                                         "name":  "魔力补充行为",
+                                         "type":  "通常",
+                                         "cost":  "⑥I",
+                                         "effectText":  "抓2张牌；本回合你下次给予的咒术伤害+1，可叠加。"
+                                     },
+                                     {
+                                         "skillKey":  "C008:4",
+                                         "name":  "约定的胜利之剑",
+                                         "type":  "终结",
+                                         "cost":  "⑦，III",
+                                         "effectText":  "给予所有对手6点咒术伤害。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C009",
+                      "kind":  "character",
+                      "name":  "两仪式",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C009:1",
+                                         "name":  "直死魔眼",
+                                         "type":  "通常",
+                                         "cost":  "④，减少自己1生命",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C009:2",
+                                         "name":  "杀人鬼的资质",
+                                         "type":  "响应",
+                                         "cost":  "当对手防御你的伤害时，弃2张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C009:3",
+                                         "name":  "秘剑·猫返",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C009:4",
+                                         "name":  "根源式",
+                                         "type":  "终结",
+                                         "cost":  "弃2张手牌，③，III",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C010",
+                      "kind":  "character",
+                      "name":  "远野秋叶",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C010:1",
+                                         "name":  "赫译·红叶",
+                                         "type":  "通常",
+                                         "cost":  "⑤",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C010:2",
+                                         "name":  "胸部乃绝对铁壁",
+                                         "type":  "响应",
+                                         "cost":  "受到1伤害时",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C010:3",
+                                         "name":  "赤主形态",
+                                         "type":  "启动",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C010:4",
+                                         "name":  "赤主·焰华",
+                                         "type":  "终结",
+                                         "cost":  "启动状态下，④，III",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C011",
+                      "kind":  "character",
+                      "name":  "爱尔奎特",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C011:1",
+                                         "name":  "魅惑魔眼",
+                                         "type":  "通常",
+                                         "cost":  "⑤，I",
+                                         "effectText":  "给予目标对手3点咒术伤害，若被卡牌完全防御则魅惑她；启动状态下直接魅惑目标。"
+                                     },
+                                     {
+                                         "skillKey":  "C011:2",
+                                         "name":  "真祖格斗术",
+                                         "type":  "通常",
+                                         "cost":  "每回合1次，⑤",
+                                         "effectText":  "每回合一次。给予目标对手4点体术伤害；启动状态下伤害+2，然后解除启动。"
+                                     },
+                                     {
+                                         "skillKey":  "C011:3",
+                                         "name":  "魔法少女变身",
+                                         "type":  "启动",
+                                         "cost":  "④，I",
+                                         "effectText":  "进入启动状态；本回合你给予的所有伤害+1。"
+                                     },
+                                     {
+                                         "skillKey":  "C011:4",
+                                         "name":  "空想具现化",
+                                         "type":  "终结",
+                                         "cost":  "⑨，V",
+                                         "effectText":  "连续3次选择召唤区1张牌置入手中，每次均会补位并处理降临。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C012",
+                      "kind":  "character",
+                      "name":  "巫净琥珀",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C012:1",
+                                         "name":  "开打靠靭琥珀脚",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C012:2",
+                                         "name":  "正义的魔法少女变身",
+                                         "type":  "启动",
+                                         "cost":  "④，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C012:3",
+                                         "name":  "“Hey Jonny,come on!”",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C012:4",
+                                         "name":  "拔刀奥义·贺正箒星",
+                                         "type":  "终结",
+                                         "cost":  "⑥，III",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C013",
+                      "kind":  "character",
+                      "name":  "巫净翡翠",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C013:1",
+                                         "name":  "巨大人形兵器原形",
+                                         "type":  "响应",
+                                         "cost":  "在任意玩家的回合开始时，弃2张牌",
+                                         "effectText":  "任意玩家回合开始时，若召唤区有机械翡翠且你手牌至少2张，可以弃2张牌，将1张机械翡翠如同召唤般置入你的弃牌堆。"
+                                     },
+                                     {
+                                         "skillKey":  "C013:2",
+                                         "name":  "异常的味觉",
+                                         "type":  "响应",
+                                         "cost":  "目标对手防御时，弃1张牌，II",
+                                         "effectText":  "对手使用牌防御后，你可以弃1张手牌并支付2灵脉，用弃牌防御值替换其本次防御值；若因此被队友击杀，视为你击杀。"
+                                     },
+                                     {
+                                         "skillKey":  "C013:3",
+                                         "name":  "暗黑翡翠拳",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  "对手击杀分+1（最多10）；选择牌库非空的目标对手，翻看其牌库顶牌，造成7-该牌防御值的直接伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C013:4",
+                                         "name":  "“你被犯人了”",
+                                         "type":  "终结",
+                                         "cost":  "⑤，II",
+                                         "effectText":  "选择牌库非空的目标对手，翻看其牌库顶牌，造成该牌召唤费用的直接伤害；结算后目标可以将此牌置入手牌。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C014",
+                      "kind":  "character",
+                      "name":  "芙兰朵露",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C014:1",
+                                         "name":  "四重存在",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C014:2",
+                                         "name":  "之后就谁都不在了",
+                                         "type":  "响应",
+                                         "cost":  "你给予任意数量对手体术或咒术伤害时，减少X生命并弃X张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C014:3",
+                                         "name":  "莱汶丁",
+                                         "type":  "通常",
+                                         "cost":  "③，弃1张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C014:4",
+                                         "name":  "495年的波纹",
+                                         "type":  "终结",
+                                         "cost":  "IV，弃1张牌，移除X个毁灭指示物",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C015",
+                      "kind":  "character",
+                      "name":  "八云紫",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C015:1",
+                                         "name":  "间隙的妖怪",
+                                         "type":  "响应",
+                                         "cost":  "每回合一次，你的召唤阶段中",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C015:2",
+                                         "name":  "客观结界",
+                                         "type":  "通常",
+                                         "cost":  "⑤，放逐X张手牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C015:3",
+                                         "name":  "突然废站下车之旅",
+                                         "type":  "通常",
+                                         "cost":  "③，从手牌中放逐2张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C015:4",
+                                         "name":  "梦幻泡影",
+                                         "type":  "终结",
+                                         "cost":  "⑤II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C016",
+                      "kind":  "character",
+                      "name":  "射命丸文",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C016:1",
+                                         "name":  "镰鼬面纱",
+                                         "type":  "响应",
+                                         "cost":  "当你使用一次通常技时，移除你的【结界】效果",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C016:2",
+                                         "name":  "天狗报即日限",
+                                         "type":  "响应",
+                                         "cost":  "任意玩家回合开始时，弃1张召唤费用为3或更高的牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C016:3",
+                                         "name":  "幻想风靡",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C016:4",
+                                         "name":  "天孙降临",
+                                         "type":  "终结",
+                                         "cost":  "④，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C017",
+                      "kind":  "character",
+                      "name":  "帕秋莉",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C017:1",
+                                         "name":  "七曜魔法",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C017:2",
+                                         "name":  "元素收割者",
+                                         "type":  "响应",
+                                         "cost":  "当目标对手使用通常技并支付完其费用后，弃一张牌并移除5种元素指示物",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C017:3",
+                                         "name":  "贤者之石",
+                                         "type":  "启动",
+                                         "cost":  "在你有5种元素指示物时，⑥，II",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C017:4",
+                                         "name":  "皇家烈焰",
+                                         "type":  "终结",
+                                         "cost":  "x,IV",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C018",
+                      "kind":  "character",
+                      "name":  "幽幽子",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C018:1",
+                                         "name":  "永不餍足的胃",
+                                         "type":  "响应",
+                                         "cost":  "你的召唤阶段中",
+                                         "effectText":  "你的召唤阶段中，召唤宝具实际支付的灵符-1，但至少支付1。"
+                                     },
+                                     {
+                                         "skillKey":  "C018:2",
+                                         "name":  "凤蝶纹的死枪",
+                                         "type":  "通常",
+                                         "cost":  "⑥，每回合一次",
+                                         "effectText":  "给予除你以外所有玩家1点直接伤害。"
+                                     },
+                                     {
+                                         "skillKey":  "C018:3",
+                                         "name":  "依恋未酌宴",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  "直接击杀所有生命值为1的对手。"
+                                     },
+                                     {
+                                         "skillKey":  "C018:4",
+                                         "name":  "西行寺无余涅槃",
+                                         "type":  "终结",
+                                         "cost":  "⑥，III",
+                                         "effectText":  "所有生命值高于2的对手将当前生命值强行降为2；这不是伤害。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C019",
+                      "kind":  "character",
+                      "name":  "藤原妹红",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C019:1",
+                                         "name":  "不死鸟重生",
+                                         "type":  "响应",
+                                         "cost":  "启动状态下被击杀时",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C019:2",
+                                         "name":  "凤翼天翔",
+                                         "type":  "通常",
+                                         "cost":  "⑤，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C019:3",
+                                         "name":  "不死鸟之尾",
+                                         "type":  "启动",
+                                         "cost":  "III",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C019:4",
+                                         "name":  "不朽的弹幕",
+                                         "type":  "终结",
+                                         "cost":  "⑥，I",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C020",
+                      "kind":  "character",
+                      "name":  "蓬莱山辉夜",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C020:1",
+                                         "name":  "竹取物语",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C020:2",
+                                         "name":  "永夜返",
+                                         "type":  "通常",
+                                         "cost":  "②",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C020:3",
+                                         "name":  "须臾间的永恒",
+                                         "type":  "通常",
+                                         "cost":  "当你的生命值低于4时，②",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C020:4",
+                                         "name":  "蓬莱的树海",
+                                         "type":  "终结",
+                                         "cost":  "⑥，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C021",
+                      "kind":  "character",
+                      "name":  "雪露",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C021:1",
+                                         "name":  "咖喱能量",
+                                         "type":  "通常",
+                                         "cost":  "每回合1次，弃一张牌",
+                                         "effectText":  "每回合一次，弃1张手牌；你回复1生命并抓1张牌。"
+                                     },
+                                     {
+                                         "skillKey":  "C021:2",
+                                         "name":  "黑键投射",
+                                         "type":  "通常",
+                                         "cost":  "④，弃一张牌",
+                                         "effectText":  "弃1张手牌，选择目标对手造成3点咒术伤害；结算后本回合下一次使用此技能不消耗魔力。"
+                                     },
+                                     {
+                                         "skillKey":  "C021:3",
+                                         "name":  "火葬式典",
+                                         "type":  "响应",
+                                         "cost":  "使用黑键投射时，额外消耗④，I",
+                                         "effectText":  "使用黑键投射时，可额外支付4魔力和1灵脉；先封印目标，且本次黑键投射伤害+2。"
+                                     },
+                                     {
+                                         "skillKey":  "C021:4",
+                                         "name":  "第七圣典原罪救济",
+                                         "type":  "终结",
+                                         "cost":  "④，II",
+                                         "effectText":  "选择目标对手，使其获得禁锢并弃1张手牌；若目标是C011爱尔奎特，则额外再弃1张。"
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C022",
+                      "kind":  "character",
+                      "name":  "爱丽丝",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C022:1",
+                                         "name":  "少女文乐",
+                                         "type":  "通常",
+                                         "cost":  "②",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C022:2",
+                                         "name":  "归于虚无",
+                                         "type":  "通常",
+                                         "cost":  "④，1人形指示物",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C022:3",
+                                         "name":  "大千枪",
+                                         "type":  "通常",
+                                         "cost":  "④，2人形指示物",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C022:4",
+                                         "name":  "人形战争",
+                                         "type":  "终结",
+                                         "cost":  "④，III，移除X人形",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C023",
+                      "kind":  "character",
+                      "name":  "风见幽香",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C023:1",
+                                         "name":  "梦幻馆主",
+                                         "type":  "响应",
+                                         "cost":  "当你发动带体术或咒术伤害的技能时，弃1张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C023:2",
+                                         "name":  "幻想乡花开",
+                                         "type":  "通常",
+                                         "cost":  "⑥，每回合1次",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C023:3",
+                                         "name":  "双生火花",
+                                         "type":  "通常",
+                                         "cost":  "⑥，I，弃X张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C023:4",
+                                         "name":  "花鸟风月 啸风弄月",
+                                         "type":  "终结",
+                                         "cost":  "⑦，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C024",
+                      "kind":  "character",
+                      "name":  "伊吹萃香",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C024:1",
+                                         "name":  "小小的百鬼夜行",
+                                         "type":  "启动",
+                                         "cost":  "⑥，III",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C024:2",
+                                         "name":  "超高密度燐祸术",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C024:3",
+                                         "name":  "云集雾散",
+                                         "type":  "响应",
+                                         "cost":  "当你受到一次不致命的伤害时，减少1点生命",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C024:4",
+                                         "name":  "大江山悉皆杀",
+                                         "type":  "终结",
+                                         "cost":  "启动状态下，弃4张牌",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C025",
+                      "kind":  "character",
+                      "name":  "丰聪耳神子",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C025:1",
+                                         "name":  "和为贵",
+                                         "type":  "响应",
+                                         "cost":  "目标对手用宝具牌给予友方玩家伤害时，移除1神灵",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C025:2",
+                                         "name":  "豪族乱舞",
+                                         "type":  "响应",
+                                         "cost":  "对手防御伤害时，你移除1神灵并弃1张召唤费用大于1的牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C025:3",
+                                         "name":  "救世之光",
+                                         "type":  "响应",
+                                         "cost":  "目标队友发动通常技时，移除2神灵并弃1张带技能值的牌，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C025:4",
+                                         "name":  "神灵大宇宙",
+                                         "type":  "终结",
+                                         "cost":  "⑤，I",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C026",
+                      "kind":  "character",
+                      "name":  "比那名居天子",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C026:1",
+                                         "name":  "天启气象之剑",
+                                         "type":  "通常",
+                                         "cost":  "④",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C026:2",
+                                         "name":  "开天辟地之冲击",
+                                         "type":  "通常",
+                                         "cost":  "③，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C026:3",
+                                         "name":  "不让土壤之剑",
+                                         "type":  "响应",
+                                         "cost":  "存在天气时，若友方玩家防御对手给予的伤害后未被击杀，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C026:4",
+                                         "name":  "全人类的绯想天",
+                                         "type":  "终结",
+                                         "cost":  "存在天气时，⑥，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C027",
+                      "kind":  "character",
+                      "name":  "美杜莎",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C027:1",
+                                         "name":  "石化魔眼",
+                                         "type":  "通常",
+                                         "cost":  "⑥，II",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C027:2",
+                                         "name":  "他者封印·鲜血神殿",
+                                         "type":  "通常",
+                                         "cost":  "II",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C027:3",
+                                         "name":  "自我封印·暗黑神殿",
+                                         "type":  "通常",
+                                         "cost":  "⑤",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C027:4",
+                                         "name":  "骑英的缰绳",
+                                         "type":  "终结",
+                                         "cost":  "⑥，I",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C028",
+                      "kind":  "character",
+                      "name":  "远坂凛",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C028:1",
+                                         "name":  "魔力宝石",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C028:2",
+                                         "name":  "泽尔里奇宝箱",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C028:3",
+                                         "name":  "魔法少女变身",
+                                         "type":  "启动",
+                                         "cost":  "④，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C028:4",
+                                         "name":  "平行世界魔力干涉",
+                                         "type":  "终结",
+                                         "cost":  "移除3个宝石指示物，④，IV",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C029",
+                      "kind":  "character",
+                      "name":  "卡莲",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C029:1",
+                                         "name":  "被虐灵媒体质",
+                                         "type":  "响应",
+                                         "cost":  "当你防御时，弃3张牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C029:2",
+                                         "name":  "必杀的毒舌",
+                                         "type":  "通常",
+                                         "cost":  "⑤",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C029:3",
+                                         "name":  "魔法少女卡莲变身",
+                                         "type":  "启动",
+                                         "cost":  "④，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C029:4",
+                                         "name":  "マグダラ的圣骸布",
+                                         "type":  "终结",
+                                         "cost":  "④，IV",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C030",
+                      "kind":  "character",
+                      "name":  "伊莉雅",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C030:1",
+                                         "name":  "圣杯容器",
+                                         "type":  "响应",
+                                         "cost":  "每回合1次，任意玩家回合开始时，弃4张召唤费用大于1的牌",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C030:2",
+                                         "name":  "BerserCar",
+                                         "type":  "通常",
+                                         "cost":  "⑥",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C030:3",
+                                         "name":  "魔法少女伊莉雅变身",
+                                         "type":  "启动",
+                                         "cost":  "④，I",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C030:4",
+                                         "name":  "老虎道场大乱斗",
+                                         "type":  "终结",
+                                         "cost":  "⑦，II",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  },
+                  {
+                      "definitionId":  "C031",
+                      "kind":  "character",
+                      "name":  "弓冢五月",
+                      "effectText":  "",
+                      "arrivalText":  "",
+                      "resolveText":  "",
+                      "summonCost":  "",
+                      "mana":  "",
+                      "sigil":  "",
+                      "defense":  "",
+                      "skills":  [
+                                     {
+                                         "skillKey":  "C031:1",
+                                         "name":  "新人吸血鬼",
+                                         "type":  "响应",
+                                         "cost":  "当你的生命值为1时，任意回合结束时",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C031:2",
+                                         "name":  "无法到达远野君处之拳",
+                                         "type":  "通常",
+                                         "cost":  "④，X",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C031:3",
+                                         "name":  "小巷子同盟",
+                                         "type":  "通常",
+                                         "cost":  "③",
+                                         "effectText":  ""
+                                     },
+                                     {
+                                         "skillKey":  "C031:4",
+                                         "name":  "枯竭庭园",
+                                         "type":  "终结",
+                                         "cost":  "V",
+                                         "effectText":  ""
+                                     }
+                                 ]
+                  }
+              ]
+}

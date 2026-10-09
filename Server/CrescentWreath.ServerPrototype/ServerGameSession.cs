@@ -136,6 +136,7 @@ public sealed class ServerGameSession
             };
 
             var producedEvents = actionRequestProcessor.processActionRequest(gameState, enterSummonPhaseActionRequest);
+            producedEvents = appendAutoAdvanceEventsIfAny(requestDto.requestId, producedEvents);
             return buildSuccessResult(requestDto.requestId, requestDto.actorPlayerNumericId, producedEvents);
         }
         catch (Exception exception)
@@ -590,7 +591,7 @@ public sealed class ServerGameSession
     public ServerActionProcessResult projectResultForViewer(ServerActionProcessResult originalResult, long viewerPlayerNumericId)
     {
         var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
-        return new ServerActionProcessResult
+        var projectedResult = new ServerActionProcessResult
         {
             requestId = originalResult.requestId,
             isSucceeded = originalResult.isSucceeded,
@@ -611,6 +612,14 @@ public sealed class ServerGameSession
             producedEvents = originalResult.producedEvents,
             errorMessage = originalResult.errorMessage,
         };
+        ServerTraceLogger.Debug(
+            "projection.build",
+            ("viewer", projectedResult.viewerPlayerNumericId),
+            ("succeeded", projectedResult.isSucceeded),
+            ("events", projectedResult.eventLog.Count),
+            ("state", summarizeGameState(gameState)),
+            ("projection", summarizeProjection(projectedResult)));
+        return projectedResult;
     }
 
     private ServerActionProcessResult buildSuccessResult(
@@ -619,7 +628,7 @@ public sealed class ServerGameSession
         List<GameEvent> producedEvents)
     {
         var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
-        return new ServerActionProcessResult
+        var result = new ServerActionProcessResult
         {
             requestId = requestId,
             isSucceeded = true,
@@ -632,6 +641,14 @@ public sealed class ServerGameSession
             producedEvents = producedEvents,
             errorMessage = null,
         };
+        ServerTraceLogger.Trace(
+            "session.result.success",
+            ("requestId", requestId),
+            ("viewer", result.viewerPlayerNumericId),
+            ("events", producedEvents.Count),
+            ("state", summarizeGameState(gameState)),
+            ("projection", summarizeProjection(result)));
+        return result;
     }
 
     private ServerActionProcessResult buildFailureResult(
@@ -640,7 +657,7 @@ public sealed class ServerGameSession
         string errorMessage)
     {
         var resolvedViewerPlayerId = ServerProjectionBuilder.resolveViewerPlayerId(gameState, viewerPlayerNumericId);
-        return new ServerActionProcessResult
+        var result = new ServerActionProcessResult
         {
             requestId = requestId,
             isSucceeded = false,
@@ -657,6 +674,50 @@ public sealed class ServerGameSession
             producedEvents = new(),
             errorMessage = errorMessage,
         };
+        ServerTraceLogger.Trace(
+            "session.result.failure",
+            ("requestId", requestId),
+            ("viewer", result.viewerPlayerNumericId),
+            ("error", errorMessage),
+            ("state", summarizeGameState(gameState)),
+            ("projection", summarizeProjection(result)));
+        return result;
+    }
+
+    private static string summarizeGameState(RuleCore.GameState.GameState gameState)
+    {
+        var teamSummary = string.Join(
+            "|",
+            gameState.teams
+                .OrderBy(pair => pair.Key.Value)
+                .Select(pair => $"T{pair.Key.Value}:kill={pair.Value.killScore},leyline={pair.Value.leyline}"));
+        var input = gameState.currentInputContext is null
+            ? "(none)"
+            : $"id={gameState.currentInputContext.inputContextId.Value},context={gameState.currentInputContext.contextKey},required={summarizeRequiredPlayers(gameState.currentInputContext)}";
+        var response = gameState.currentResponseWindow is null
+            ? "(none)"
+            : $"id={gameState.currentResponseWindow.responseWindowId.Value},type={gameState.currentResponseWindow.windowTypeKey},stage={gameState.currentResponseWindow.pendingDamageResponseStageKey},responder={gameState.currentResponseWindow.currentResponderPlayerId?.Value}";
+        return $"match={gameState.matchState};turn={gameState.turnState?.turnNumber};phase={gameState.turnState?.currentPhase};currentPlayer={gameState.turnState?.currentPlayerId.Value};anomaly={gameState.currentAnomalyState?.currentAnomalyDefinitionId};input={input};response={response};teams={teamSummary}";
+    }
+
+    private static string summarizeRequiredPlayers(RuleCore.ResponseSystem.InputContextState inputContext)
+    {
+        if (inputContext.requiredPlayerIds.Count > 0)
+        {
+            return string.Join(",", inputContext.requiredPlayerIds.Select(playerId => playerId.Value));
+        }
+
+        return inputContext.requiredPlayerId?.Value.ToString() ?? "(none)";
+    }
+
+    private static string summarizeProjection(ServerActionProcessResult result)
+    {
+        var state = result.stateProjection;
+        var interaction = result.interaction;
+        var handCount = state?.players
+            .FirstOrDefault(player => player.playerNumericId == result.viewerPlayerNumericId)
+            ?.handZone?.cardCount;
+        return $"hasState={state is not null};viewer={result.viewerPlayerNumericId};hand={handCount?.ToString() ?? "(unknown)"};input={interaction?.inputContext?.contextKey ?? "(none)"};response={interaction?.responseWindow?.windowTypeKey ?? "(none)"};error={result.error?.code ?? "(none)"}";
     }
 
     private List<GameEvent> appendAutoAdvanceEventsIfAny(long requestId, List<GameEvent> producedEvents)

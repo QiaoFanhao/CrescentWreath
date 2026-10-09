@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CrescentWreath.RuleCore.Definitions;
+using CrescentWreath.RuleCore.DamageSystem;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -59,9 +60,12 @@ public sealed class AnomalyProcessor
     private const string A010DefinitionId = "A010";
     private const string KazamiYuukaDefinitionId = "C023";
     private const string StatusKeyShackle = "Shackle";
+    private const string LocalStateKeyA005DeferredResolveFinalize = "anomaly:A005:deferredResolveFinalize";
     private const int LeylineMaxValue = 5;
 
     private readonly ZoneMovementService zoneMovementService;
+    private readonly DamageProcessor damageProcessor;
+    private readonly Func<RuleCore.GameState.GameState, ActionChainState, long, int, bool>? tryOpenTreasureArrivalEffectsBeforeResolveFinalize;
     private readonly AnomalyArrivalInputRuntime anomalyArrivalInputRuntime;
     private readonly AnomalyConditionInputRuntime anomalyConditionInputRuntime;
     private readonly AnomalyRewardInputRuntime anomalyRewardInputRuntime;
@@ -71,9 +75,15 @@ public sealed class AnomalyProcessor
     private readonly AnomalyA007A008Runtime anomalyA007A008Runtime;
     private readonly AnomalyA010Runtime anomalyA010Runtime;
 
-    public AnomalyProcessor(ZoneMovementService zoneMovementService, Func<long> nextInputContextIdSupplier)
+    public AnomalyProcessor(
+        ZoneMovementService zoneMovementService,
+        Func<long> nextInputContextIdSupplier,
+        Func<RuleCore.GameState.GameState, ActionChainState, long, int, bool>? tryOpenTreasureArrivalEffectsBeforeResolveFinalize = null,
+        DamageProcessor? damageProcessor = null)
     {
         this.zoneMovementService = zoneMovementService;
+        this.damageProcessor = damageProcessor ?? new DamageProcessor();
+        this.tryOpenTreasureArrivalEffectsBeforeResolveFinalize = tryOpenTreasureArrivalEffectsBeforeResolveFinalize;
         anomalyArrivalInputRuntime = new AnomalyArrivalInputRuntime(zoneMovementService, nextInputContextIdSupplier);
         anomalyConditionInputRuntime = new AnomalyConditionInputRuntime(zoneMovementService, nextInputContextIdSupplier);
         anomalyRewardInputRuntime = new AnomalyRewardInputRuntime(zoneMovementService, nextInputContextIdSupplier);
@@ -451,12 +461,20 @@ public sealed class AnomalyProcessor
 
         if (string.Equals(currentAnomalyDefinition.definitionId, A001DefinitionId, StringComparison.Ordinal))
         {
-            applyResolveCostsAndRewardsOrThrow(
+            applyA001ResolveCostsAndRewardOrThrow(
                 gameState,
+                actionChainState,
                 tryResolveAnomalyActionRequest.actorPlayerId,
-                targetPlayerId: null,
-                currentAnomalyDefinition);
+                currentAnomalyDefinition,
+                tryResolveAnomalyActionRequest.requestId);
             hasAppliedResolveCostsAndRewards = true;
+
+            if (gameState.matchState == MatchState.ended)
+            {
+                actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+                actionChainState.isCompleted = true;
+                return actionChainState.producedEvents;
+            }
 
             var isSuspendedByRewardInput = tryOpenA001RewardInputAfterCostsAndReward(
                 gameState,
@@ -518,6 +536,13 @@ public sealed class AnomalyProcessor
         });
 
         gameState.turnState.hasResolvedAnomalyThisTurn = true;
+        if (gameState.matchState == MatchState.ended)
+        {
+            actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+            actionChainState.isCompleted = true;
+            return actionChainState.producedEvents;
+        }
+
         var isSuspendedByArrivalInput = flipNextAnomaly(gameState, actionChainState, tryResolveAnomalyActionRequest.requestId);
         if (isSuspendedByArrivalInput)
         {
@@ -580,6 +605,73 @@ public sealed class AnomalyProcessor
         var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(
             gameState.currentAnomalyState.currentAnomalyDefinitionId);
 
+        if (string.Equals(currentAnomalyDefinition.definitionId, A007DefinitionId, StringComparison.Ordinal))
+        {
+            anomalyA007A008Runtime.applyOpponentTeamKillScoreMinusOne(gameState, actorPlayerId);
+            if (gameState.matchState == MatchState.ended)
+            {
+                completeActionChain(actionChainState);
+                return;
+            }
+
+            if (anomalyA007A008Runtime.tryOpenA007RewardTargetCharmInput(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    requestId))
+            {
+                return;
+            }
+
+            AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                gameState,
+                actionChainState,
+                requestId,
+                currentAnomalyDefinition,
+                () => flipNextAnomaly(gameState, actionChainState, requestId),
+                "External A007 anomaly resolve effect requires turnState to be initialized.",
+                appendAttemptedSuccessEvent: false);
+            return;
+        }
+
+        if (string.Equals(currentAnomalyDefinition.definitionId, A008DefinitionId, StringComparison.Ordinal))
+        {
+            anomalyA007A008Runtime.applyOpponentTeamKillScoreMinusOne(gameState, actorPlayerId);
+            if (gameState.matchState == MatchState.ended)
+            {
+                completeActionChain(actionChainState);
+                return;
+            }
+
+            if (anomalyA007A008Runtime.tryOpenA008RewardTargetShackleInput(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    requestId))
+            {
+                return;
+            }
+
+            if (tryOpenA008RewardInputAfterCostsAndReward(
+                    gameState,
+                    actionChainState,
+                    actorPlayerId,
+                    requestId))
+            {
+                return;
+            }
+
+            AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+                gameState,
+                actionChainState,
+                requestId,
+                currentAnomalyDefinition,
+                () => flipNextAnomaly(gameState, actionChainState, requestId),
+                "External A008 anomaly resolve effect requires turnState to be initialized.",
+                appendAttemptedSuccessEvent: false);
+            return;
+        }
+
         var hasImplementedReward = tryApplyExternalResolveReward(
             gameState,
             actionChainState,
@@ -601,6 +693,13 @@ public sealed class AnomalyProcessor
             "External anomaly resolve effect requires turnState to be initialized.",
             appendAttemptedSuccessEvent: false,
             appendRewardPlaceholderEvent: !hasImplementedReward);
+    }
+
+    private static void completeActionChain(ActionChainState actionChainState)
+    {
+        actionChainState.pendingContinuationKey = null;
+        actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
+        actionChainState.isCompleted = true;
     }
 
     public static void ensureValidAnomalyContinuationChoiceRequestShape(
@@ -2431,11 +2530,24 @@ public sealed class AnomalyProcessor
         }
 
         var actorPlayerId = inputContextState.requiredPlayerId.Value;
+        var producedEventsCountBeforeReward = actionChainState.producedEvents.Count;
         anomalyRewardInputRuntime.executeA005SelectedSummonCardToActorHand(
             gameState,
             actionChainState,
             actorPlayerId,
             submitInputChoiceActionRequest);
+
+        actionChainState.pendingContinuationKey = null;
+        if (tryOpenTreasureArrivalEffectsBeforeResolveFinalize is not null &&
+            tryOpenTreasureArrivalEffectsBeforeResolveFinalize(
+                gameState,
+                actionChainState,
+                submitInputChoiceActionRequest.requestId,
+                producedEventsCountBeforeReward))
+        {
+            actionChainState.localState[LocalStateKeyA005DeferredResolveFinalize] = currentAnomalyDefinition.definitionId;
+            return;
+        }
 
         AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
             gameState,
@@ -2444,6 +2556,35 @@ public sealed class AnomalyProcessor
             currentAnomalyDefinition,
             () => flipNextAnomaly(gameState, actionChainState, submitInputChoiceActionRequest.requestId),
             "A005 anomaly continuation requires gameState.turnState.");
+    }
+
+    public bool tryFinalizeDeferredA005ResolveAfterExternalEffects(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long requestId)
+    {
+        if (!actionChainState.localState.ContainsKey(LocalStateKeyA005DeferredResolveFinalize))
+        {
+            return false;
+        }
+
+        if (gameState.currentInputContext is not null ||
+            gameState.currentResponseWindow is not null ||
+            !string.IsNullOrWhiteSpace(actionChainState.pendingContinuationKey))
+        {
+            return false;
+        }
+
+        actionChainState.localState.Remove(LocalStateKeyA005DeferredResolveFinalize);
+        var currentAnomalyDefinition = AnomalyDefinitionRepository.resolveByDefinitionId(A005DefinitionId);
+        AnomalyResolveFinalizeHelper.finalizeSuccessfulResolve(
+            gameState,
+            actionChainState,
+            requestId,
+            currentAnomalyDefinition,
+            () => flipNextAnomaly(gameState, actionChainState, requestId),
+            "A005 anomaly deferred continuation requires gameState.turnState.");
+        return true;
     }
 
     public void continueA009SelectGapTreasureToHandContinuation(
@@ -2614,6 +2755,32 @@ public sealed class AnomalyProcessor
             gameState,
             actorPlayerId,
             targetPlayerId,
+            anomalyDefinition);
+    }
+
+    private void applyA001ResolveCostsAndRewardOrThrow(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        AnomalyDefinition anomalyDefinition,
+        long requestId)
+    {
+        deductResolveCostsAndResolveFriendlyHpKillsIfNeeded(
+            gameState,
+            actionChainState,
+            actorPlayerId,
+            anomalyDefinition,
+            requestId);
+
+        if (gameState.matchState == MatchState.ended)
+        {
+            return;
+        }
+
+        AnomalyResolveRewardRuntime.applyRewardOrThrow(
+            gameState,
+            actorPlayerId,
+            targetPlayerId: null,
             anomalyDefinition);
     }
 
@@ -3012,14 +3179,15 @@ public sealed class AnomalyProcessor
             throw new InvalidOperationException("TryResolveAnomalyActionRequest requires actor player state for resolve cost payment.");
         }
 
-        if (anomalyDefinition.resolveManaCost.HasValue)
+        var requiredMana = AnomalyResolveCostResolver.resolveManaCost(gameState, actorPlayerId, anomalyDefinition);
+        if (requiredMana.HasValue)
         {
-            if (actorPlayerState.mana < anomalyDefinition.resolveManaCost.Value)
+            if (actorPlayerState.mana < requiredMana.Value)
             {
                 throw new InvalidOperationException("TryResolveAnomalyActionRequest requires actor mana to remain sufficient for resolve cost payment.");
             }
 
-            actorPlayerState.mana -= anomalyDefinition.resolveManaCost.Value;
+            actorPlayerState.mana -= requiredMana.Value;
         }
 
         if (!anomalyDefinition.resolveFriendlyTeamHpCostPerPlayer.HasValue)
@@ -3053,7 +3221,7 @@ public sealed class AnomalyProcessor
                 throw new InvalidOperationException("TryResolveAnomalyActionRequest requires active character for resolve hp cost payment.");
             }
 
-            if (activeCharacterInstance.currentHp <= hpCostPerFriendlyPlayer)
+            if (activeCharacterInstance.currentHp < hpCostPerFriendlyPlayer)
             {
                 throw new InvalidOperationException("TryResolveAnomalyActionRequest requires friendly active character hp to remain above resolve hp cost payment.");
             }
@@ -3064,6 +3232,113 @@ public sealed class AnomalyProcessor
         foreach (var characterInstanceId in payableCharacterInstanceIds)
         {
             gameState.characterInstances[characterInstanceId].currentHp -= hpCostPerFriendlyPlayer;
+        }
+    }
+
+    private void deductResolveCostsAndResolveFriendlyHpKillsIfNeeded(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        PlayerId actorPlayerId,
+        AnomalyDefinition anomalyDefinition,
+        long requestId)
+    {
+        if (!gameState.players.TryGetValue(actorPlayerId, out var actorPlayerState))
+        {
+            throw new InvalidOperationException("TryResolveAnomalyActionRequest requires actor player state for resolve cost payment.");
+        }
+
+        var requiredMana = AnomalyResolveCostResolver.resolveManaCost(gameState, actorPlayerId, anomalyDefinition);
+        if (requiredMana.HasValue)
+        {
+            if (actorPlayerState.mana < requiredMana.Value)
+            {
+                throw new InvalidOperationException("TryResolveAnomalyActionRequest requires actor mana to remain sufficient for resolve cost payment.");
+            }
+
+            actorPlayerState.mana -= requiredMana.Value;
+        }
+
+        if (!anomalyDefinition.resolveFriendlyTeamHpCostPerPlayer.HasValue)
+        {
+            return;
+        }
+
+        var hpCostPerFriendlyPlayer = anomalyDefinition.resolveFriendlyTeamHpCostPerPlayer.Value;
+        var friendlyTeamPlayerIds = resolveFriendlyTeamPlayerIds(gameState, actorPlayerState.teamId);
+        if (friendlyTeamPlayerIds.Count == 0)
+        {
+            throw new InvalidOperationException("TryResolveAnomalyActionRequest requires at least one friendly team player for resolve hp cost payment.");
+        }
+
+        var payableCharacterInstanceIds = new List<CharacterInstanceId>(friendlyTeamPlayerIds.Count);
+        foreach (var friendlyPlayerId in friendlyTeamPlayerIds)
+        {
+            if (!gameState.players.TryGetValue(friendlyPlayerId, out var friendlyPlayerState))
+            {
+                throw new InvalidOperationException("TryResolveAnomalyActionRequest requires friendly player state for resolve hp cost payment.");
+            }
+
+            if (!friendlyPlayerState.activeCharacterInstanceId.HasValue)
+            {
+                throw new InvalidOperationException("TryResolveAnomalyActionRequest requires active character for resolve hp cost payment.");
+            }
+
+            var activeCharacterInstanceId = friendlyPlayerState.activeCharacterInstanceId.Value;
+            if (!gameState.characterInstances.TryGetValue(activeCharacterInstanceId, out var activeCharacterInstance))
+            {
+                throw new InvalidOperationException("TryResolveAnomalyActionRequest requires active character for resolve hp cost payment.");
+            }
+
+            if (activeCharacterInstance.currentHp < hpCostPerFriendlyPlayer)
+            {
+                throw new InvalidOperationException("TryResolveAnomalyActionRequest requires friendly active character hp to be sufficient for resolve hp cost payment.");
+            }
+
+            payableCharacterInstanceIds.Add(activeCharacterInstanceId);
+        }
+
+        var killedByResolveCost = new List<CharacterInstanceId>();
+        foreach (var characterInstanceId in payableCharacterInstanceIds)
+        {
+            var characterInstance = gameState.characterInstances[characterInstanceId];
+            var hpBefore = characterInstance.currentHp;
+            characterInstance.currentHp -= hpCostPerFriendlyPlayer;
+            actionChainState.producedEvents.Add(new HpChangedEvent
+            {
+                eventId = requestId,
+                eventTypeKey = "hpChanged",
+                sourceActionChainId = actionChainState.actionChainId,
+                targetPlayerId = characterInstance.ownerPlayerId,
+                targetCharacterInstanceId = characterInstanceId,
+                hpBefore = hpBefore,
+                hpAfter = characterInstance.currentHp,
+                delta = characterInstance.currentHp - hpBefore,
+            });
+
+            if (hpBefore > 0 && characterInstance.currentHp <= 0)
+            {
+                killedByResolveCost.Add(characterInstanceId);
+            }
+        }
+
+        for (var killIndex = 0; killIndex < killedByResolveCost.Count; killIndex++)
+        {
+            if (gameState.matchState == MatchState.ended)
+            {
+                break;
+            }
+
+            actionChainState.producedEvents.AddRange(damageProcessor.resolveDirectKill(
+                gameState,
+                new KillContext
+                {
+                    killContextId = requestId * 1000 + killIndex + 1,
+                    killerPlayerId = null,
+                    killedCharacterInstanceId = killedByResolveCost[killIndex],
+                    killedPlayerId = gameState.characterInstances[killedByResolveCost[killIndex]].ownerPlayerId,
+                    causedByDamage = false,
+                    sourceDamageContextId = null,
+                }));
         }
     }
 

@@ -1,0 +1,195 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6285afb14cfb4849a8cc366e31284a4e, type: 3}
+  m_Name: DefaultEffectVfxCatalog
+  m_EditorClassIdentifier: CrescentWreath.Client.UI::CrescentWreath.Client.UI.EffectVfxCatalog
+  entries:
+  - effectCategoryKey: cardActivate
+    prefab: {fileID: 2782580515909145011, guid: 6cfa8bf0e4f8a4b4a973edec87d807e1, type: 3}
+    duration: 0.55
+    attachMode: 0
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.22, y: 0.22, z: 0.22}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: cardActivate:FX_CardFlash_Y
+    stopLoopOnComplete: 1
+  - effectCategoryKey: damage
+    prefab: {fileID: 4976180127452884185, guid: 0e5407dbeac456d42bdea1417e15ceb2, type: 3}
+    duration: 0.55
+    attachMode: 1
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.32, y: 0.32, z: 0.32}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: damage:FX_CardBrushLine_P
+    stopLoopOnComplete: 1
+  - effectCategoryKey: directDamage
+    prefab: {fileID: 3570403719789327743, guid: df7a68e29c00f244e923ab83255f79d3, type: 3}
+    duration: 0.55
+    attachMode: 1
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.32, y: 0.32, z: 0.32}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: directDamage:FX_CardFlare_P
+    stopLoopOnComplete: 1
+  - effectCategoryKey: heal
+    prefab: {fileID: 3315466297927938141, guid: 10f9eeb88af108347b844306a9a18160, type: 3}
+    duration: 0.75
+    attachMode: 1
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.28, y: 0.28, z: 0.28}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: heal:FX_CardStar_Loop_G
+    stopLoopOnComplete: 1
+  - effectCategoryKey: defense
+    prefab: {fileID: 6359176657912482069, guid: a6a1e7297b6ae9e4ea2030da9cce8cb2, type: 3}
+    duration: 0.55
+    attachMode: 1
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.28, y: 0.28, z: 0.28}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: defense:FX_CardRimLine_B
+    stopLoopOnComplete: 1
+  - effectCategoryKey: draw
+    prefab: {fileID: 337446532298238899, guid: e83ca5531c4f86344899133a59482dab, type: 3}
+    duration: 0.55
+    attachMode: 0
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.24, y: 0.24, z: 0.24}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: draw:FX_CardFlowLoop_Y
+    stopLoopOnComplete: 1
+  - effectCategoryKey: gainResource
+    prefab: {fileID: 1759557376796626634, guid: 79ebfdd756a3e744ba4182bf0fd49b64, type: 3}
+    duration: 0.65
+    attachMode: 3
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.35, y: 0.35, z: 0.35}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: gainResource:FX_CardCubeUp_Y
+    stopLoopOnComplete: 1
+  - effectCategoryKey: seal
+    prefab: {fileID: 5833817875391513347, guid: 580c17e77d74d454b8ab9e005e5bad77, type: 3}
+    duration: 0.55
+    attachMode: 1
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.28, y: 0.28, z: 0.28}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: seal:FX_CardRimLine_P
+    stopLoopOnComplete: 1
+  - effectCategoryKey: banish
+    prefab: {fileID: 675335021008527259, guid: c227f615bad27d8448bb0e390fad0d6f, type: 3}
+    duration: 0.7
+    attachMode: 0
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.3, y: 0.3, z: 0.3}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: banish:FX_CardDissolve_P
+    stopLoopOnComplete: 1
+  - effectCategoryKey: anomaly
+    prefab: {fileID: 5565799899431040370, guid: 934ff5c580ff9234091292aa9ec97cfd, type: 3}
+    duration: 0.8
+    attachMode: 3
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.5, y: 0.5, z: 0.5}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: anomaly:FX_CardRimStar_P
+    stopLoopOnComplete: 1
+  - effectCategoryKey: turnChange
+    prefab: {fileID: 9145195509461832656, guid: 747bd986724202f4fb9a9178e15fe09c, type: 3}
+    duration: 0.65
+    attachMode: 3
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.32, y: 0.32, z: 0.32}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: turnChange:FX_CardSunLight_Loop_Y
+    stopLoopOnComplete: 1
+  - effectCategoryKey: genericEffect
+    prefab: {fileID: 206834011004242027, guid: 027d35e1228107a40aaf42ff05878158, type: 3}
+    duration: 0.5
+    attachMode: 0
+    instanceAttachMode: 0
+    localOffset: {x: 0, y: 0.02, z: 0}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+    localScale: {x: 0.22, y: 0.22, z: 0.22}
+    followTarget: 1
+    useBillboardToCamera: 0
+    simulationSpaceMode: 1
+    autoDestroy: 1
+    debugColor: {r: 0, g: 1, b: 1, a: 1}
+    debugName: genericEffect:FX_CardRimLine_Y
+    stopLoopOnComplete: 1

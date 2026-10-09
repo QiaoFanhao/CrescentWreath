@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using CrescentWreath.Client.Presentation;
 using UnityEngine;
 
@@ -16,6 +17,9 @@ public sealed class WorldCardView : MonoBehaviour
     public static readonly Vector3 CardBodyLocalScale = new(StandardCardWidth, CardBodyThickness, CardFaceHeight);
 
     [SerializeField]
+    private Transform? visualRoot;
+
+    [SerializeField]
     private Transform? cardBody;
 
     [SerializeField]
@@ -23,6 +27,9 @@ public sealed class WorldCardView : MonoBehaviour
 
     [SerializeField]
     private SpriteRenderer? backSurface;
+
+    [SerializeField]
+    private Transform? effectAnchor;
 
     [SerializeField]
     private GameObject? selectionOutline;
@@ -41,6 +48,9 @@ public sealed class WorldCardView : MonoBehaviour
 
     private WorldCardViewModel model = new();
     private Vector3 restLocalPosition;
+    private Quaternion restLocalRotation = Quaternion.identity;
+    private Vector3 restLocalScale = Vector3.one;
+    private Coroutine? motionCoroutine;
     private bool highlighted;
 
     public event Action<WorldCardView>? Clicked;
@@ -56,31 +66,54 @@ public sealed class WorldCardView : MonoBehaviour
     public string TooltipTitle => model.tooltipTitle;
     public string TooltipDescription => model.tooltipDescription;
     public WorldCardViewModel CurrentModel => model.Clone();
+    public Transform EffectAnchor => effectAnchor != null ? effectAnchor : visualRoot != null ? visualRoot : transform;
+    public string VisualKey { get; private set; } = string.Empty;
+    public string ZoneViewKey { get; private set; } = string.Empty;
+    public bool IsMotionActive => motionCoroutine is not null;
+    public bool CanInspect =>
+        model.displayMode != WorldCardDisplayMode.emptyZone &&
+        model.displayMode != WorldCardDisplayMode.deckBack &&
+        !model.zoneKey.Contains("Deck", StringComparison.OrdinalIgnoreCase) &&
+        !model.zoneKey.Contains("deck", StringComparison.OrdinalIgnoreCase);
 
     public void ConfigureForFactory(
+        Transform newVisualRoot,
         Transform newCardBody,
         SpriteRenderer newFrontSurface,
         SpriteRenderer newBackSurface,
+        Transform newEffectAnchor,
         GameObject newSelectionOutline,
         GameObject newHoverHighlight,
         BoxCollider newBoxCollider,
         TMPro.TextMeshPro? newPileCountText = null,
         TMPro.TextMeshPro? newActivatedText = null)
     {
+        visualRoot = newVisualRoot;
         cardBody = newCardBody;
         frontSurface = newFrontSurface;
         backSurface = newBackSurface;
+        effectAnchor = newEffectAnchor;
         selectionOutline = newSelectionOutline;
         hoverHighlight = newHoverHighlight;
         boxCollider = newBoxCollider;
         pileCountText = newPileCountText;
         activatedText = newActivatedText;
         restLocalPosition = transform.localPosition;
+        restLocalRotation = transform.localRotation;
+        restLocalScale = transform.localScale;
+    }
+
+    public void SetVisualContext(string visualKey, string zoneViewKey)
+    {
+        VisualKey = visualKey ?? string.Empty;
+        ZoneViewKey = zoneViewKey ?? string.Empty;
     }
 
     private void Awake()
     {
         restLocalPosition = transform.localPosition;
+        restLocalRotation = transform.localRotation;
+        restLocalScale = transform.localScale;
         updateVisualState();
     }
 
@@ -124,7 +157,162 @@ public sealed class WorldCardView : MonoBehaviour
     public void SetRestLocalPosition(Vector3 newRestLocalPosition)
     {
         restLocalPosition = newRestLocalPosition;
+        if (!Application.isPlaying || motionCoroutine is null)
+        {
+            applyDisplayedPose(currentRestPose());
+        }
+
         updateVisualState();
+    }
+
+    public void SnapTo(CardPose pose)
+    {
+        stopMotion();
+        restLocalPosition = pose.Position;
+        restLocalRotation = pose.Rotation;
+        restLocalScale = pose.Scale;
+        applyDisplayedPose(currentRestPose());
+        updateVisualState();
+    }
+
+    public void AnimateTo(CardPose targetPose, float duration)
+    {
+        AnimateTo(targetPose, duration, CardAnimationSettings.Default, 0f);
+    }
+
+    public void AnimateTo(CardPose targetPose, float duration, CardAnimationSettings settings, float delay = 0f)
+    {
+        AnimateTo(targetPose, duration, settings, delay, settings.moveHeightArc, 1f);
+    }
+
+    public void AnimateTo(
+        CardPose targetPose,
+        float duration,
+        CardAnimationSettings settings,
+        float delay,
+        float arcHeight,
+        float scalePeak)
+    {
+        restLocalPosition = targetPose.Position;
+        restLocalRotation = targetPose.Rotation;
+        restLocalScale = targetPose.Scale;
+
+        if (!Application.isPlaying || duration <= 0f)
+        {
+            stopMotion();
+            applyDisplayedPose(currentRestPose());
+            updateVisualState();
+            return;
+        }
+
+        stopMotion();
+        motionCoroutine = StartCoroutine(animateToRoutine(
+            currentDisplayedPose(),
+            currentRestPose(),
+            duration,
+            delay,
+            settings,
+            arcHeight,
+            scalePeak));
+    }
+
+    public void PlayEnter(CardPose targetPose, CardPose? spawnPose = null)
+    {
+        PlayEnter(targetPose, spawnPose, CardAnimationSettings.Default, 0f);
+    }
+
+    public void PlayEnter(CardPose targetPose, CardPose? spawnPose, CardAnimationSettings settings, float delay = 0f)
+    {
+        PlayEnterFromSource(targetPose, spawnPose, settings, delay, settings.enterDuration);
+    }
+
+    public void PlayEnterFromSource(
+        CardPose targetPose,
+        CardPose? spawnPose,
+        CardAnimationSettings settings,
+        float delay = 0f,
+        float duration = -1f)
+    {
+        stopMotion();
+        restLocalPosition = targetPose.Position;
+        restLocalRotation = targetPose.Rotation;
+        restLocalScale = targetPose.Scale;
+
+        var initialPose = spawnPose ?? new CardPose(
+            targetPose.Position + Vector3.up * settings.enterHeightOffset,
+            targetPose.Rotation,
+            targetPose.Scale * 0.86f);
+        applyDisplayedPose(initialPose);
+
+        var activeDuration = duration >= 0f ? duration : settings.enterDuration;
+        if (!Application.isPlaying || activeDuration <= 0f)
+        {
+            applyDisplayedPose(currentRestPose());
+            updateVisualState();
+            return;
+        }
+
+        motionCoroutine = StartCoroutine(animateToRoutine(
+            initialPose,
+            currentRestPose(),
+            activeDuration,
+            delay,
+            settings,
+            settings.arcHeightLarge,
+            settings.flightScalePeak));
+    }
+
+    public void PlayExit(Action onCompleted)
+    {
+        PlayExit(onCompleted, CardAnimationSettings.Default, 0f);
+    }
+
+    public void PlayExit(Action onCompleted, CardAnimationSettings settings, float delay = 0f)
+    {
+        if (!Application.isPlaying || settings.exitDuration <= 0f)
+        {
+            stopMotion();
+            onCompleted();
+            return;
+        }
+
+        stopMotion();
+        var startPose = currentDisplayedPose();
+        var exitPose = new CardPose(
+            startPose.Position + Vector3.up * settings.exitHeightOffset,
+            startPose.Rotation,
+            startPose.Scale * 0.82f);
+        motionCoroutine = StartCoroutine(animateToRoutine(
+            startPose,
+            exitPose,
+            settings.exitDuration,
+            delay,
+            settings,
+            settings.arcHeightSmall,
+            1f,
+            onCompleted));
+    }
+
+    public void PlayExitTo(CardPose exitPose, Action onCompleted, CardAnimationSettings settings, float delay = 0f)
+    {
+        if (!Application.isPlaying || settings.exitToSinkDuration <= 0f)
+        {
+            stopMotion();
+            onCompleted();
+            return;
+        }
+
+        stopMotion();
+        var startPose = currentDisplayedPose();
+        motionCoroutine = StartCoroutine(animateToRoutine(
+            startPose,
+            exitPose,
+            settings.exitToSinkDuration,
+            delay,
+            settings,
+            settings.arcHeightSmall,
+            1f,
+            onCompleted));
     }
 
     public void NotifyClicked()
@@ -152,6 +340,34 @@ public sealed class WorldCardView : MonoBehaviour
             ? string.Empty
             : $"\n状态说明: {model.tooltipTitle} - {model.tooltipDescription}";
         return $"{model.definitionId} #{model.cardInstanceNumericId}\n{side} / {mode}\nowner={model.ownerPlayerNumericId} zone={model.zoneKey} defensePlaced={model.isDefensePlacedOnField}{summonCost}{summonable}{overlay}{tooltip}\n显示模式: {model.displayMode}";
+    }
+
+    public CardInspectViewModel BuildInspectViewModel()
+    {
+        var isPublicFront = model.isFaceUp;
+        var definitionId = isPublicFront ? model.definitionId : string.Empty;
+        var displayEntry = isPublicFront ? CardDisplayCatalogService.TryGetEntry(model.definitionId) : null;
+        return new CardInspectViewModel
+        {
+            cardInstanceNumericId = model.cardInstanceNumericId,
+            definitionId = definitionId,
+            displayName = isPublicFront ? displayEntry?.name ?? CardNameLocalizer.Localize(model.definitionId) : "背面 / 未知卡牌",
+            attributeText = isPublicFront ? CardDisplayCatalogService.BuildAttributeText(model.definitionId) : string.Empty,
+            rulesText = isPublicFront ? CardDisplayCatalogService.BuildRulesText(model.definitionId) : string.Empty,
+            ownerPlayerNumericId = model.ownerPlayerNumericId,
+            zoneKey = model.zoneKey,
+            isFaceUp = isPublicFront,
+            isDefensePlacedOnField = model.isDefensePlacedOnField,
+            baseSummonSigilCost = model.baseSummonSigilCost,
+            effectiveSummonSigilCost = model.effectiveSummonSigilCost,
+            isSummonableByViewer = model.isSummonableByViewer,
+            summonUnavailableReasonKey = model.summonUnavailableReasonKey,
+            artworkSprite = isPublicFront
+                ? BuffIconSpriteService.TryGetSprite(model.definitionId, out var buffSprite)
+                    ? buffSprite
+                    : CardArtService.GetSpriteForDefinition(model.definitionId)
+                : CardArtService.GetCardBackSprite(),
+        };
     }
 
     private void setSprite()
@@ -200,9 +416,12 @@ public sealed class WorldCardView : MonoBehaviour
             hoverHighlight.SetActive(highlighted || model.isActivated);
         }
 
-        transform.localPosition = highlighted
-            ? restLocalPosition + Vector3.up * 0.12f
-            : restLocalPosition;
+        if (visualRoot is not null)
+        {
+            visualRoot.localPosition = highlighted
+                ? Vector3.up * 0.12f
+                : Vector3.zero;
+        }
 
         if (boxCollider is not null)
         {
@@ -241,6 +460,22 @@ public sealed class WorldCardView : MonoBehaviour
         {
             hoverHighlight.transform.localEulerAngles = new Vector3(0f, defenseRotation, 0f);
         }
+
+        if (effectAnchor is not null)
+        {
+            // VFX uses this stable card-space anchor instead of the sprite surface axes.
+            effectAnchor.localPosition = new Vector3(0f, 0.065f, 0f);
+            effectAnchor.localEulerAngles = new Vector3(0f, defenseRotation, 0f);
+            effectAnchor.localScale = new Vector3(StandardCardWidth, 1f, CardFaceHeight);
+        }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        var anchor = effectAnchor != null ? effectAnchor : transform;
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(anchor.position, 0.055f);
+        Gizmos.DrawLine(anchor.position, anchor.position + anchor.up * 0.28f);
     }
 
     private static void fitSpriteToCard(SpriteRenderer spriteRenderer)
@@ -357,5 +592,88 @@ public sealed class WorldCardView : MonoBehaviour
 
         return $"x{countText}";
     }
+
+    private IEnumerator animateToRoutine(
+        CardPose from,
+        CardPose to,
+        float duration,
+        float delay,
+        CardAnimationSettings settings,
+        float arcHeight,
+        float scalePeak,
+        Action? onCompleted = null)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        var elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            var eased = EaseOutCubic(duration <= 0f ? 1f : elapsed / duration);
+            var position = Vector3.LerpUnclamped(from.Position, to.Position, eased);
+            if (settings.useArcMotion && arcHeight > 0f)
+            {
+                position += Vector3.up * (Mathf.Sin(eased * Mathf.PI) * arcHeight);
+            }
+
+            var scale = Vector3.LerpUnclamped(from.Scale, to.Scale, eased);
+            if (scalePeak > 1f)
+            {
+                scale *= 1f + (scalePeak - 1f) * Mathf.Sin(eased * Mathf.PI);
+            }
+
+            applyDisplayedPose(new CardPose(
+                position,
+                Quaternion.SlerpUnclamped(from.Rotation, to.Rotation, eased),
+                scale));
+            yield return null;
+        }
+
+        applyDisplayedPose(to);
+        motionCoroutine = null;
+        onCompleted?.Invoke();
+    }
+
+    private void stopMotion()
+    {
+        if (motionCoroutine is null)
+        {
+            return;
+        }
+
+        StopCoroutine(motionCoroutine);
+        motionCoroutine = null;
+    }
+
+    private CardPose currentDisplayedPose()
+    {
+        return new CardPose(transform.localPosition, transform.localRotation, transform.localScale);
+    }
+
+    private CardPose currentRestPose()
+    {
+        return new CardPose(
+            restLocalPosition,
+            restLocalRotation,
+            restLocalScale);
+    }
+
+    private void applyDisplayedPose(CardPose pose)
+    {
+        transform.localPosition = pose.Position;
+        transform.localRotation = pose.Rotation;
+        transform.localScale = pose.Scale;
+    }
+
+    public static float EaseOutCubic(float t)
+    {
+        t = Mathf.Clamp01(t);
+        return 1f - Mathf.Pow(1f - t, 3f);
+    }
 }
 }
+
+

@@ -35,6 +35,17 @@ public sealed class ProjectionRevealedCardEventViewModel
     public long ownerPlayerNumericId;
     public string definitionId = string.Empty;
     public string revealReasonKey = string.Empty;
+    public string declaredDefinitionId = string.Empty;
+}
+
+public sealed class ProjectionSkillPresentationEventViewModel
+{
+    public long eventNumericId;
+    public long actorPlayerNumericId;
+    public long? characterInstanceNumericId;
+    public string characterDefinitionId = string.Empty;
+    public string skillKey = string.Empty;
+    public string triggerTypeKey = string.Empty;
 }
 
 public sealed class ProjectionInteractionViewModel
@@ -216,6 +227,7 @@ public sealed class ProjectionViewModel
 
     public readonly List<string> eventLog = new();
     public readonly List<ProjectionRevealedCardEventViewModel> revealedCardEvents = new();
+    public readonly List<ProjectionSkillPresentationEventViewModel> skillPresentationEvents = new();
     public string recentEventTypeKey = string.Empty;
 
     public readonly ProjectionInteractionViewModel interaction = new();
@@ -611,7 +623,12 @@ public sealed class ProjectionViewModel
                 ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
                 definitionId = revealedCardEvent.definitionId,
                 revealReasonKey = revealedCardEvent.revealReasonKey,
+                declaredDefinitionId = revealedCardEvent.declaredDefinitionId,
             });
+        }
+        foreach (var skillEvent in skillPresentationEvents)
+        {
+            cloned.skillPresentationEvents.Add(cloneSkillPresentationEvent(skillEvent));
         }
 
         cloned.currentAnomaly.hasCurrentAnomaly = currentAnomaly.hasCurrentAnomaly;
@@ -730,6 +747,7 @@ public sealed class ProjectionViewModel
         merged.recentEventTypeKey = incoming.recentEventTypeKey;
         merged.eventLog.Clear();
         merged.revealedCardEvents.Clear();
+        merged.skillPresentationEvents.Clear();
         if (incoming.eventLog.Count > 0)
         {
             foreach (var eventLine in incoming.eventLog)
@@ -745,7 +763,12 @@ public sealed class ProjectionViewModel
                     ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
                     definitionId = revealedCardEvent.definitionId,
                     revealReasonKey = revealedCardEvent.revealReasonKey,
+                    declaredDefinitionId = revealedCardEvent.declaredDefinitionId,
                 });
+            }
+            foreach (var skillEvent in incoming.skillPresentationEvents)
+            {
+                merged.skillPresentationEvents.Add(cloneSkillPresentationEvent(skillEvent));
             }
         }
         else
@@ -763,7 +786,12 @@ public sealed class ProjectionViewModel
                     ownerPlayerNumericId = revealedCardEvent.ownerPlayerNumericId,
                     definitionId = revealedCardEvent.definitionId,
                     revealReasonKey = revealedCardEvent.revealReasonKey,
+                    declaredDefinitionId = revealedCardEvent.declaredDefinitionId,
                 });
+            }
+            foreach (var skillEvent in latest.skillPresentationEvents)
+            {
+                merged.skillPresentationEvents.Add(cloneSkillPresentationEvent(skillEvent));
             }
         }
 
@@ -812,6 +840,20 @@ public sealed class ProjectionViewModel
         merged.interaction.pendingDamageDefenderPlayerNumericId = incoming.interaction.pendingDamageDefenderPlayerNumericId;
 
         return merged;
+    }
+
+    private static ProjectionSkillPresentationEventViewModel cloneSkillPresentationEvent(
+        ProjectionSkillPresentationEventViewModel skillEvent)
+    {
+        return new ProjectionSkillPresentationEventViewModel
+        {
+            eventNumericId = skillEvent.eventNumericId,
+            actorPlayerNumericId = skillEvent.actorPlayerNumericId,
+            characterInstanceNumericId = skillEvent.characterInstanceNumericId,
+            characterDefinitionId = skillEvent.characterDefinitionId,
+            skillKey = skillEvent.skillKey,
+            triggerTypeKey = skillEvent.triggerTypeKey,
+        };
     }
 }
 }

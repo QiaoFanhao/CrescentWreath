@@ -58,6 +58,13 @@ public sealed class ServerSocketActionRouter
 
         var actionType = envelope.actionType ?? string.Empty;
         var resolvedViewerPlayerNumericId = routeOptions?.forcedViewerPlayerNumericId ?? envelope.viewerPlayerNumericId;
+        ServerTraceLogger.Debug(
+            "router.envelope",
+            ("requestId", envelope.requestId),
+            ("actionType", actionType),
+            ("envelopeViewer", envelope.viewerPlayerNumericId),
+            ("forcedViewer", routeOptions?.forcedViewerPlayerNumericId),
+            ("requiredActor", routeOptions?.requiredActorPlayerNumericId));
         if (string.IsNullOrWhiteSpace(actionType))
         {
             return buildHostErrorOutcome(
@@ -332,6 +339,10 @@ public sealed class ServerSocketActionRouter
     {
         if (!tryDeserializePayload(envelope.payload, out TPayload? payload) || payload is null || !payloadValidator(payload))
         {
+            ServerTraceLogger.Trace(
+                "router.payload.invalid",
+                ("actionType", actionType),
+                ("payloadType", typeof(TPayload).Name));
             return buildHostErrorOutcome(
                 actionType,
                 envelope.requestId,
@@ -344,6 +355,10 @@ public sealed class ServerSocketActionRouter
         {
             if (!tryResolveActorPlayerNumericId(payload, out var actorPlayerNumericId))
             {
+                ServerTraceLogger.Trace(
+                    "router.actor.missing",
+                    ("actionType", actionType),
+                    ("payloadType", typeof(TPayload).Name));
                 return buildHostErrorOutcome(
                     actionType,
                     envelope.requestId,
@@ -354,6 +369,11 @@ public sealed class ServerSocketActionRouter
 
             if (actorPlayerNumericId != requiredActorPlayerNumericId.Value)
             {
+                ServerTraceLogger.SetActor(actorPlayerNumericId);
+                ServerTraceLogger.Trace(
+                    "router.actor.rejected",
+                    ("payloadActor", actorPlayerNumericId),
+                    ("requiredActor", requiredActorPlayerNumericId.Value));
                 return buildHostErrorOutcome(
                     actionType,
                     envelope.requestId,
@@ -361,10 +381,27 @@ public sealed class ServerSocketActionRouter
                     ErrorCodeRequestRejected,
                     $"actorPlayerNumericId ({actorPlayerNumericId}) must match bound viewerPlayerNumericId ({requiredActorPlayerNumericId.Value}).");
             }
+
+            ServerTraceLogger.SetActor(actorPlayerNumericId);
+            ServerTraceLogger.Debug(
+                "router.actor.accepted",
+                ("payloadActor", actorPlayerNumericId),
+                ("requiredActor", requiredActorPlayerNumericId.Value));
         }
 
+        ServerTraceLogger.Debug(
+            "router.process.begin",
+            ("actionType", actionType),
+            ("payloadType", typeof(TPayload).Name),
+            ("viewer", resolvedViewerPlayerNumericId));
         var actionResult = processAction(payload);
         var viewerScopedResult = session.projectResultForViewer(actionResult, resolvedViewerPlayerNumericId);
+        ServerTraceLogger.Debug(
+            "router.process.end",
+            ("actionType", actionType),
+            ("succeeded", actionResult.isSucceeded),
+            ("error", actionResult.error?.message),
+            ("projectedViewer", viewerScopedResult.viewerPlayerNumericId));
         return new ServerSocketRouteOutcome
         {
             actionType = actionType,

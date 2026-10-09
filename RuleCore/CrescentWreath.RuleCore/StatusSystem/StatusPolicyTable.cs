@@ -52,6 +52,10 @@ public static class StatusPolicyTable
             ["status:c011AllDamageBoostThisTurn"] = "C011AllDamageBoostThisTurn",
             ["C011EndTurnSelfShackle"] = "C011EndTurnSelfShackle",
             ["status:c011EndTurnSelfShackle"] = "C011EndTurnSelfShackle",
+            ["C021BlackKeyProjectionFreeMana"] = "C021BlackKeyProjectionFreeMana",
+            ["status:c021BlackKeyProjectionFreeMana"] = "C021BlackKeyProjectionFreeMana",
+            ["C014SkipSummonPhase"] = "C014SkipSummonPhase",
+            ["status:c014SkipSummonPhase"] = "C014SkipSummonPhase",
         };
 
     private static readonly Dictionary<string, StatusPolicy> PolicyByCanonicalKey =
@@ -121,6 +125,18 @@ public static class StatusPolicyTable
             {
                 canonicalStatusKey = "C011EndTurnSelfShackle",
                 identityScope = StatusIdentityScope.character,
+                stackPolicy = StatusStackPolicy.refresh,
+            },
+            ["C021BlackKeyProjectionFreeMana"] = new StatusPolicy
+            {
+                canonicalStatusKey = "C021BlackKeyProjectionFreeMana",
+                identityScope = StatusIdentityScope.player,
+                stackPolicy = StatusStackPolicy.refresh,
+            },
+            ["C014SkipSummonPhase"] = new StatusPolicy
+            {
+                canonicalStatusKey = "C014SkipSummonPhase",
+                identityScope = StatusIdentityScope.player,
                 stackPolicy = StatusStackPolicy.refresh,
             },
         };

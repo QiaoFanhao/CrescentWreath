@@ -709,6 +709,24 @@ public static class ProjectionParser
 
             projection.recentEventTypeKey = eventTypeKey;
             projection.eventLog.Add(buildEventLine(eventTypeKey, eventEntry));
+            if (string.Equals(eventTypeKey, "skillTriggered", StringComparison.Ordinal) &&
+                eventEntry.eventId > 0 &&
+                eventEntry.actorPlayerNumericId > 0 &&
+                !string.IsNullOrWhiteSpace(eventEntry.characterDefinitionId) &&
+                !string.IsNullOrWhiteSpace(eventEntry.skillKey))
+            {
+                projection.skillPresentationEvents.Add(new ProjectionSkillPresentationEventViewModel
+                {
+                    eventNumericId = eventEntry.eventId,
+                    actorPlayerNumericId = eventEntry.actorPlayerNumericId,
+                    characterInstanceNumericId = eventEntry.characterInstanceNumericId > 0
+                        ? eventEntry.characterInstanceNumericId
+                        : null,
+                    characterDefinitionId = eventEntry.characterDefinitionId ?? string.Empty,
+                    skillKey = eventEntry.skillKey ?? string.Empty,
+                    triggerTypeKey = eventEntry.triggerTypeKey ?? string.Empty,
+                });
+            }
             if (string.Equals(eventTypeKey, "cardRevealed", StringComparison.Ordinal) &&
                 eventEntry.cardInstanceNumericId > 0 &&
                 !string.IsNullOrWhiteSpace(eventEntry.definitionId))
@@ -720,6 +738,7 @@ public static class ProjectionParser
                     ownerPlayerNumericId = eventEntry.ownerPlayerNumericId,
                     definitionId = eventEntry.definitionId ?? string.Empty,
                     revealReasonKey = eventEntry.revealReasonKey ?? string.Empty,
+                    declaredDefinitionId = eventEntry.declaredDefinitionId ?? string.Empty,
                 });
             }
         }
@@ -744,6 +763,11 @@ public static class ProjectionParser
             eventLine += $" reveal={eventEntry.revealReasonKey}";
         }
 
+        if (!string.IsNullOrWhiteSpace(eventEntry.declaredDefinitionId))
+        {
+            eventLine += $" declared={eventEntry.declaredDefinitionId}";
+        }
+
         if (!string.IsNullOrWhiteSpace(eventEntry.moveReason))
         {
             eventLine += $" move={eventEntry.moveReason}";
@@ -757,6 +781,11 @@ public static class ProjectionParser
         if (!string.IsNullOrWhiteSpace(eventEntry.message))
         {
             eventLine += $" message={eventEntry.message}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(eventEntry.skillKey))
+        {
+            eventLine += $" skill={eventEntry.skillKey}";
         }
 
         return eventLine;
@@ -1012,9 +1041,15 @@ public static class ProjectionParser
         public long ownerPlayerNumericId;
         public string? definitionId;
         public string? revealReasonKey;
+        public string? declaredDefinitionId;
         public string? moveReason;
         public int? finalDamageValue;
         public string? message;
+        public long actorPlayerNumericId;
+        public long characterInstanceNumericId;
+        public string? characterDefinitionId;
+        public string? skillKey;
+        public string? triggerTypeKey;
     }
 }
 }

@@ -32,23 +32,30 @@ public class ActionRequestProcessorAnomalyTests
             actorPlayerId = actorPlayerId,
         });
 
-        Assert.Equal(3, events.Count);
         var attemptedEvent = Assert.IsType<AnomalyResolveAttemptedEvent>(events[0]);
         Assert.Equal("anomalyResolveAttempted", attemptedEvent.eventTypeKey);
         Assert.Equal("A001", attemptedEvent.anomalyDefinitionId);
         Assert.True(attemptedEvent.isSucceeded);
         Assert.Null(attemptedEvent.failedReasonKey);
 
-        var resolvedEvent = Assert.IsType<AnomalyResolvedEvent>(events[1]);
+        var resolvedEvent = Assert.Single(events.OfType<AnomalyResolvedEvent>());
         Assert.Equal("anomalyResolved", resolvedEvent.eventTypeKey);
         Assert.Equal("A001", resolvedEvent.anomalyDefinitionId);
 
-        var flippedEvent = Assert.IsType<AnomalyFlippedEvent>(events[2]);
+        var flippedEvent = Assert.Single(events.OfType<AnomalyFlippedEvent>());
         Assert.Equal("anomalyFlipped", flippedEvent.eventTypeKey);
         Assert.Equal("A002", flippedEvent.anomalyDefinitionId);
-        var inputOpenedEvent = Assert.IsType<InteractionWindowEvent>(events[3]);
+        var inputOpenedEvent = Assert.Single(events.OfType<InteractionWindowEvent>(), gameEvent => gameEvent.isOpened);
         Assert.True(inputOpenedEvent.isOpened);
         Assert.Equal("inputContext", inputOpenedEvent.windowKindKey);
+        Assert.Contains(events, gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                                             hpChangedEvent.targetCharacterInstanceId == actorCharacterId &&
+                                             hpChangedEvent.hpBefore == 3 &&
+                                             hpChangedEvent.hpAfter == 2);
+        Assert.Contains(events, gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                                             hpChangedEvent.targetCharacterInstanceId == allyCharacterId &&
+                                             hpChangedEvent.hpBefore == 3 &&
+                                             hpChangedEvent.hpAfter == 2);
 
         Assert.Equal(0, gameState.players[actorPlayerId].mana);
         Assert.Equal(2, gameState.characterInstances[actorCharacterId].currentHp);
@@ -167,6 +174,162 @@ public class ActionRequestProcessorAnomalyTests
     }
 
     [Fact]
+    public void TryResolveAnomaly_WhenA001AndOpponentTeamHasRemilia_ShouldRequireTenMana()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(3);
+        var actorTeamId = new TeamId(1);
+        var enemyTeamId = new TeamId(2);
+        var gameState = createA001SampleGameState(
+            actorPlayerId,
+            allyPlayerId,
+            actorTeamId,
+            enemyTeamId,
+            actorMana: 8,
+            actorCharacterHp: 3,
+            allyCharacterHp: 3,
+            hasAllyActiveCharacter: true);
+        setEnemyCharacterDefinition(gameState, new PlayerId(2), "C003", "nonHuman");
+
+        var processor = new ActionRequestProcessor();
+        var events = processor.processActionRequest(gameState, new TryResolveAnomalyActionRequest
+        {
+            requestId = 91021,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.Single(events);
+        var attemptedEvent = Assert.IsType<AnomalyResolveAttemptedEvent>(events[0]);
+        Assert.False(attemptedEvent.isSucceeded);
+        Assert.Equal("insufficientMana", attemptedEvent.failedReasonKey);
+        Assert.Equal(8, gameState.players[actorPlayerId].mana);
+        Assert.Null(gameState.currentInputContext);
+        Assert.False(gameState.turnState!.hasResolvedAnomalyThisTurn);
+    }
+
+    [Fact]
+    public void TryResolveAnomaly_WhenA001AndOpponentTeamHasRemilia_ShouldOpenTwoNonHumanRewardTargetsAfterTenManaPayment()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(3);
+        var actorTeamId = new TeamId(1);
+        var enemyTeamId = new TeamId(2);
+        var gameState = createA001SampleGameState(
+            actorPlayerId,
+            allyPlayerId,
+            actorTeamId,
+            enemyTeamId,
+            actorMana: 10,
+            actorCharacterHp: 3,
+            allyCharacterHp: 3,
+            hasAllyActiveCharacter: true);
+        setEnemyCharacterDefinition(gameState, new PlayerId(2), "C003", "nonHuman");
+        addEnemyPlayerWithCharacter(gameState, new PlayerId(4), enemyTeamId, new CharacterInstanceId(7004), "C011", "human", "nonHuman");
+
+        var processor = new ActionRequestProcessor();
+        var events = processor.processActionRequest(gameState, new TryResolveAnomalyActionRequest
+        {
+            requestId = 91022,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.Contains(events, gameEvent => gameEvent is AnomalyResolveAttemptedEvent { isSucceeded: true });
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal("anomaly:A001:rewardOptionalShackleOpponents", gameState.currentInputContext!.contextKey);
+        Assert.Contains("opponentPlayer:2", gameState.currentInputContext.choiceKeys);
+        Assert.Contains("opponentPlayer:4", gameState.currentInputContext.choiceKeys);
+        Assert.Equal(0, gameState.players[actorPlayerId].mana);
+    }
+
+    [Fact]
+    public void TryResolveAnomaly_WhenA001AndFriendlyHpEqualsCost_ShouldPayCostAndResolveCostKillBeforeReward()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(3);
+        var actorTeamId = new TeamId(1);
+        var enemyTeamId = new TeamId(2);
+        var gameState = createA001SampleGameState(
+            actorPlayerId,
+            allyPlayerId,
+            actorTeamId,
+            enemyTeamId,
+            actorMana: 8,
+            actorCharacterHp: 1,
+            allyCharacterHp: 3,
+            hasAllyActiveCharacter: true);
+
+        var actorCharacterId = gameState.players[actorPlayerId].activeCharacterInstanceId!.Value;
+        var allyCharacterId = gameState.players[allyPlayerId].activeCharacterInstanceId!.Value;
+
+        var processor = new ActionRequestProcessor();
+        var events = processor.processActionRequest(gameState, new TryResolveAnomalyActionRequest
+        {
+            requestId = 91023,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.Contains(events, gameEvent => gameEvent is AnomalyResolveAttemptedEvent { isSucceeded: true });
+        Assert.Contains(events, gameEvent => gameEvent is HpChangedEvent hpChangedEvent &&
+                                             hpChangedEvent.targetCharacterInstanceId == actorCharacterId &&
+                                             hpChangedEvent.hpBefore == 1 &&
+                                             hpChangedEvent.hpAfter == 0);
+        Assert.Contains(events, gameEvent => gameEvent is KillRecordedEvent killRecordedEvent &&
+                                             killRecordedEvent.killerPlayerId == null &&
+                                             killRecordedEvent.killedCharacterInstanceId == actorCharacterId);
+        Assert.Equal(0, gameState.players[actorPlayerId].mana);
+        Assert.Equal(4, gameState.characterInstances[actorCharacterId].currentHp);
+        Assert.Equal(2, gameState.characterInstances[allyCharacterId].currentHp);
+        Assert.Equal(9, gameState.teams[actorTeamId].killScore);
+        Assert.Equal(9, gameState.teams[enemyTeamId].killScore);
+        Assert.NotEqual(MatchState.ended, gameState.matchState);
+        Assert.Contains(events, gameEvent => gameEvent is AnomalyResolvedEvent resolvedEvent &&
+                                             resolvedEvent.anomalyDefinitionId == "A001");
+        Assert.Contains(events, gameEvent => gameEvent is AnomalyFlippedEvent flippedEvent &&
+                                             flippedEvent.anomalyDefinitionId == "A002");
+        Assert.NotNull(gameState.currentInputContext);
+        Assert.Equal("anomaly:A002:arrivalParallelDirectSummonChoice", gameState.currentInputContext!.contextKey);
+    }
+
+    [Fact]
+    public void TryResolveAnomaly_WhenA001ResolveCostKillEndsMatch_ShouldNotApplyRewardOrFlipNext()
+    {
+        var actorPlayerId = new PlayerId(1);
+        var allyPlayerId = new PlayerId(3);
+        var actorTeamId = new TeamId(1);
+        var enemyTeamId = new TeamId(2);
+        var gameState = createA001SampleGameState(
+            actorPlayerId,
+            allyPlayerId,
+            actorTeamId,
+            enemyTeamId,
+            actorMana: 8,
+            actorCharacterHp: 1,
+            allyCharacterHp: 3,
+            hasAllyActiveCharacter: true);
+        gameState.teams[actorTeamId].killScore = 1;
+
+        var actorCharacterId = gameState.players[actorPlayerId].activeCharacterInstanceId!.Value;
+
+        var processor = new ActionRequestProcessor();
+        var events = processor.processActionRequest(gameState, new TryResolveAnomalyActionRequest
+        {
+            requestId = 91024,
+            actorPlayerId = actorPlayerId,
+        });
+
+        Assert.Contains(events, gameEvent => gameEvent is KillRecordedEvent killRecordedEvent &&
+                                             killRecordedEvent.killerPlayerId == null &&
+                                             killRecordedEvent.killedCharacterInstanceId == actorCharacterId);
+        Assert.Equal(MatchState.ended, gameState.matchState);
+        Assert.Equal(enemyTeamId, gameState.winnerTeamId);
+        Assert.Equal(0, gameState.teams[actorTeamId].killScore);
+        Assert.Equal(10, gameState.teams[enemyTeamId].killScore);
+        Assert.Equal("A001", gameState.currentAnomalyState!.currentAnomalyDefinitionId);
+        Assert.Null(gameState.currentInputContext);
+        Assert.DoesNotContain(events, gameEvent => gameEvent is AnomalyResolvedEvent);
+    }
+
+    [Fact]
     public void TryResolveAnomaly_WhenA001AndFriendlyHpInsufficient_ShouldFailWithoutConsumingGateOrChangingState()
     {
         var actorPlayerId = new PlayerId(1);
@@ -180,7 +343,7 @@ public class ActionRequestProcessorAnomalyTests
             enemyTeamId,
             actorMana: 8,
             actorCharacterHp: 3,
-            allyCharacterHp: 1,
+            allyCharacterHp: 0,
             hasAllyActiveCharacter: true);
 
         var actorCharacterId = gameState.players[actorPlayerId].activeCharacterInstanceId!.Value;
@@ -200,7 +363,7 @@ public class ActionRequestProcessorAnomalyTests
 
         Assert.Equal(8, gameState.players[actorPlayerId].mana);
         Assert.Equal(3, gameState.characterInstances[actorCharacterId].currentHp);
-        Assert.Equal(1, gameState.characterInstances[allyCharacterId].currentHp);
+        Assert.Equal(0, gameState.characterInstances[allyCharacterId].currentHp);
         Assert.Equal(10, gameState.teams[enemyTeamId].killScore);
         Assert.False(gameState.turnState!.hasResolvedAnomalyThisTurn);
     }
@@ -5616,6 +5779,70 @@ public class ActionRequestProcessorAnomalyTests
         };
 
         return gameState;
+    }
+
+    private static void setEnemyCharacterDefinition(
+        RuleCore.GameState.GameState gameState,
+        PlayerId playerId,
+        string characterDefinitionId,
+        params string[] raceTags)
+    {
+        var characterInstanceId = gameState.players[playerId].activeCharacterInstanceId!.Value;
+        var character = gameState.characterInstances[characterInstanceId];
+        character.definitionId = characterDefinitionId;
+        character.raceTags.Clear();
+        foreach (var raceTag in raceTags)
+        {
+            character.raceTags.Add(raceTag);
+        }
+    }
+
+    private static void addEnemyPlayerWithCharacter(
+        RuleCore.GameState.GameState gameState,
+        PlayerId playerId,
+        TeamId teamId,
+        CharacterInstanceId characterInstanceId,
+        string characterDefinitionId,
+        params string[] raceTags)
+    {
+        gameState.players[playerId] = new PlayerState
+        {
+            playerId = playerId,
+            teamId = teamId,
+            mana = 0,
+            activeCharacterInstanceId = characterInstanceId,
+        };
+
+        gameState.characterInstances[characterInstanceId] = new CharacterInstance
+        {
+            characterInstanceId = characterInstanceId,
+            definitionId = characterDefinitionId,
+            ownerPlayerId = playerId,
+            currentHp = 4,
+            maxHp = 4,
+            isAlive = true,
+            isInPlay = true,
+        };
+        foreach (var raceTag in raceTags)
+        {
+            gameState.characterInstances[characterInstanceId].raceTags.Add(raceTag);
+        }
+
+        if (!gameState.teams.TryGetValue(teamId, out var teamState))
+        {
+            teamState = new TeamState
+            {
+                teamId = teamId,
+                killScore = 10,
+                leyline = 0,
+            };
+            gameState.teams[teamId] = teamState;
+        }
+
+        teamState.memberPlayerIds.Add(playerId);
+        gameState.matchMeta.seatOrder.Add(playerId);
+        gameState.matchMeta.teamAssignments[playerId] = teamId;
+        addStandardPlayerZones(gameState, gameState.players[playerId]);
     }
 
     private static RuleCore.GameState.GameState createA003SampleGameState(

@@ -97,6 +97,14 @@ public class ServerBridgeEditModeTests
     }
 
     [Test]
+    public void NormalizeLobbyWebSocketUrl_ShouldRemoveInvisibleCharactersAndAppendLobbyMode()
+    {
+        var normalizedUrl = GameClientNetworkController.NormalizeLobbyWebSocketUrl("26.56.160.3:18080/ws\u200B");
+
+        Assert.That(normalizedUrl, Is.EqualTo("ws://26.56.160.3:18080/ws?mode=lobby"));
+    }
+
+    [Test]
     public void SendDrawOneCard_ShouldEmitRawRequestBeforeSend()
     {
         var fakeSocketClient = new FakeSocketClient();

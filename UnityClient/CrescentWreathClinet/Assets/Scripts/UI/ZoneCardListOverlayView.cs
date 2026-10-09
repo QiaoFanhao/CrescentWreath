@@ -18,6 +18,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
     private RectTransform? listRoot;
     private TMP_Text? titleText;
     private Button? closeButton;
+    private OverlayCollapseToggle? collapseToggle;
 
     public void Configure(BattlefieldUiTheme newTheme)
     {
@@ -53,7 +54,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
         }
 
         listRoot!.sizeDelta = new Vector2(listRoot.sizeDelta.x, Mathf.Max(360f, cards.Count * 82f));
-        setVisible(true);
+        setVisible(true, resetCollapsed: true);
     }
 
     public void ShowDeckKnowledge(string title, IReadOnlyList<ProjectionOwnedCardKnowledgeViewModel> cards)
@@ -68,7 +69,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
         {
             createTextRow("没有可公开推测的卡牌。", "手牌和卡组仍保持未知。");
             listRoot!.sizeDelta = new Vector2(listRoot.sizeDelta.x, 360f);
-            setVisible(true);
+            setVisible(true, resetCollapsed: true);
             return;
         }
 
@@ -83,7 +84,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
 
         var rows = Mathf.CeilToInt(cards.Count / (float)columns);
         listRoot!.sizeDelta = new Vector2(listRoot.sizeDelta.x, Mathf.Max(360f, rows * (cellHeight + gap) + 8f));
-        setVisible(true);
+        setVisible(true, resetCollapsed: true);
     }
 
     public void ShowHiddenCount(string title, int hiddenCount, string hint)
@@ -97,7 +98,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
         var countText = hiddenCount <= 0 ? "该区域当前没有卡牌。" : $"该区域有 {hiddenCount} 张牌。";
         createTextRow(countText, hint);
         listRoot!.sizeDelta = new Vector2(listRoot.sizeDelta.x, 360f);
-        setVisible(true);
+        setVisible(true, resetCollapsed: true);
     }
 
     public void Hide()
@@ -246,6 +247,9 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
         listRoot.offsetMin = new Vector2(0f, listRoot.offsetMin.y);
         listRoot.offsetMax = new Vector2(0f, listRoot.offsetMax.y);
         scrollRect.content = listRoot;
+
+        collapseToggle = gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
     }
 
     private void createCardRow(ProjectionCardViewModel card, int index)
@@ -440,7 +444,7 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
         }
     }
 
-    private void setVisible(bool visible)
+    private void setVisible(bool visible, bool resetCollapsed = false)
     {
         canvasGroup ??= gameObject.GetComponent<CanvasGroup>();
         if (canvasGroup is null)
@@ -448,9 +452,11 @@ public sealed class ZoneCardListOverlayView : MonoBehaviour
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
 
-        canvasGroup.alpha = visible ? 1f : 0f;
-        canvasGroup.interactable = visible;
-        canvasGroup.blocksRaycasts = visible;
+        collapseToggle = collapseToggle != null
+            ? collapseToggle
+            : gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
+        collapseToggle.SetVisible(visible, resetCollapsed);
     }
 
     private static string localizeZone(string zoneKey)

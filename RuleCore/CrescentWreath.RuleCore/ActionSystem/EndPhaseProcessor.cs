@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using CrescentWreath.RuleCore.EffectSystem;
 using CrescentWreath.RuleCore.Entities;
 using CrescentWreath.RuleCore.Events;
@@ -18,6 +19,7 @@ public sealed class EndPhaseProcessor
     private const string EndPhaseDiscardInputTypeKey = "endPhaseDiscardChoice";
     private const string EndPhaseDiscardContextKey = "endPhase:discardToHandLimit";
     private const string EndPhaseDiscardChoiceKeyPrefix = "discardCard:";
+    private const string CharacterDefinitionIdC031 = "C031";
     private const int TurnStartHandTargetSize = 6;
 
     private readonly ZoneMovementService zoneMovementService;
@@ -216,7 +218,7 @@ public sealed class EndPhaseProcessor
             submitInputChoiceActionRequest.requestId);
     }
 
-    public void forceCompleteEndSettlementWithoutHandCapInput(
+    public bool forceCompleteEndSettlementWithoutHandCapInput(
         RuleCore.GameState.GameState gameState,
         ActionChainState actionChainState,
         PlayerState actorPlayerState,
@@ -227,11 +229,24 @@ public sealed class EndPhaseProcessor
             actionChainState,
             actorPlayerState,
             eventId);
+
+        var handZoneState = gameState.zones[actorPlayerState.handZoneId];
+        if (handZoneState.cardInstanceIds.Count > TurnStartHandTargetSize)
+        {
+            openEndPhaseHandDiscardInputContext(
+                gameState,
+                actionChainState,
+                actorPlayerState,
+                eventId);
+            return true;
+        }
+
         finalizeEnterEndPhaseAfterHandCap(
             gameState,
             actionChainState,
             actorPlayerState,
             eventId);
+        return false;
     }
 
     private void openEndPhaseHandDiscardInputContext(
@@ -385,6 +400,11 @@ public sealed class EndPhaseProcessor
             TurnStartHandTargetSize,
             eventId);
 
+        appendC031NewVampireTurnEndHealEvents(
+            gameState,
+            actionChainState,
+            eventId);
+
         var removedShortStatuses = StatusRuntime.clearShortStatusesAtTurnEnd(gameState);
         foreach (var removedStatus in removedShortStatuses)
         {
@@ -449,6 +469,93 @@ public sealed class EndPhaseProcessor
         actionChainState.pendingContinuationKey = null;
         actionChainState.currentFrameIndex = actionChainState.effectFrames.Count;
         actionChainState.isCompleted = true;
+    }
+
+    private static void appendC031NewVampireTurnEndHealEvents(
+        RuleCore.GameState.GameState gameState,
+        ActionChainState actionChainState,
+        long eventId)
+    {
+        foreach (var playerId in getPlayersInSeatOrder(gameState))
+        {
+            if (!tryFindAliveInPlayCharacterInstanceByOwner(
+                    gameState,
+                    playerId,
+                    out var characterInstance) ||
+                !string.Equals(characterInstance.definitionId, CharacterDefinitionIdC031, StringComparison.Ordinal) ||
+                characterInstance.currentHp != 1 ||
+                characterInstance.maxHp <= 1)
+            {
+                continue;
+            }
+
+            var hpBefore = characterInstance.currentHp;
+            SkillPresentationEventEmitter.appendIfNeeded(
+                actionChainState,
+                characterInstance.ownerPlayerId,
+                characterInstance,
+                "C031:1",
+                "response");
+            characterInstance.currentHp = characterInstance.maxHp;
+            actionChainState.producedEvents.Add(new HpChangedEvent
+            {
+                eventId = eventId,
+                eventTypeKey = "hpChanged",
+                sourceActionChainId = actionChainState.actionChainId,
+                targetPlayerId = characterInstance.ownerPlayerId,
+                targetCharacterInstanceId = characterInstance.characterInstanceId,
+                hpBefore = hpBefore,
+                hpAfter = characterInstance.currentHp,
+                delta = characterInstance.currentHp - hpBefore,
+            });
+        }
+    }
+
+    private static List<PlayerId> getPlayersInSeatOrder(RuleCore.GameState.GameState gameState)
+    {
+        if (gameState.matchMeta is not null && gameState.matchMeta.seatOrder.Count > 0)
+        {
+            return gameState.matchMeta.seatOrder.ToList();
+        }
+
+        return gameState.players.Keys
+            .OrderBy(playerId => playerId.Value)
+            .ToList();
+    }
+
+    private static bool tryFindAliveInPlayCharacterInstanceByOwner(
+        RuleCore.GameState.GameState gameState,
+        PlayerId ownerPlayerId,
+        out CharacterInstance characterInstance)
+    {
+        CharacterInstance? selectedCharacter = null;
+        long selectedCharacterNumericId = long.MaxValue;
+        foreach (var candidateCharacterInstance in gameState.characterInstances.Values)
+        {
+            if (candidateCharacterInstance.ownerPlayerId != ownerPlayerId ||
+                !candidateCharacterInstance.isAlive ||
+                !candidateCharacterInstance.isInPlay)
+            {
+                continue;
+            }
+
+            if (candidateCharacterInstance.characterInstanceId.Value >= selectedCharacterNumericId)
+            {
+                continue;
+            }
+
+            selectedCharacterNumericId = candidateCharacterInstance.characterInstanceId.Value;
+            selectedCharacter = candidateCharacterInstance;
+        }
+
+        if (selectedCharacter is null)
+        {
+            characterInstance = null!;
+            return false;
+        }
+
+        characterInstance = selectedCharacter;
+        return true;
     }
 
     private void appendDrawEventsUntilTargetHandSize(

@@ -13,7 +13,23 @@ public sealed class ProjectionViewState : MonoBehaviour
     public void Apply(ProjectionViewModel projection)
     {
         Current = projection;
-        ProjectionChanged?.Invoke(projection);
+        var handlers = ProjectionChanged;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (Action<ProjectionViewModel> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(projection);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"[ProjectionViewState] ProjectionChanged handler failed: {exception}");
+            }
+        }
     }
 }
 }

@@ -20,4 +20,7 @@ public sealed class ServerSocketResponseEnvelope
     public ServerStateProjection? stateProjection { get; set; }
     public List<ServerEventLogEntry> eventLog { get; set; } = new();
     public ServerInteractionProjection? interaction { get; set; }
+    public LobbyProjection? lobbyProjection { get; set; }
+    public long? assignedPlayerNumericId { get; set; }
+    public string? messageType { get; set; }
 }

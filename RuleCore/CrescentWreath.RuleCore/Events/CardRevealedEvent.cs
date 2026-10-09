@@ -8,4 +8,5 @@ public sealed class CardRevealedEvent : GameEvent
     public PlayerId ownerPlayerId { get; set; }
     public string definitionId { get; set; } = string.Empty;
     public string revealReasonKey { get; set; } = string.Empty;
+    public string declaredDefinitionId { get; set; } = string.Empty;
 }

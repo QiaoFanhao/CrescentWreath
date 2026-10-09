@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fb072132eab4d6590e2250008bb6563, type: 3}
+  m_Name: DefaultEffectPresentationCatalog
+  m_EditorClassIdentifier: CrescentWreath.Client.UI::CrescentWreath.Client.UI.EffectPresentationCatalog
+  vfxCatalog: {fileID: 11400000, guid: 0d896ce5ccbc8864ea5e7ac9c770bb9e, type: 2}
+  sfxCatalog: {fileID: 11400000, guid: d80cd501c4e120049a3dade2d6aee1ee, type: 2}
+  entries:
+  - effectCategoryKey: cardActivate
+    vfxKey: cardActivate
+    sfxKey: cardActivate
+    labelText: "\u5361\u724C\u53D1\u52A8"
+    totalDelayBeforeInteraction: 0.35
+  - effectCategoryKey: damage
+    vfxKey: damage
+    sfxKey: damage
+    labelText: "\u4F24\u5BB3\u7ED3\u7B97"
+    totalDelayBeforeInteraction: 0.45
+  - effectCategoryKey: directDamage
+    vfxKey: directDamage
+    sfxKey: directDamage
+    labelText: "\u76F4\u63A5\u4F24\u5BB3"
+    totalDelayBeforeInteraction: 0.45
+  - effectCategoryKey: heal
+    vfxKey: heal
+    sfxKey: heal
+    labelText: "\u751F\u547D\u56DE\u590D"
+    totalDelayBeforeInteraction: 0.35
+  - effectCategoryKey: defense
+    vfxKey: defense
+    sfxKey: defense
+    labelText: "\u9632\u5FA1\u54CD\u5E94"
+    totalDelayBeforeInteraction: 0.35
+  - effectCategoryKey: draw
+    vfxKey: draw
+    sfxKey: draw
+    labelText: "\u6293\u724C"
+    totalDelayBeforeInteraction: 0.25
+  - effectCategoryKey: gainResource
+    vfxKey: gainResource
+    sfxKey: gainResource
+    labelText: "\u8D44\u6E90\u53D8\u5316"
+    totalDelayBeforeInteraction: 0.25
+  - effectCategoryKey: seal
+    vfxKey: seal
+    sfxKey: seal
+    labelText: "\u5C01\u5370/\u72B6\u6001"
+    totalDelayBeforeInteraction: 0.35
+  - effectCategoryKey: banish
+    vfxKey: banish
+    sfxKey: banish
+    labelText: "\u653E\u9010"
+    totalDelayBeforeInteraction: 0.35
+  - effectCategoryKey: anomaly
+    vfxKey: anomaly
+    sfxKey: anomaly
+    labelText: "\u5F02\u53D8\u6548\u679C"
+    totalDelayBeforeInteraction: 0.45
+  - effectCategoryKey: turnChange
+    vfxKey: turnChange
+    sfxKey: turnChange
+    labelText: "\u56DE\u5408\u5207\u6362"
+    totalDelayBeforeInteraction: 0.25
+  - effectCategoryKey: genericEffect
+    vfxKey: genericEffect
+    sfxKey: genericEffect
+    labelText: "\u6548\u679C\u5904\u7406"
+    totalDelayBeforeInteraction: 0.3

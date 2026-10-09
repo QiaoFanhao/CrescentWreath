@@ -51,6 +51,7 @@ public sealed class ServerBridge : IDisposable
     public event Action<string>? OnRawResponse;
     public event Action<ServerResponseSummary>? OnSummaryUpdated;
     public event Action<ProjectionViewModel>? OnProjectionUpdated;
+    public event Action<LobbyProjectionViewModel>? OnLobbyUpdated;
     public event Action<string>? OnConnectionStateChanged;
     public event Action<string>? OnError;
 
@@ -76,6 +77,14 @@ public sealed class ServerBridge : IDisposable
         lastProjectionModel = null;
         latestProjectionForUi = null;
         socketClient.Connect(appendViewerToSocketUrl(wsUrl, viewerPlayerNumericId));
+    }
+
+    public void ConnectLobby(string wsUrl)
+    {
+        throwIfDisposed();
+        lastProjectionModel = null;
+        latestProjectionForUi = null;
+        socketClient.Connect(wsUrl);
     }
 
     public void Disconnect()
@@ -345,6 +354,55 @@ public sealed class ServerBridge : IDisposable
             () => buildDebugResetMatchPayload());
     }
 
+    public void SendLobbyListRooms()
+    {
+        sendLobbyEnvelope("lobbyListRooms", "{}");
+    }
+
+    public void SendLobbyRefresh()
+    {
+        sendLobbyEnvelope("lobbyRefresh", "{}");
+    }
+
+    public void SendLobbyCreateRoom(string roomName, string displayName)
+    {
+        sendLobbyEnvelope(
+            "lobbyCreateRoom",
+            "{"
+            + "\"roomName\":\"" + escapeJsonString(roomName.Trim()) + "\""
+            + ",\"displayName\":\"" + escapeJsonString(displayName.Trim()) + "\""
+            + "}");
+    }
+
+    public void SendLobbyJoinRoom(string roomId, string displayName)
+    {
+        sendLobbyEnvelope(
+            "lobbyJoinRoom",
+            "{"
+            + "\"roomId\":\"" + escapeJsonString(roomId.Trim()) + "\""
+            + ",\"displayName\":\"" + escapeJsonString(displayName.Trim()) + "\""
+            + "}");
+    }
+
+    public void SendLobbyLeaveRoom()
+    {
+        sendLobbyEnvelope("lobbyLeaveRoom", "{}");
+    }
+
+    public void SendLobbySetTeam(string teamKey)
+    {
+        sendLobbyEnvelope(
+            "lobbySetTeam",
+            "{\"teamKey\":\"" + escapeJsonString(teamKey.Trim()) + "\"}");
+    }
+
+    public void SendLobbySubmitReadyState(bool isReady)
+    {
+        sendLobbyEnvelope(
+            "lobbySubmitReadyState",
+            "{\"isReady\":" + (isReady ? "true" : "false") + "}");
+    }
+
     public static ServerResponseSummary ParseSummary(string rawJson, long fallbackViewerPlayerNumericId)
     {
         var parsedProjection = ProjectionParser.Parse(rawJson, fallbackViewerPlayerNumericId);
@@ -399,6 +457,21 @@ public sealed class ServerBridge : IDisposable
         socketClient.SendText(messageJson);
     }
 
+    private void sendLobbyEnvelope(string actionType, string payloadJson)
+    {
+        throwIfDisposed();
+        var requestId = nextRequestId++;
+        var messageJson =
+            "{"
+            + "\"requestId\":" + requestId
+            + ",\"viewerPlayerNumericId\":" + viewerPlayerNumericId
+            + ",\"actionType\":\"" + escapeJsonString(actionType) + "\""
+            + ",\"payload\":" + payloadJson
+            + "}";
+        OnRawRequest?.Invoke(messageJson);
+        socketClient.SendText(messageJson);
+    }
+
     private void handleConnected()
     {
         OnConnectionStateChanged?.Invoke("connected");
@@ -412,6 +485,28 @@ public sealed class ServerBridge : IDisposable
     private void handleTextMessage(string rawJson)
     {
         OnRawResponse?.Invoke(rawJson);
+        if (LobbyProjectionParser.TryParse(rawJson, out var lobbyProjection, out var assignedPlayerNumericId))
+        {
+            if (assignedPlayerNumericId > 0)
+            {
+                viewerPlayerNumericId = assignedPlayerNumericId;
+                localPlayerNumericId = assignedPlayerNumericId;
+                actorPlayerNumericId = assignedPlayerNumericId;
+            }
+
+            OnLobbyUpdated?.Invoke(lobbyProjection);
+            if (!hasStateProjectionPayload(rawJson))
+            {
+                OnSummaryUpdated?.Invoke(new ServerResponseSummary
+                {
+                    viewerPlayerNumericId = viewerPlayerNumericId,
+                    isSucceeded = string.IsNullOrWhiteSpace(lobbyProjection.error),
+                    errorMessage = lobbyProjection.error,
+                });
+                return;
+            }
+        }
+
         var summary = ParseSummary(rawJson, viewerPlayerNumericId);
         OnSummaryUpdated?.Invoke(summary);
 
@@ -438,6 +533,29 @@ public sealed class ServerBridge : IDisposable
 
         latestProjectionForUi = projectionForUi.deepClone();
         OnProjectionUpdated?.Invoke(projectionForUi);
+    }
+
+    private static bool hasStateProjectionPayload(string rawJson)
+    {
+        var stateKeyIndex = rawJson.IndexOf("\"stateProjection\"", StringComparison.Ordinal);
+        if (stateKeyIndex < 0)
+        {
+            return false;
+        }
+
+        var colonIndex = rawJson.IndexOf(':', stateKeyIndex);
+        if (colonIndex < 0)
+        {
+            return false;
+        }
+
+        var valueStart = colonIndex + 1;
+        while (valueStart < rawJson.Length && char.IsWhiteSpace(rawJson[valueStart]))
+        {
+            valueStart++;
+        }
+
+        return valueStart < rawJson.Length && rawJson[valueStart] != 'n';
     }
 
     private void handleSocketError(string error)

@@ -21,6 +21,11 @@ public static class SigilSnapshotCalculator
                 continue;
             }
 
+            if (cardInstance.isDefensePlacedOnField)
+            {
+                continue;
+            }
+
             recomputedSigilPreview += TreasureResourceValueResolver.resolveSigilPreviewGainOnEnterField(cardInstance.definitionId);
             recomputedSigilPreview += MechanicalJadeRuntime.resolveOverlayResourceBonus(gameState, cardInstance);
         }

@@ -814,7 +814,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillName = "之后就谁都不在了",
                     skillOrder = 2,
                     skillTypeRaw = "响应",
-                    skillCostRaw = "你给予任意数量对手体术或咒术伤害时，减少X生命并弃X张牌",
+                    skillCostRaw = "你给予任意数量对手体术或咒术伤害时，减少1生命并弃X张牌",
                     manaCost = 0,
                     leylineCost =0,
                     skillType = "response",
@@ -825,8 +825,8 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
                     skillName = "莱汶丁",
                     skillOrder = 3,
                     skillTypeRaw = "通常",
-                    skillCostRaw = "③，弃1张牌",
-                    manaCost = 3,
+                    skillCostRaw = "④，弃1张牌",
+                    manaCost = 4,
                     leylineCost =0,
                     skillType = "active",
                 },
@@ -1883,7 +1883,7 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
         {
             characterDefinition.factionKey = resolveFactionKey(characterDefinition.definitionId);
             characterDefinition.isImplemented =
-                characterDefinition.definitionId is "C001" or "C003" or "C004" or "C005" or "C007" or "C008" or "C011" or "C013" or "C018";
+                characterDefinition.definitionId is "C001" or "C003" or "C004" or "C005" or "C007" or "C008" or "C011" or "C013" or "C014" or "C018" or "C021" or "C022" or "C031";
             applyImplementedSkillEffectText(characterDefinition);
         }
     }
@@ -1943,11 +1943,27 @@ public sealed class InMemoryCharacterDefinitionSource : ICharacterDefinitionSour
             ["C013:1"] = "任意玩家回合开始时，若召唤区有机械翡翠且你手牌至少2张，可以弃2张牌，将1张机械翡翠如同召唤般置入你的弃牌堆。",
             ["C013:2"] = "对手使用牌防御后，你可以弃1张手牌并支付2灵脉，用弃牌防御值替换其本次防御值；若因此被队友击杀，视为你击杀。",
             ["C013:3"] = "对手击杀分+1（最多10）；选择牌库非空的目标对手，翻看其牌库顶牌，造成7-该牌防御值的直接伤害。",
-            ["C013:4"] = "选择牌库非空的目标对手，翻看其牌库顶牌，造成该牌召唤费用-1的直接伤害；结算后目标可以将此牌置入手牌。",
+            ["C013:4"] = "选择牌库非空的目标对手，翻看其牌库顶牌，造成该牌召唤费用的直接伤害；结算后目标可以将此牌置入手牌。",
+            ["C014:1"] = "抓3张牌，并获得短暂状态；进入召唤阶段时移除此状态并跳过本回合召唤阶段。",
+            ["C014:2"] = "你给予对手体术或咒术伤害前，可以减少1生命并弃X张手牌，使本次伤害+X。",
+            ["C014:3"] = "弃1张手牌，获得1个毁灭指示物（最多3个），然后给予目标对手1+毁灭指示物数量的体术伤害。",
+            ["C014:4"] = "弃1张手牌并移除X个毁灭指示物，给予所有对手2X点咒术伤害；结算后对自己造成X-1点直接伤害。",
             ["C018:1"] = "你的召唤阶段中，召唤宝具实际支付的灵符-1，但至少支付1。",
             ["C018:2"] = "给予除你以外所有玩家1点直接伤害。",
             ["C018:3"] = "直接击杀所有生命值为1的对手。",
             ["C018:4"] = "所有生命值高于2的对手将当前生命值强行降为2；这不是伤害。",
+            ["C021:1"] = "每回合一次，弃1张手牌；你回复1生命并抓1张牌。",
+            ["C021:2"] = "弃1张手牌，选择目标对手造成3点咒术伤害；结算后本回合下一次使用此技能不消耗魔力。",
+            ["C021:3"] = "使用黑键投射时，可额外支付4魔力和1灵脉；先封印目标，且本次黑键投射伤害+2。",
+            ["C021:4"] = "选择目标对手，使其获得禁锢并弃1张手牌；若目标是C011爱尔奎特，则额外再弃1张。",
+            ["C022:1"] = "获得1个人形指示物，最多3个。",
+            ["C022:2"] = "移除1个人形，选择目标对手阵地区一张防御牌置入弃牌区，并对其队友造成4-该牌召唤费用的咒术伤害。",
+            ["C022:3"] = "移除2个人形，抓2张牌并展示；选择目标对手，造成展示牌防御值之和-2的体术伤害；对C017帕秋莉伤害+1。",
+            ["C022:4"] = "移除X个人形并选择目标对手；目标选择X项：你抓X张牌、目标弃X张牌、目标受到X点直接伤害、目标队伍扣除X点灵脉。",
+            ["C031:1"] = "当你的生命值为1时，任意回合结束时回复至最大生命值。",
+            ["C031:2"] = "选择消耗X点灵脉，给予目标对手3+X点体术伤害。",
+            ["C031:3"] = "宣言一个牌名并翻开目标对手牌库顶牌；若猜中则你获得1灵脉，否则你和目标各抓1张牌。",
+            ["C031:4"] = "移除所有结界，所有玩家生命值降低到1；这不是伤害。",
         };
 
         foreach (var skill in definition.skills.Values)

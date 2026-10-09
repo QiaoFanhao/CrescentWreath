@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using CrescentWreath.Client.Net;
 using TMPro;
@@ -29,7 +31,11 @@ public sealed class InputContextOverlayView : MonoBehaviour
     private Button? clearButton;
     private CanvasGroup? canvasGroup;
     private Image? rootImage;
+    private OverlayCollapseToggle? collapseToggle;
+    private ProjectionViewModel? currentProjection;
     private long? renderedInputContextNumericId;
+    private Coroutine? delayedRenderCoroutine;
+    private int delayedRenderVersion;
     private bool isCurrentMultiSelect;
     private int currentMaxSelectionCount = 1;
     private int currentMinSelectionCount = 1;
@@ -65,6 +71,12 @@ public sealed class InputContextOverlayView : MonoBehaviour
         {
             projectionViewState.ProjectionChanged -= render;
         }
+
+        if (delayedRenderCoroutine is not null)
+        {
+            StopCoroutine(delayedRenderCoroutine);
+            delayedRenderCoroutine = null;
+        }
     }
 
     private void subscribe()
@@ -84,12 +96,22 @@ public sealed class InputContextOverlayView : MonoBehaviour
         if (projection is null || !projection.interaction.hasInputContext)
         {
             setVisible(false);
+            currentProjection = null;
             renderedInputContextNumericId = null;
             selectedChoiceKeys.Clear();
             return;
         }
 
-        setVisible(true);
+        currentProjection = projection;
+        var isNewInputContext = renderedInputContextNumericId != projection.interaction.inputContextNumericId;
+        if (BattlefieldInteractionPresentationGate.ShouldDelayInteraction(projection, isNewInputContext, out var remainingSeconds))
+        {
+            setVisible(false);
+            scheduleDelayedRender(remainingSeconds);
+            return;
+        }
+
+        setVisible(true, isNewInputContext);
         if (renderedInputContextNumericId != projection.interaction.inputContextNumericId)
         {
             selectedChoiceKeys.Clear();
@@ -109,31 +131,31 @@ public sealed class InputContextOverlayView : MonoBehaviour
             selectedChoiceKeys.RemoveRange(1, selectedChoiceKeys.Count - 1);
         }
 
-        var inputId = projection.interaction.inputContextNumericId?.ToString() ?? "-";
-        setText(titleText, $"输入选择 #{inputId}");
+        var description = InputContextDescriptionResolver.Resolve(projection);
+        setText(titleText, description.title);
         if (!isRequired)
         {
-            var requiredText = projection.interaction.inputRequiredPlayerNumericIds.Count > 0
-                ? string.Join(",", projection.interaction.inputRequiredPlayerNumericIds)
-                : projection.interaction.inputRequiredPlayerNumericId?.ToString() ?? "?";
-            setText(detailText, $"等待 Player {requiredText} 选择。");
+            setText(detailText, description.waitingText);
             clearChoices();
             setSubmitVisible(false);
+            refreshCollapsedState();
             return;
         }
 
         if (hasSubmitted)
         {
-            setText(detailText, $"已提交，等待其他玩家完成。{projection.interaction.inputSubmittedPlayerCount}/{projection.interaction.inputRequiredPlayerCount}");
+            setText(detailText, description.submittedText);
             clearChoices();
             setSubmitVisible(false);
+            refreshCollapsedState();
             return;
         }
 
-        setText(detailText, buildDetailText(projection));
+        setText(detailText, description.detail);
         renderChoices(projection);
         setSubmitVisible(true);
         refreshSubmitState();
+        refreshCollapsedState();
     }
 
     private void renderChoices(ProjectionViewModel projection)
@@ -219,6 +241,11 @@ public sealed class InputContextOverlayView : MonoBehaviour
 
     private void submitSelection()
     {
+        if (BattlefieldInteractionPresentationGate.IsPresentationBusy)
+        {
+            return;
+        }
+
         if (networkController is null || selectedChoiceKeys.Count == 0)
         {
             return;
@@ -291,20 +318,19 @@ public sealed class InputContextOverlayView : MonoBehaviour
 
         var maxText = currentMaxSelectionCount == int.MaxValue ? "不限" : currentMaxSelectionCount.ToString();
         var minText = currentMinSelectionCount > 1 ? $"，至少 {currentMinSelectionCount}" : string.Empty;
-        return isCurrentMultiSelect
-            ? $"已选 {selectedChoiceKeys.Count}/{maxText}{minText}"
-            : $"已选：{selectedChoiceKeys[0]}";
-    }
+        if (currentProjection is null)
+        {
+            return isCurrentMultiSelect
+                ? $"已选 {selectedChoiceKeys.Count}/{maxText}{minText}"
+                : $"已选：{selectedChoiceKeys[0]}";
+        }
 
-    private static string buildDetailText(ProjectionViewModel projection)
-    {
-        var typeText = string.IsNullOrWhiteSpace(projection.interaction.inputTypeKey)
-            ? "未知类型"
-            : projection.interaction.inputTypeKey;
-        var contextText = string.IsNullOrWhiteSpace(projection.interaction.contextKey)
-            ? "无上下文"
-            : projection.interaction.contextKey;
-        return $"{typeText} / {contextText} / 选项 {projection.interaction.inputChoiceKeys.Count}";
+        var selectedNames = selectedChoiceKeys
+            .Select(choiceKey => ChoicePresentationResolver.Resolve(currentProjection, choiceKey).title)
+            .ToList();
+        return isCurrentMultiSelect
+            ? $"已选 {selectedChoiceKeys.Count}/{maxText}{minText}：{string.Join("、", selectedNames)}"
+            : $"已选：{selectedNames[0]}";
     }
 
     private void ensureVisualTree()
@@ -369,26 +395,30 @@ public sealed class InputContextOverlayView : MonoBehaviour
         setAnchors(selectionText.rectTransform, new Vector2(0.05f, 0.14f), new Vector2(0.56f, 0.2f), Vector2.zero, Vector2.zero);
         submitButton = createButton("SubmitButton", transform, "提交选择", new Vector2(0.58f, 0.08f), new Vector2(0.78f, 0.2f), submitSelection);
         clearButton = createButton("ClearButton", transform, "清空选择", new Vector2(0.8f, 0.08f), new Vector2(0.95f, 0.2f), clearSelection);
+        collapseToggle = gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
     }
 
-    private void setVisible(bool visible)
+    private void setVisible(bool visible, bool resetCollapsed = false)
     {
-        foreach (Transform child in transform)
+        collapseToggle = collapseToggle != null
+            ? collapseToggle
+            : gameObject.GetComponent<OverlayCollapseToggle>() ?? gameObject.AddComponent<OverlayCollapseToggle>();
+        collapseToggle.Configure(theme);
+        collapseToggle.SetVisible(visible, resetCollapsed);
+
+        if (!visible)
         {
-            child.gameObject.SetActive(visible);
+            return;
         }
 
-        var currentRootImage = ensureRootImage();
-        if (currentRootImage != null)
-        {
-            currentRootImage.enabled = visible;
-            currentRootImage.raycastTarget = visible;
-        }
+        ensureRootImage();
+        ensureCanvasGroup();
+    }
 
-        var currentCanvasGroup = ensureCanvasGroup();
-        currentCanvasGroup.alpha = visible ? 1f : 0f;
-        currentCanvasGroup.interactable = visible;
-        currentCanvasGroup.blocksRaycasts = visible;
+    private void refreshCollapsedState()
+    {
+        collapseToggle?.RefreshIfCollapsed();
     }
 
     private CanvasGroup ensureCanvasGroup()
@@ -416,6 +446,30 @@ public sealed class InputContextOverlayView : MonoBehaviour
         return rootImage;
     }
 
+
+    private void scheduleDelayedRender(float delaySeconds)
+    {
+        delayedRenderVersion += 1;
+        var version = delayedRenderVersion;
+        if (delayedRenderCoroutine is not null)
+        {
+            StopCoroutine(delayedRenderCoroutine);
+        }
+
+        delayedRenderCoroutine = StartCoroutine(delayedRender(version, delaySeconds));
+    }
+
+    private IEnumerator delayedRender(int version, float delaySeconds)
+    {
+        yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, delaySeconds));
+        delayedRenderCoroutine = null;
+        if (version != delayedRenderVersion)
+        {
+            yield break;
+        }
+
+        render(projectionViewState?.Current);
+    }
     private void clearChoices()
     {
         if (choiceContent is null)

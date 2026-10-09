@@ -17,6 +17,8 @@ public static class BuffIconSpriteService
             ["buff:C008_01"] = "C008_01",
             ["buff:C008_02"] = "C008_02",
             ["buff:C011_01"] = "C011_01",
+            ["buff:C014_01"] = "C014_01",
+            ["buff:C021_01"] = "C021_01",
         };
 
     private static readonly Dictionary<string, (string title, string description)> TooltipByDefinitionId =
@@ -29,6 +31,8 @@ public static class BuffIconSpriteService
             ["buff:C008_01"] = ("体术增幅", "你的下一次体术伤害+1。"),
             ["buff:C008_02"] = ("咒术增幅", "你的下一次咒术伤害+1。"),
             ["buff:C011_01"] = ("白姬变身", "本回合你的所有伤害+1。"),
+            ["buff:C014_01"] = ("四重存在", "进入召唤阶段时移除此状态，并跳过本回合的召唤阶段。"),
+            ["buff:C021_01"] = ("\u9ed1\u952e\u6295\u5c04\u514d\u8d39", "\u672c\u56de\u5408\u4f60\u4e0b\u4e00\u6b21\u4f7f\u7528\u3010\u9ed1\u952e\u6295\u5c04\u3011\u4e0d\u6d88\u8017\u9b54\u529b\u3002"),
         };
 
     private static readonly Dictionary<string, Sprite?> SpriteCache = new(StringComparer.OrdinalIgnoreCase);
@@ -48,6 +52,8 @@ public static class BuffIconSpriteService
             "physicaldamageboostnext" or "status:physicaldamageboostnext" => "buff:C008_01",
             "spelldamageboostnext" or "status:spelldamageboostnext" => "buff:C008_02",
             "c011alldamageboostthisturn" or "status:c011alldamageboostthisturn" => "buff:C011_01",
+            "c014skipsummonphase" or "status:c014skipsummonphase" => "buff:C014_01",
+            "c021blackkeyprojectionfreemana" or "status:c021blackkeyprojectionfreemana" => "buff:C021_01",
             _ => string.Empty,
         };
     }

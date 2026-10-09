@@ -120,6 +120,9 @@ public sealed class TreasureOnPlayEffectRuntime
     private const string StatusKeyBarrier = "Barrier";
     private const string StatusKeyCharm = "Charm";
     private const string StatusKeyPenetrate = "Penetrate";
+    private const string MarkerTypeSwordAura = "swordAura";
+    private const string CharacterDefinitionIdC005 = "C005";
+    private const string LocalStateKeyC005SwordAuraGrantedForAction = "character:C005:1:swordAuraGrantedForAction";
     private const string RaceTagHuman = "human";
     private const string RaceTagNonHuman = "nonHuman";
     private const string RevealReasonKeyT013DeclareCardName = "treasureOnPlay:T013:declareCardName";
@@ -2789,6 +2792,43 @@ public sealed class TreasureOnPlayEffectRuntime
         return activeCharacterInstance.isAlive && activeCharacterInstance.isInPlay;
     }
 
+    private static void tryApplyC005SwordAuraBeforePhysicalDamage(
+        GameState.GameState gameState,
+        ActionChainState actionChainState,
+        DamageContext damageContext,
+        long eventId)
+    {
+        if (!string.Equals(damageContext.damageType, DamageTypeKeyPhysical, StringComparison.Ordinal) ||
+            actionChainState.localState.ContainsKey(LocalStateKeyC005SwordAuraGrantedForAction) ||
+            !damageContext.sourcePlayerId.HasValue ||
+            !damageContext.targetPlayerId.HasValue ||
+            !gameState.players.TryGetValue(damageContext.sourcePlayerId.Value, out var sourcePlayerState) ||
+            !gameState.players.TryGetValue(damageContext.targetPlayerId.Value, out var targetPlayerState) ||
+            sourcePlayerState.teamId == targetPlayerState.teamId ||
+            StatusRuntime.hasStatusOnPlayer(gameState, sourcePlayerState.playerId, StatusKeySilence) ||
+            !tryResolveAliveInPlayActiveCharacter(gameState, sourcePlayerState.playerId, out var sourceCharacterInstance) ||
+            !string.Equals(sourceCharacterInstance.definitionId, CharacterDefinitionIdC005, StringComparison.Ordinal) ||
+            !MarkerRuntime.canAddMarker(sourceCharacterInstance, MarkerTypeSwordAura))
+        {
+            return;
+        }
+
+        SkillPresentationEventEmitter.appendIfNeeded(
+            actionChainState,
+            sourcePlayerState.playerId,
+            sourceCharacterInstance,
+            "C005:1",
+            "response");
+
+        actionChainState.producedEvents.Add(MarkerRuntime.addMarker(
+            sourceCharacterInstance,
+            MarkerTypeSwordAura,
+            1,
+            actionChainState.actionChainId,
+            eventId));
+        actionChainState.localState[LocalStateKeyC005SwordAuraGrantedForAction] = "1";
+    }
+
     private static CharacterInstance resolveAliveInPlayActiveCharacter(
         GameState.GameState gameState,
         PlayerId targetPlayerId,
@@ -3022,6 +3062,7 @@ public sealed class TreasureOnPlayEffectRuntime
             ownerPlayerId = revealedCardInstance.ownerPlayerId,
             definitionId = revealedCardInstance.definitionId,
             revealReasonKey = RevealReasonKeyT013DeclareCardName,
+            declaredDefinitionId = declaredDefinitionId,
         });
 
         if (!string.Equals(revealedCardInstance.definitionId, declaredDefinitionId, StringComparison.Ordinal))
@@ -3609,6 +3650,11 @@ public sealed class TreasureOnPlayEffectRuntime
         };
         actionChainState.producedEvents.AddRange(
             damageProcessor.applySourceMatchingDamageBonuses(gameState, stagedDamageContext));
+        tryApplyC005SwordAuraBeforePhysicalDamage(
+            gameState,
+            actionChainState,
+            stagedDamageContext,
+            requestId);
         var wasCharmConsumedBeforeDefense = damageProcessor.tryConsumeCharmBeforeDefense(
             gameState,
             stagedDamageContext,
