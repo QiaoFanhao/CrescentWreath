@@ -1,52 +1,52 @@
 # Crescent Wreath / 新月花冠
 
-Unity-based four-player, 2v2 online card game prototype. The project uses a
-server-authoritative rules engine and viewer-scoped WebSocket projections.
+《新月花冠》是一款使用 Unity 开发的四人固定 2V2 联机卡牌游戏原型。项目采用服务器权威架构，通过 WebSocket 为每名玩家生成独立的可见性投影。
 
-## Current Features
+## 当前功能
 
-- Four-player 2v2 LAN multiplayer
-- Lobby, team selection, ready flow, and server-assigned player seats
-- Server-authoritative RuleCore and structured trace logging
-- Viewer-scoped WebSocket state projection
-- 3D battlefield and card inspection
-- Character, Treasure, Anomaly, ResponseWindow, and InputContext systems
-- Card movement, VFX/SFX hooks, and skill cut-in presentation
+- 四人固定 2V2 局域网联机
+- 房间列表、阵营选择、准备流程与服务器座次分配
+- 服务器权威的 RuleCore 与结构化追踪日志
+- 根据玩家身份隔离信息的 WebSocket 状态投影
+- 3D 战场与卡牌详情查看
+- 角色、宝具、异变、`ResponseWindow` 与 `InputContext` 系统
+- 卡牌移动动画、VFX/SFX 接入与角色技能演出
 
-## Architecture
+## 架构
 
-`RuleCore -> ServerGameSession -> Viewer Projection -> Unity Client`
+`RuleCore -> ServerGameSession -> 玩家可见性投影 -> Unity Client`
 
-- `RuleCore/`: deterministic game state and rule resolution
-- `Server/`: lobby, authoritative session, WebSocket host, and projections
-- `UnityClient/CrescentWreathClinet/`: Unity client and presentation layer
-- `docs/`: rulebook and architecture/design documents
+- `RuleCore/`：确定性的游戏状态与规则裁定
+- `Server/`：局域网房间、权威对局、WebSocket Host 与状态投影
+- `UnityClient/CrescentWreathClinet/`：Unity 客户端与表现层
+- `docs/`：规则书、概要设计与详细设计文档
 
-## Development Status
+## 开发状态
 
-LAN Alpha / portfolio prototype. Steam, public matchmaking, accounts,
-spectating, and reconnect support are outside the current scope.
+当前处于 LAN Alpha / 作品集原型阶段。
 
-## Local Development
+Steam、公网匹配、账号、观战和断线重连不在当前开发范围内。
 
-- Unity editor: `6000.3.11f1`
-- Server: run `Server/CrescentWreath.ServerPrototype.Host/run-host.bat`
-- Default Lobby endpoint: `ws://127.0.0.1:18080/ws?mode=lobby`
-- LAN players can replace `127.0.0.1` in the connection page with the host's
-  LAN or VPN IPv4 address.
+## 本地运行
 
-Legacy development connections using
-`/ws?viewerPlayerNumericId=1..4` remain available for debugging.
+- Unity Editor：`6000.3.11f1`
+- 启动服务器：运行 `Server/CrescentWreath.ServerPrototype.Host/run-host.bat`
+- 默认 Lobby 地址：`ws://127.0.0.1:18080/ws?mode=lobby`
+- 局域网玩家可在连接界面中，将 `127.0.0.1` 替换为服务器所在设备的局域网或虚拟局域网 IPv4 地址
 
-## Third-party Assets
+用于开发调试的旧版直连入口仍然保留：
 
-Some art, VFX, SFX, fonts, UI assets, and game reference materials are
-third-party works. They are not claimed as original work by this repository.
-Commercial VFX and SFX source assets are intentionally excluded where their
-licenses do not permit public redistribution. Import licensed copies locally
-and rebuild the effect catalogs from the Unity editor when those presentations
-are required.
+```text
+/ws?viewerPlayerNumericId=1
+/ws?viewerPlayerNumericId=2
+/ws?viewerPlayerNumericId=3
+/ws?viewerPlayerNumericId=4
+```
 
-No open-source license is granted for project-owned game content unless a file
-or directory explicitly states otherwise. Bundled third-party packages retain
-their own license terms.
+## 第三方素材
+
+项目使用了部分第三方美术、VFX、SFX、字体、UI 素材和桌游参考资料。本仓库不声明这些内容由项目开发者原创。
+
+对于许可证不允许公开再分发的商业 VFX 与 SFX，本公开仓库仅保留接入代码和配置，不包含原始素材。需要相关演出时，请在本地导入合法授权的素材，并通过 Unity Editor 重新生成效果目录。
+
+除非具体文件或目录另有明确声明，本仓库不会自动授予项目自有游戏内容的开源许可。仓库中包含的第三方程序包继续遵循各自的许可证条款。
