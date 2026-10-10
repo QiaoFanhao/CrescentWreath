@@ -12,6 +12,16 @@
 - 角色、宝具、异变、`ResponseWindow` 与 `InputContext` 系统
 - 卡牌移动动画、VFX/SFX 接入与角色技能演出
 
+## 功能展示
+
+### 技能与伤害演出
+
+![技能与伤害演出](docs/media/battlefield-skill-damage.gif)
+
+### 宝具购买与牌库循环
+
+![宝具购买与牌库循环](docs/media/treasure-purchase-deck-cycle.gif)
+
 ## 架构
 
 `RuleCore -> ServerGameSession -> 玩家可见性投影 -> Unity Client`
